@@ -1,7 +1,10 @@
 // blackbird.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
-#include <iostream>
+#include "BlackbirdInclude.h"
+#include "BlackbirdMain.h"
+#include "Model.h"
+#include "GracefulEnd.h"
 
 int main()
 {

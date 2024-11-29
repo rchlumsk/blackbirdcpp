@@ -1,10 +1,57 @@
 #ifndef BLACKBIRDINCLUDE_H
 #define BLACKBIRDINCLUDE_H
 
-#include <string>
+#include <stdlib.h>
+#include <cstring>
+#include <algorithm>
+#include <math.h>
+#include <cmath>
+#include <limits>
 #include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <string>
+#include <strstream>
 #include <sstream>
+#include <vector>
 
+//*****************************************************************
+//Exit Strategies
+//*****************************************************************
+
+///////////////////////////////////////////////////////////////////
+/// \brief Series of codes containing possible reasons for exiting
+//
+enum exitcode
+{
+  BAD_DATA,       ///< For bad input provided by user (requires immediate exit from program)
+  BAD_DATA_WARN,  ///< For bad input provided by user (requires shutdown prior to simulation)
+  RUNTIME_ERR,    ///< For runtime error (bad programming)
+  FILE_OPEN_ERR,  ///< For bad file open (requires immediate exit)
+  BLACKBIRD_OPEN_ERR, ///< for bad BlackbirdErrors.txt file open
+  STUB,           ///< Stub function
+  OUT_OF_MEMORY,  ///< When out of memory
+  SIMULATION_DONE ///< Upon completion of the simulation
+};
+
+void FinalizeGracefully(const char* statement, exitcode code);  //defined in RavenMain.cpp
+void ExitGracefully(const char* statement, exitcode code);      //defined in RavenMain.cpp
+
+/////////////////////////////////////////////////////////////////
+/// \brief In-line function that calls ExitGracefully function in the case of condition
+///
+/// \param condition [in] Boolean indicating if program should exit gracefully
+/// \param statement [in] String to print to user upon exit
+/// \param code [in] Code to determine why the system is exiting
+//
+inline void ExitGracefullyIf(bool condition, const char* statement, exitcode code)
+{
+  if (condition) { ExitGracefully(statement, code); }
+}
+
+//*****************************************************************
+//Structures
+//*****************************************************************
 struct hydraulic_output {
   // Attributes
   int nodeID;
@@ -84,6 +131,9 @@ struct hydraulic_output {
   double length_effectiveadjusted;
 };
 
+//*****************************************************************
+//Enumerables
+//*****************************************************************
 enum enum_mt_method
 {
   HAND_MANNING,
@@ -121,15 +171,15 @@ enum enum_xsc_method
   OVERBANK_CONVEYANCE,
   DEFAULT_CONVEYANCE,
   COORDINATE_CONVEYANCE,
-  DISCRETIZED_CONVEYANCE,
-  AREAWEIGHTED_CONVEYANCE_ONECALC,
+  DISCRETIZED_CONVEYANCE_XS,
+  AREAWEIGHTED_CONVEYANCE_ONECALC_XS,
   AREAWEIGHTED_CONVEYANCE
 };
 
 enum enum_rc_method
 {
-  DISCRETIZED_CONVEYANCE,
-  AREAWEIGHTED_CONVEYANCE_ONECALC,
+  DISCRETIZED_CONVEYANCE_R,
+  AREAWEIGHTED_CONVEYANCE_ONECALC_R,
   ROUGHZONE_CONVEYANCE,
   BLENDED_CONVEYANCE
 };
@@ -148,5 +198,16 @@ enum enum_ppi_method
   INTERP_DHAND,
   INTERP_DHAND_WSLCORR
 };
+
+//Parsing Functions-------------------------------------------
+//defined in CommonFunctions.cpp
+double        AutoOrDouble(const std::string s);
+std::string   StringToUppercase(const std::string& s);
+bool          IsComment(const char* s, const int Len);
+void          WriteWarning(const std::string warn, bool noisy);
+void          WriteAdvisory(const std::string warn, bool noisy);
+double        fast_s_to_d(const char* s);
+double        FormatDouble(const double& d);
+void          SubstringReplace(std::string& str, const std::string& from, const std::string& to);
 
 #endif

@@ -1,0 +1,590 @@
+#include "ParseLib.h"
+#include "BlackbirdInclude.h"
+inline int      s_to_i(char* s1) { return (int)atof(s1); }
+inline double   s_to_d(char* s1) { return atof(s1); }
+inline bool     s_to_b(char* s1) { return ((int)atof(s1) != 0); }
+
+/*----------------------------------------------------------------
+  Constructor
+  -----------------------------------------------------------------------*/
+CParser::CParser(std::ifstream& FILE, const int i)
+{
+  filename = "";
+  INPUT = &FILE;
+  l = i;
+  comma_only = false;
+  _parsing_math_exp = false;
+}
+//-----------------------------------------------------------------------
+CParser::CParser(std::ifstream& FILE, std::string _filename, const int i)
+{
+  filename = _filename;
+  INPUT = &FILE;
+  l = i;
+  comma_only = false;
+  _parsing_math_exp = false;
+}
+/*----------------------------------------------------------------
+  Basic Member Functions
+  -----------------------------------------------------------------------*/
+void   CParser::SetLineCounter(int i) { l = i; }
+//-----------------------------------------------------------------------
+int    CParser::GetLineNumber() { return l; }
+//-----------------------------------------------------------------------
+std::string CParser::GetFilename() { return filename; }
+//-----------------------------------------------------------------------
+void CParser::NextIsMathExp() { _parsing_math_exp = true; }
+//-----------------------------------------------------------------------
+std::string CParser::Peek()
+{
+  // return first word of current line in INPUT without proceeding forward in the file
+  std::streampos place;
+  int Len;
+  char* s[MAXINPUTITEMS];
+
+  place = INPUT->tellg(); // Get current position
+
+  Tokenize(s, Len); //read and parse whole line
+  std::string firstword = "";
+  if (Len > 0) { firstword = s[0]; }
+
+  INPUT->seekg(place, std::ios_base::beg);    // Return to position before peeked line .
+  return firstword;
+}
+//////////////////////////////////////////////////////////////////
+/// \brief takes expression string and adds spaces to help with expression tokenization
+/// \param line [in] - string
+/// \returns same line but with spaces to left and right of operators
+//
+std::string CParser::AddSpacesBeforeOps(std::string line) const
+{
+  std::string tmp;
+  for (int i = 0; i < line.size(); i++) {
+    char o = line[i];//).c_str();
+    if (o == '/' || o == '*' || o == '+' || o == '-') { tmp += " " + std::to_string(line[i]) + " "; }
+    else if (o == '=') { tmp += line[i] + " "; }
+    else if (o == '~' || o == '<' || o == '>') { tmp += " " + line[i]; }
+    else { tmp += line[i]; }
+  }
+  return tmp;
+}
+/*----------------------------------------------------------------
+  Tokenize
+  ----------------------------------------------------------------
+  tokenizes a sentence delimited by  spaces, tabs & return characters
+
+  parameters:
+  out is the array of strings in the line
+  numwords is the number of strings in the line
+  returns true if file has ended
+  -------------------------------------------------------------------------*/
+bool CParser::Tokenize(char** out, int& numwords) {
+
+  static char wholeline[MAXCHARINLINE];
+  static char* tempwordarray[MAXINPUTITEMS];
+  char* p;
+  char* next_p(nullptr);
+  //char *junk=NULL;
+  int ct(0), w;
+  char delimiters[6];
+  delimiters[0] = ' '; //space
+  delimiters[1] = '\t';//tab
+  delimiters[2] = ','; //comma
+  delimiters[3] = '\r';//carriage return (ignored in visual c++)
+  delimiters[4] = '\n';//newline -necc?
+  delimiters[5] = '\0';//last delimiter
+  if (comma_only) {
+    delimiters[0] = delimiters[1] = ',';
+  }
+  (*wholeline) = 0;
+  while ((*wholeline) == 0) {//while loop handles blank lines
+    if (INPUT->eof()) { return true; }
+    INPUT->getline(wholeline, MAXCHARINLINE);            //get entire line as 1 string
+    if (INPUT->fail()) {
+      //cout<<"failed: "<<filename<<" line "<<l<<"|"<<wholeline<<"|"<<INPUT->ios::eofbit<<endl;
+      //ExitGracefully("Too many characters in line or (maybe) using Mac-style carriage return line endings.",BAD_DATA);
+    }
+    l++;
+    if ((parserdebug) && ((*wholeline) != 0)) { std::cout << wholeline << std::endl; }
+  }                 //if line is null, break, return true
+  if (_parsing_math_exp) {
+    std::string line;
+    line = AddSpacesBeforeOps(wholeline);
+    strcpy_s(wholeline, line.c_str());
+    _parsing_math_exp = false;
+  }
+
+  p = strtok_s(wholeline, delimiters, &next_p);
+  while (p) {                                         //sift through words, place in temparray, count line length
+    tempwordarray[ct] = p;
+    //p=strtok_s(NULL, delimiters,&junk);
+    p = strtok_s(NULL, delimiters, &next_p);
+    ct++;
+    if ((p != NULL) && (p[0] == '#')) { break; } //ignore all content after '#'
+  }
+  for (w = 0; w < ct; w++) {                              //copy temp array of words into out[]
+    if (w > MAXINPUTITEMS) {
+      numwords = ct;
+      std::string warn = "Tokenizeline:: exceeded maximum number of items in single line in file " + filename;
+      ExitGracefully(warn.c_str(), BAD_DATA);
+      return true;
+    }
+    out[w] = tempwordarray[w];
+    //cout<<out[w]<<"|";
+  }
+  //cout <<endl;
+  numwords = ct;
+  return false;
+}
+/*----------------------------------------------------------------*/
+void   CParser::ImproperFormat(char** s)
+{
+  std::cout << "line " << l << " in file " << filename << " is wrong length" << std::endl; //FOR NOW
+  std::cout << "line " << l << ": " << s[0] << std::endl;
+}
+/*----------------------------------------------------------------*/
+void CParser::SkipLine()
+{
+  int      Len;
+  char* s[MAXINPUTITEMS];
+  if (Tokenize(s, Len)) {}
+}
+/*----------------------------------------------------------------
+  Parse_dbl
+  ----------------------------------------------------------------
+  Parses a single line from an input file expected to have 1,2, or 3 DOUBLE
+  input parameters
+  ----------------------------------------------------------------*/
+parse_error CParser::Parse_dbl(double& v1)
+{
+  int      Len;
+  char* s[MAXINPUTITEMS];
+
+  if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+  if (Len == 1) { v1 = s_to_d(s[0]);                              return PARSE_GOOD; }
+  else { ImproperFormat(s);            return PARSE_BAD; }
+}
+//------------------------------------------------------------------------------
+parse_error CParser::Parse_dbl(double& v1, double& v2)
+{
+  int      Len;
+  char* s[MAXINPUTITEMS];
+
+  if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+  if (Len == 2) {
+    v1 = s_to_d(s[0]);
+    v2 = s_to_d(s[1]);                                return PARSE_GOOD;
+  }
+  else { ImproperFormat(s);            return PARSE_BAD; }
+}
+//------------------------------------------------------------------------------
+parse_error CParser::Parse_dbl(double& v1, double& v2, double& v3)
+{
+  int      Len;
+  char* s[MAXINPUTITEMS];
+
+  if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+  if (Len == 3) {
+    v1 = s_to_d(s[0]);
+    v2 = s_to_d(s[1]);
+    v3 = s_to_d(s[2]);                                return PARSE_GOOD;
+  }
+  else { ImproperFormat(s);            return PARSE_BAD; }
+
+}
+//------------------------------------------------------------------------------
+parse_error CParser::Parse_dbl(double& v1, double& v2, double& v3, double& v4)
+{
+  int      Len;
+  char* s[MAXINPUTITEMS];
+
+  if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+  if (Len == 4) {
+    v1 = s_to_d(s[0]);
+    v2 = s_to_d(s[1]);
+    v3 = s_to_d(s[2]);
+    v4 = s_to_d(s[3]);        return PARSE_GOOD;
+  }
+  else { ImproperFormat(s);            return PARSE_BAD; }
+
+}
+//------------------------------------------------------------------------------
+parse_error CParser::Parse_intdbldbl(int& v1, double& v2, double& v3)
+{
+  int      Len;
+  char* s[MAXINPUTITEMS];
+
+  if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+  if (Len == 3) {
+    v1 = s_to_i(s[0]);
+    v2 = s_to_d(s[1]);
+    v3 = s_to_d(s[2]);                                return PARSE_GOOD;
+  }
+  else { ImproperFormat(s);            return PARSE_BAD; }
+
+}
+//------------------------------------------------------------------------------
+parse_error CParser::Parse_int(int& v1)
+{
+  int      Len;
+  char* s[MAXINPUTITEMS];
+
+  if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+  if (Len == 1) { v1 = s_to_i(s[0]);                          return PARSE_GOOD; }
+  else { ImproperFormat(s);                return PARSE_BAD; }
+}
+//------------------------------------------------------------------------------
+parse_error CParser::Parse_int(int& v1, int& v2)
+{
+  int      Len;
+  char* s[MAXINPUTITEMS];
+
+  if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+  if (Len == 2) {
+    v1 = s_to_i(s[0]);
+    v2 = s_to_i(s[1]);                                return PARSE_GOOD;
+  }
+  else { ImproperFormat(s);            return PARSE_BAD; }
+}
+/*-------------------------------------------------------------------------
+  ParseArray_dbl
+  -------------------------------------------------------------------------
+  Parses a set of numv lines from an input file, each expected to have 1,2, or 3 DOUBLE
+  input parameters
+  Ended with "&" [optint]
+  Ex.:
+  0.1 2.3 4.5
+  0.1 2.3 4.5
+  0.1 2.3 4.5
+  0.1 2.3 4.5
+  & 5
+  -------------------------------------------------------------------------*/
+parse_error      CParser::ParseArray_dbl(Writeable1DArray v, int numv, int& optfollow)
+{
+  bool             done(false);
+  int                      count(0), Len;
+  char* s[MAXINPUTITEMS];
+
+  do
+  {
+    if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+    if ((Len == 2) && (!strcmp(s[0], "&")))
+    {
+      optfollow = s_to_i(s[1]);
+      done = true;
+    }
+    else if ((Len == 1) && (strcmp(s[0], "&")))
+    {
+      if (count >= numv) { return PARSE_TOO_MANY; }
+      v[count] = s_to_d(s[0]);
+      count++;
+    }
+    else if ((Len == 1) && (!strcmp(s[0], "&")))
+    {
+      done = true;
+    }
+    else if (Len != 0)
+    {
+      ImproperFormat(s); return PARSE_BAD;
+    }
+  } while (!done);
+
+  if (count != numv) { return PARSE_NOT_ENOUGH; }
+
+  return PARSE_GOOD;
+}
+//------------------------------------------------------------------------------
+parse_error      CParser::ParseArray_dbl(Writeable1DArray v1,
+  Writeable1DArray v2, int numv, int& optfollow)
+{
+  bool             done(false);
+  int                      count(0), Len;
+  char* s[MAXINPUTITEMS];
+
+  do
+  {
+    if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+    if ((Len == 2) && (!strcmp(s[0], "&")))
+    {
+      optfollow = s_to_i(s[1]);
+      done = true;
+    }
+    else if (Len == 2)
+    {
+      if (count >= numv) { return PARSE_TOO_MANY; }
+      v1[count] = s_to_d(s[0]);
+      v2[count] = s_to_d(s[1]);
+      count++;
+    }
+    else if ((Len == 1) && (!strcmp(s[0], "&")))
+    {
+      done = true;
+    }
+
+    else if (Len != 0)
+    {
+      ImproperFormat(s); return PARSE_BAD;
+    }
+  } while (!done);
+
+  if (count != numv) { return PARSE_NOT_ENOUGH; }
+
+  return PARSE_GOOD;
+}
+//------------------------------------------------------------------------------
+parse_error      CParser::ParseArray_dbl(Writeable1DArray v1,
+  Writeable1DArray v2,
+  Writeable1DArray v3, int numv, int& optfollow) {
+  bool             done(false);
+  int                      count(0), Len;
+  char* s[MAXINPUTITEMS];
+
+  do
+  {
+    if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+    if (Len == 3)
+    {
+      if (count >= numv) { return PARSE_TOO_MANY; }
+      v1[count] = s_to_d(s[0]);
+      v2[count] = s_to_d(s[1]);
+      v3[count] = s_to_d(s[2]);
+      count++;
+    }
+    else if ((Len == 1) && (!strcmp(s[0], "&")))
+    {
+      done = true;
+    }
+    else if ((Len == 2) && (!strcmp(s[0], "&")))
+    {
+      optfollow = s_to_i(s[1]);
+      done = true;
+    }
+    else if (Len != 0)
+    {
+      ImproperFormat(s); return PARSE_BAD;
+    }
+  } while (!done);
+
+  if (count != numv) { return PARSE_NOT_ENOUGH; }
+
+  return PARSE_GOOD;
+}
+
+/*-------------------------------------------------------------------------
+  ParseBigArray_dbl
+  -------------------------------------------------------------------------
+  Parses an unknown number lines (max length=20) from an input file until numv items have been read
+  list ends with "&
+  Ended with "&" [optint]
+  Ex.:
+  0.1 2.3 4.5
+  0.1 2.3 4.5 6.7
+  0.1 2.3 4.5 6.7 7.8
+  0.1
+  &
+  -------------------------------------------------------------------------*/
+parse_error CParser::ParseBigArray_dbl(Writeable1DArray v, int numv)
+{
+  bool             done(false);
+  int                      count(0), Len, i;
+  char* s[MAXINPUTITEMS];
+
+  do
+  {
+    if (Tokenize(s, Len)) { return PARSE_EOF; }
+
+    if ((Len <= 20) && (Len >= 1) && (strcmp(s[0], "&")))
+    {
+      for (i = 0;i < Len;i++)
+      {
+        if (count >= numv) { return PARSE_TOO_MANY; }
+        v[count] = s_to_d(s[i]);
+        count++;
+      }
+    }
+    else if ((Len == 1) && (!strcmp(s[0], "&")))
+    {
+      if (count != numv) { return PARSE_NOT_ENOUGH; }
+      done = true;
+    }
+    else if (Len != 0)
+    {
+      ImproperFormat(s); return PARSE_BAD;
+    }
+
+  } while (!done);
+
+  return PARSE_GOOD;
+}
+/*-------------------------------------------------------------------------
+  Parse2DArray_dbl
+  -------------------------------------------------------------------------*
+  Parses an known number lines (length=2+numcol) from an input file until numv items have been read
+  list ends with "&
+  Ended with "&" [optint]
+  Ex.:
+  0.1 2.3 4.5 4.5 4.5 4.5
+  0.1 2.3 4.5 4.5 4.5 4.5
+  0.1 2.3 4.5 4.5 4.5 4.5
+  & 6
+  (for numv=3, numcol=4)
+  -------------------------------------------------------------------------*/
+parse_error  CParser::Parse2DArray_dbl(Writeable1DArray v1,
+  Writeable1DArray v2,
+  Writeable2DArray v3, int numv, int numcol, int& optfollow) {
+  bool             done(false);
+  int                      count(0), Len;
+  char* s[MAXINPUTITEMS];
+  do
+  {
+    if (Tokenize(s, Len)) { return PARSE_EOF; };
+    if (IsComment(s[0], Len)) {}
+    else if (Len == (2 + numcol)) {
+      if (count >= numv) { return PARSE_TOO_MANY; }
+      v1[count] = s_to_d(s[0]);
+      v2[count] = s_to_d(s[1]);
+      for (int j = 0;j < numcol;j++) {
+        v3[count][j] = s_to_d(s[2 + j]);
+      }
+      count++;
+    }
+    else if ((Len == 1) && (!strcmp(s[0], "&"))) {
+      if (count != numv) { return PARSE_NOT_ENOUGH; }
+      done = true;
+    }
+    else if ((Len == 2) && (!strcmp(s[0], "&"))) {
+      if (count != numv) { return PARSE_NOT_ENOUGH; }
+      optfollow = s_to_i(s[1]);
+      done = true;
+    }
+    else if (Len != 0) {
+      return PARSE_BAD;
+    }
+  } while (!done);
+
+  return PARSE_GOOD;
+}
+/*-------------------------------------------------------------------------
+  Parse2DArray_dbl
+  -------------------------------------------------------------------------
+  Parses an known number lines (length=numcol) from an input file until numv items have been read
+  list ends with "&
+  Ended with "&" [optint]
+  Ex.:
+  4.5 4.5 4.5 4.5
+  4.5 4.5 4.5 4.5
+  4.5 4.5 4.5 4.5
+  & 6
+  (for numv=3, numcol=4)
+  -------------------------------------------------------------------------*/
+parse_error  CParser::Parse2DArray_dbl(Writeable2DArray v3, int numv, int numcol, int& optfollow) {
+  bool             done(false);
+  int                      count(0), Len;
+  char* s[MAXINPUTITEMS];
+  do
+  {
+    if (Tokenize(s, Len)) { return PARSE_EOF; };
+    if (Len == (numcol)) {
+      if (count >= numv) { return PARSE_TOO_MANY; }
+      for (int j = 0;j < numcol;j++) {
+        v3[count][j] = s_to_d(s[j]);
+      }
+      count++;
+    }
+    else if ((Len == 1) && (!strcmp(s[0], "&"))) {
+      if (count != numv) { return PARSE_NOT_ENOUGH; }
+      done = true;
+    }
+    else if ((Len == 2) && (!strcmp(s[0], "&"))) {
+      if (count != numv) { return PARSE_NOT_ENOUGH; }
+      optfollow = s_to_i(s[1]);
+      done = true;
+    }
+    else if (Len != 0) {
+      return PARSE_BAD;
+    }
+  } while (!done);
+
+  return PARSE_GOOD;
+}
+parse_error     CParser::ParseArray_dbl_dyn(Writeable1DArray v, int& numv, const int maxv, int& optfollow)
+{
+  bool             done(false);
+  int                      count(0), Len;
+  char* s[MAXINPUTITEMS];
+
+  do
+  {
+    if (Tokenize(s, Len)) { return PARSE_EOF; };
+    if ((Len == 1) && (strcmp(s[0], "&")))
+    {
+      if (count >= maxv) { return PARSE_TOO_MANY; }
+      v[count] = s_to_d(s[0]);
+      count++;
+    }
+    else if ((Len <= 2) && (!strcmp(s[0], "&")))
+    {
+      if (Len == 2) {
+        optfollow = s_to_i(s[1]);
+      }
+      done = true;
+    }
+    else if (Len != 0)
+    {
+      ImproperFormat(s);
+      return PARSE_BAD;
+    }
+  } while (!done);
+
+  numv = count;
+  return PARSE_GOOD;
+}
+parse_error     CParser::ParseArray_dbldbl_dyn(Writeable1DArray v1,
+  Writeable1DArray v2,
+  int& numv,
+  const int maxv,
+  int& optfollow)
+{
+  bool             done(false);
+  int                      count(0), Len;
+  char* s[MAXINPUTITEMS];
+
+  //      cout <<"ParseArray_dbldbl_dyn"<<endl;
+  do
+  {
+    if (Tokenize(s, Len)) { return PARSE_EOF; };
+    if ((Len == 2) && (strcmp(s[0], "&")))
+    {
+      //                      cout <<"len=2!"<<endl;
+      if (count >= maxv) { return PARSE_TOO_MANY; }
+      v1[count] = s_to_d(s[0]);
+      v2[count] = s_to_d(s[1]);
+      count++;
+    }
+    else if ((Len <= 2) && (!strcmp(s[0], "&")))
+    {
+      if (Len == 2) {
+        optfollow = s_to_i(s[1]);
+      }
+      done = true;
+    }
+    else if (Len != 0)
+    {
+      ImproperFormat(s);
+      return PARSE_BAD;
+    }
+  } while (!done);
+
+  numv = count;
+  return PARSE_GOOD;
+}

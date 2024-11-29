@@ -1,20 +1,24 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
 
-#include <string>
 #include "BlackbirdInclude.h"
 
 class COptions {
 public:
   // Member variables
+  std::string run_name;
   std::string workingfolder;
+  std::string bbi_filename;
+  std::string bbp_filename;
+  std::string bbb_filename;
+  std::string bbg_filename;
+  std::string main_output_dir;
   std::string modelname;
   enum_mt_method modeltype;
   enum_rt_method regimetype;
   double dx;
-  std::string interp_extrapolation_points; //
+  bool extrapolate_depth_table; // On extrapolation beyond depth range of the table, true -> warning, false -> error
   double num_extrapolation_points;
-  bool xs_use_obcalcs; //
   enum_fs_method friction_slope_method;
   enum_xsc_method xsection_conveyance_method;
   enum_rc_method reach_conveyance_method;

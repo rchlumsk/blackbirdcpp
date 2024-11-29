@@ -2,16 +2,22 @@
 
 // Default constructor
 COptions::COptions()
-  : workingfolder(""),
-  modeltype(""),
-  regimetype(""),
+  : run_name(""),
+  workingfolder(""),
+  bbi_filename(""),
+  bbp_filename(""),
+  bbb_filename(""),
+  bbg_filename(""),
+  main_output_dir(""),
+  modelname(""),
+  modeltype(HAND_MANNING),
+  regimetype(SUBCRITICAL),
   dx(0.0),
-  interp_extrapolation_points(""),
+  extrapolate_depth_table(true),
   num_extrapolation_points(0.0),
-  xs_use_obcalcs(false),
-  friction_slope_method(""),
-  xsection_conveyance_method(""),
-  catchment_conveyance_method(""),
+  friction_slope_method(AVERAGE_CONVEYANCE),
+  xsection_conveyance_method(OVERBANK_CONVEYANCE),
+  reach_conveyance_method(DISCRETIZED_CONVEYANCE_R),
   enforce_delta_Leff(false),
   delta_reachlength(0.0),
   tolerance_cp(0.0),
@@ -26,14 +32,16 @@ COptions::COptions()
   min_RHSQ_ratio(0.0),
   use_dhand(false),
   dhand_Hseq(0.0),
-  manning_composite_method(""),
+  manning_composite_method(EQUAL_FORCE),
   manning_enforce_values(false),
-  catchment_integration_method(""),
-  interpolation_postproc_method(""),
+  reach_integration_method(EFFECTIVE_LENGTH),
+  interpolation_postproc_method(CATCHMENT_HAND),
   postproc_elev_corr_threshold(0.0),
   roughness_multiplier(0.0),
   blended_conveyance_weights(0.0),
-  blended_nc_weights(0.0) {
+  blended_nc_weights(0.0),
+  silent_run(false),
+  noisy_run(false) {
   // Default constructor implementation
 }
 
