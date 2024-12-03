@@ -20,7 +20,7 @@ public:
   double ds_reach_length;
   double us_reach_length1;
   double us_reach_length2;
-  hydraulic_output depthdf;
+  std::vector<hydraulic_output*> *depthdf;
   double min_elev;
   double bed_slope;
   double flow_source;

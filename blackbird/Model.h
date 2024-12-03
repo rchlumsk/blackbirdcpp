@@ -9,7 +9,7 @@
 class CModel {
 public:
   // Member variables
-  std::vector<CStreamnode> *bbsn;  // A vector of Streamnode objects
+  std::vector<CStreamnode*> *bbsn;  // A vector of Streamnode objects
   CBoundaryConditions *bbbc;      // A single bb_boundarycondition object
   COptions *bbopt;               // A single bb_options object
 
@@ -19,6 +19,7 @@ public:
   // Functions
   hydraulic_output hyd_compute_profile();
   bool postprocess_floodresults();
+  bool add_streamnode(CStreamnode *pSN);
 };
 
 #endif

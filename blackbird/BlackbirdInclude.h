@@ -199,6 +199,32 @@ enum enum_ppi_method
   INTERP_DHAND_WSLCORR
 };
 
+//*****************************************************************
+//Common Functions (inline)
+//*****************************************************************
+
+///////////////////////////////////////////////////////////////////
+/// \brief returns true if character string is long integer
+/// \return true if character string is long integer
+//
+inline bool StringIsLong(const char* s1)
+{
+  char* p;
+  strtol(s1, &p, 10);
+  return !(*p);
+}
+
+///////////////////////////////////////////////////////////////////
+/// \brief returns true if character string is long integer
+/// \return true if character string is long integer
+//
+inline bool StringIsDouble(const char* s1)
+{
+  char* p;
+  strtod(s1, &p);
+  return !(*p);
+}
+
 //Parsing Functions-------------------------------------------
 //defined in CommonFunctions.cpp
 double        AutoOrDouble(const std::string s);
