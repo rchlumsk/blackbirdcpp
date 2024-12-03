@@ -13,15 +13,12 @@
 //
 bool ParsePreprocessedTablesFile(CModel*& pModel, const COptions*& pOptions)
 {
-  int         i;                //counters
-  long        SBID;             //subbasin ID
-  CStreamnode* pSN;             //temp pointers
-  hydraulic_output*  pHO;
-  bool        ended = false;
-  bool        in_ifmode_statement = false;
-  bool        is_conduit = false;
+  CStreamnode*       pSN(NULL);             //temp pointers
+  hydraulic_output*  pHO(NULL);
+  bool               ended = false;
+  bool               in_ifmode_statement = false;
   
-  std::ifstream    bbp;
+  std::ifstream      bbp;
   bbp.open(pOptions->bbp_filename.c_str());
   if (bbp.fail()) {
     std::cout << "ERROR opening file: " << pOptions->bbp_filename << std::endl; return false;
@@ -31,15 +28,12 @@ bool ParsePreprocessedTablesFile(CModel*& pModel, const COptions*& pOptions)
   char* s[MAXINPUTITEMS];
   CParser* pp = new CParser(bbp, pOptions->bbp_filename, line);
 
-  std::string            aParamStrings[MAXINPUTITEMS];
-  int               nParamStrings = 0;
-
   std::ifstream INPUT2;           //For Secondary input
   CParser* pMainParser = NULL; //for storage of main parser while reading secondary files
 
   if (pOptions->noisy_run) {
     std::cout << "======================================================" << std::endl;
-    std::cout << "Parsing RVH Input File " << pOptions->bbp_filename << "..." << std::endl;
+    std::cout << "Parsing BBP Input File " << pOptions->bbp_filename << "..." << std::endl;
     std::cout << "======================================================" <<std:: endl;
   }
 
@@ -113,10 +107,14 @@ bool ParsePreprocessedTablesFile(CModel*& pModel, const COptions*& pOptions)
       int row = 0;
       if (Len < 2) { pp->ImproperFormat(s); }
       else {
-        pSN = new CStreamnode();
         std::string error;
         if (StringIsLong(s[0])) {
-          pSN->nodeID = std::stoi(s[0]);
+          pSN = NULL;
+          pSN = pModel->get_streamnode_by_id(std::stoi(s[0]));
+          if (pSN == NULL) {
+            error = "ParsePreprocessedTables File: nodeID \"" + std::string(s[0]) + "\" after :PreprocHydTable does not exist in streamnodes object";
+            ExitGracefully(error.c_str(), BAD_DATA_WARN);
+          }
         } else {
           error = "ParsePreprocessedTables File: nodeID \"" + std::string(s[0]) + "\" after :PreprocHydTable must be unique integer or long integer";
           ExitGracefully(error.c_str(), BAD_DATA_WARN);
@@ -804,10 +802,9 @@ bool ParsePreprocessedTablesFile(CModel*& pModel, const COptions*& pOptions)
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
             }
-            pSN->depthdf->push_back(pHO);
+            pSN->add_depthdf_row(pHO);
           }
         }
-        pModel->add_streamnode(pSN);
       }
       break;
     }
@@ -833,7 +830,7 @@ bool ParsePreprocessedTablesFile(CModel*& pModel, const COptions*& pOptions)
       break;
       default:
       {
-        std::string errString = "Unrecognized command in .rvh file:\n   " + std::string(s[0]);
+        std::string errString = "Unrecognized command in .bbp file:\n   " + std::string(s[0]);
         ExitGracefully(errString.c_str(), BAD_DATA);//STRICT
       }
       break;

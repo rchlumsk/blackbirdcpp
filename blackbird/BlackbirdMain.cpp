@@ -6,9 +6,14 @@
 #include "Model.h"
 #include "GracefulEnd.h"
 
+// Global variables - declared as extern in BlackbirdInclude.h--------
+std::string g_output_directory = "";
+bool   g_suppress_warnings = false;
+
 int main()
 {
   std::cout << "Hello World!\n";
+  CModel* pModel = new CModel();
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

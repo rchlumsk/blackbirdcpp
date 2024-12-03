@@ -52,3 +52,15 @@ hydraulic_output CStreamnode::compute_profile_next() {
   // Logic to compute the next profile
   return output;
 }
+
+// Function to add row to depthdf
+bool CStreamnode::add_depthdf_row(hydraulic_output*& row) {
+  depthdf->push_back(row);
+  depthdf_map[row->depth] = depthdf->size() - 1;
+  return true;
+}
+
+// Returns row of depthdf with depth 'depth'
+hydraulic_output* CStreamnode::get_depthdf_row_from_depth(double depth) {
+  return depthdf_map.find(depth) != depthdf_map.end() ? depthdf->at(depthdf_map[depth]) : NULL;
+}

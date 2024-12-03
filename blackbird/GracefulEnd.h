@@ -1,3 +1,6 @@
+#ifndef GRACEFULEND_H
+#define GRACEFULEND_H
+
 #include "BlackbirdInclude.h"
 #include "Model.h"
 
@@ -40,7 +43,7 @@ inline void FinalizeGracefully(const char* statement, exitcode code)
     WARNINGS.open((pOptions->main_output_dir + "Blackbird_errors.txt").c_str(), std::ios::app);
     if (WARNINGS.fail()) {
       WARNINGS.close();
-      std::string message = "Unable to open errors file (" + pOptions->main_output_dir + "Raven_errors.txt)";
+      std::string message = "Unable to open errors file (" + pOptions->main_output_dir + "Blackbird_errors.txt)";
       ExitGracefully(message.c_str(), BLACKBIRD_OPEN_ERR);
     }
     if (code != SIMULATION_DONE) { WARNINGS << "ERROR : " << statement << std::endl; }
@@ -71,3 +74,5 @@ inline void ExitGracefully(const char* statement, exitcode code)
   FinalizeGracefully(statement, code);
   exit(0);
 }
+
+#endif

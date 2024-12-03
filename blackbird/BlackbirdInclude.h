@@ -1,19 +1,26 @@
 #ifndef BLACKBIRDINCLUDE_H
 #define BLACKBIRDINCLUDE_H
 
-#include <stdlib.h>
-#include <cstring>
 #include <algorithm>
-#include <math.h>
 #include <cmath>
-#include <limits>
-#include <iostream>
-#include <iomanip>
+#include <cstring>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <math.h>
+#include <stdlib.h>
 #include <string>
 #include <strstream>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
+
+//*****************************************************************
+// Global Variables (necessary, but minimized, evils)
+//*****************************************************************
+extern std::string g_output_directory; ///< Had to be here to avoid passing Options structure around willy-nilly
+extern bool   g_suppress_warnings;///< Had to be here to avoid passing Options object around willy-nilly
 
 //*****************************************************************
 //Exit Strategies
@@ -34,8 +41,8 @@ enum exitcode
   SIMULATION_DONE ///< Upon completion of the simulation
 };
 
-void FinalizeGracefully(const char* statement, exitcode code);  //defined in RavenMain.cpp
-void ExitGracefully(const char* statement, exitcode code);      //defined in RavenMain.cpp
+void FinalizeGracefully(const char* statement, exitcode code);  //defined in BlackbirdMain.cpp
+void ExitGracefully(const char* statement, exitcode code);      //defined in BlackbirdMain.cpp
 
 /////////////////////////////////////////////////////////////////
 /// \brief In-line function that calls ExitGracefully function in the case of condition
@@ -227,13 +234,10 @@ inline bool StringIsDouble(const char* s1)
 
 //Parsing Functions-------------------------------------------
 //defined in CommonFunctions.cpp
-double        AutoOrDouble(const std::string s);
 std::string   StringToUppercase(const std::string& s);
 bool          IsComment(const char* s, const int Len);
 void          WriteWarning(const std::string warn, bool noisy);
 void          WriteAdvisory(const std::string warn, bool noisy);
 double        fast_s_to_d(const char* s);
-double        FormatDouble(const double& d);
-void          SubstringReplace(std::string& str, const std::string& from, const std::string& to);
 
 #endif

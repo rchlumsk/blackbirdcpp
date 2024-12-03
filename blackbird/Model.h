@@ -19,7 +19,12 @@ public:
   // Functions
   hydraulic_output hyd_compute_profile();
   bool postprocess_floodresults();
-  bool add_streamnode(CStreamnode *pSN);
+  bool add_streamnode(CStreamnode*& pSN);
+  CStreamnode* get_streamnode_by_id(int sid);
+
+private:
+  // Private variables
+  std::unordered_map<int, int> streamnode_map;
 };
 
 #endif

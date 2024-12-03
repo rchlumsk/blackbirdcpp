@@ -15,14 +15,14 @@ public:
   std::string stationname;
   double station;
   int reachID;
-  double contraction_coeff;
-  double expansion_coeff;
   double ds_reach_length;
   double us_reach_length1;
   double us_reach_length2;
-  std::vector<hydraulic_output*> *depthdf;
+  double contraction_coeff;
+  double expansion_coeff;
   double min_elev;
   double bed_slope;
+  std::vector<hydraulic_output*> *depthdf;
   double flow_source;
   double flow_sink;
   double output_depth;
@@ -38,6 +38,12 @@ public:
   hydraulic_output compute_basic_depth_properties_interpolation();
   hydraulic_output compute_profile();
   hydraulic_output compute_profile_next();
+  bool add_depthdf_row(hydraulic_output*& row);
+  hydraulic_output* get_depthdf_row_from_depth(double depth);
+
+private:
+  // Private variables
+  std::unordered_map<double, int> depthdf_map;
 };
 
 #endif
