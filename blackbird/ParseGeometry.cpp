@@ -132,7 +132,6 @@ bool ParseGeometryFile(CModel*& pModel, const COptions*& pOptions)
             }
             if (strcmp(s[1], "NA")) {
               pSN->nodetype = std::string(s[1]);tr(), BAD_DATA_WARN);
-              }
             }
             if (strcmp(s[2], "NA")) {
               if (StringIsLong(s[2])) {
@@ -278,7 +277,7 @@ bool ParseGeometryFile(CModel*& pModel, const COptions*& pOptions)
         else if (!strcmp(s[0], ":SourceFile")) { if (pOptions->noisy_run) { std::cout << "SourceFile" << std::endl; } }//do nothing
         else if (pOptions->noisy_run)
         {
-          std::string warn = "IGNORING unrecognized command: " + std::string(s[0]) + " in .rvh file";
+          std::string warn = "IGNORING unrecognized command: " + std::string(s[0]) + " in .bbg file";
           WriteWarning(warn, pOptions->noisy_run);
         }
       }

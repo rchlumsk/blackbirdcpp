@@ -13,8 +13,8 @@
 //
 bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
 {
-  CStreamnode*       pSN(NULL);             //temp pointers
-  hydraulic_output*  pHO(NULL);
+  CStreamnode*               pSN(NULL);             //temp pointers
+  CBoundaryConditions*       pBC(NULL);
   bool               ended = false;
   bool               in_ifmode_statement = false;
 
@@ -47,7 +47,8 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
     /*assign code for switch statement
       ------------------------------------------------------------------
       <0           : ignored/special
-      0   thru 100 : All other
+      0   thru 100 : boundary conditions
+      100 thru 200 : All other
       ------------------------------------------------------------------
     */
 
@@ -62,8 +63,16 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
     else if (!strcmp(s[0], ":RedirectToFile")) { code = -3; }//redirect to secondary file
     //--------------------MODEL OPTIONS ------------------------
     else if (!strcmp(s[0], ":BoundaryConditions")) { code = 1; }
-    else if (!strcmp(s[0], ":SteadyFlows")) { code = 2; }
-    else if (!strcmp(s[0], ":StreamnodeSourcesSinks")) { code = 3; }
+    else if (!strcmp(s[0], ":EndBoundaryConditions")) { code = 2; }
+    else if (!strcmp(s[0], ":StationName")) { code = 3; }
+    else if (!strcmp(s[0], ":Station")) { code = 4; }
+    else if (!strcmp(s[0], ":Reach")) { code = 5; }
+    else if (!strcmp(s[0], ":Location")) { code = 6; }
+    else if (!strcmp(s[0], ":BCType")) { code = 7; }
+    else if (!strcmp(s[0], ":BCValue")) { code = 8; }
+    else if (!strcmp(s[0], ":InitialWSL")) { code = 9; }
+    else if (!strcmp(s[0], ":SteadyFlows")) { code = 100; }
+    else if (!strcmp(s[0], ":StreamnodeSourcesSinks")) { code = 101; }
 
     switch (code)
     {
@@ -103,95 +112,215 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
     }
     case(1):  //----------------------------------------------
     { /*:BoundaryConditions*/
-      if (pOptions->noisy_run) { std::cout << "Boundary conditions table..." << std::endl; }
-      bool done = false;
-      int row = 0;
-      if (Len < 2) { pp->ImproperFormat(s); }
+      if (pOptions->noisy_run) { std::cout << "Boundary conditions information begin" << std::endl; }
+      if (Len != 1) { pp->ImproperFormat(s); }
       else {
-        pSN = new CStreamnode();
-        std::string error;
-        if (StringIsLong(s[0])) {
-          pSN->nodeID = std::stoi(s[0]);
+        pBC = new CBoundaryConditions();
+        pModel->bbbc = pBC;
+      }
+      break;
+    }
+    case(2):  //----------------------------------------------
+    { /*:EndBoundaryConditions*/
+      if (pOptions->noisy_run) { std::cout << "Boundary conditions information end" << std::endl; }
+      if (Len != 1) { pp->ImproperFormat(s); }
+      else {
+        if (pBC == NULL)
+        {
+          ExitGracefully("ParseBoundaryConditions File: :EndBoundaryConditions encountered before :BoundaryConditions", BAD_DATA);
+        }
+        else
+        {
+          pBC = NULL;
+        }
+      }
+      break;
+    }
+    case(3):
+    {/*:StationName [string name]*/
+      if (pOptions->noisy_run) { std::cout << "StationName" << std::endl; }
+      ExitGracefullyIf(pBC == NULL,
+        "ParseBoundaryConditions File: :StationName specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
+      if (Len < 2) { ImproperFormatWarning(":StationName", p, pOptions->noisy_run); break; }
+      pBC->stationname = s[1];
+      break;
+    }
+    case(4):
+    {/*:Station [double station]*/
+      if (pOptions->noisy_run) { std::cout << "Station" << std::endl; }
+      ExitGracefullyIf(pBC == NULL,
+        "ParseBoundaryConditions File: :Station specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
+      if (Len < 2) { ImproperFormatWarning(":Station", p, pOptions->noisy_run); break; }
+      if (strcmp(s[1], "NA")) {
+        if (StringIsDouble(s[1])) {
+          pBC->station = std::stod(s[1]);
         }
         else {
-          error = "ParsePreprocessedTables File: nodeID \"" + std::string(s[0]) + "\" after :PreprocHydTable must be unique integer or long integer";
+          error = "ParsePreprocessedTables File: Station \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
           ExitGracefully(error.c_str(), BAD_DATA_WARN);
         }
+      }
+      break;
+    }
+    case(5):
+    {/*:Reach [string reach]*/
+      if (pOptions->noisy_run) { std::cout << "Reach" << std::endl; }
+      ExitGracefullyIf(pBC == NULL,
+        "ParseBoundaryConditions File: :Reach specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
+      if (Len < 2) { ImproperFormatWarning(":Reach", p, pOptions->noisy_run); break; }
+      pBC->reach = s[1];
+      break;
+    }
+    case(6):
+    {/*:Location [string loc]*/
+      if (pOptions->noisy_run) { std::cout << "Location" << std::endl; }
+      ExitGracefullyIf(pBC == NULL,
+        "ParseBoundaryConditions File: :Location specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
+      if (Len < 2) { ImproperFormatWarning(":Location", p, pOptions->noisy_run); break; }
+      pBC->location = s[1];
+      break;
+    }
+    case(7):
+    {/*:BCType [string type]*/
+      if (pOptions->noisy_run) { std::cout << "BCType" << std::endl; }
+      ExitGracefullyIf(pBC == NULL,
+        "ParseBoundaryConditions File: :BCType specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
+      if (Len < 2) { ImproperFormatWarning(":BCType", p, pOptions->noisy_run); break; }
+      pBC->bctype = s[1];
+      break;
+    }
+    case(8):
+    {/*:BCValue [double value]*/
+      if (pOptions->noisy_run) { std::cout << "BCValue" << std::endl; }
+      ExitGracefullyIf(pBC == NULL,
+        "ParseBoundaryConditions File: :BCValue specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
+      if (Len < 2) { ImproperFormatWarning(":BCValue", p, pOptions->noisy_run); break; }
+      if (strcmp(s[1], "NA")) {
+        if (StringIsDouble(s[1])) {
+          pBC->bcvalue = std::stod(s[1]);
+        }
+        else {
+          error = "ParseBoundaryConditions File: BCValue \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
+          ExitGracefully(error.c_str(), BAD_DATA_WARN);
+        }
+      }
+      break;
+    }
+    case(9):
+    {/*:InitialWSL [double wsl]*/
+      if (pOptions->noisy_run) { std::cout << "InitialWSL" << std::endl; }
+      ExitGracefullyIf(pBC == NULL,
+        "ParseBoundaryConditions File: :InitialWSL specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
+      if (Len < 2) { ImproperFormatWarning(":InitialWSL", p, pOptions->noisy_run); break; }
+      if (strcmp(s[1], "NA")) {
+        if (StringIsDouble(s[1])) {
+          pBC->init_WSL = std::stod(s[1]);
+        }
+        else {
+          error = "ParseBoundaryConditions File: InitialWSL \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
+          ExitGracefully(error.c_str(), BAD_DATA_WARN);
+        }
+      }
+      break;
+    }
+    case(100):  //----------------------------------------------
+    { /*:SteadyFlows*/
+      if (pOptions->noisy_run) { std::cout << "Steady flows table..." << std::endl; }
+      bool done = false;
+      int row = 0;
+      if (Len != 1) { pp->ImproperFormat(s); }
+      else {
+        std::string error;
         while ((!done) && (!end_of_file))
         {
           row++;
           end_of_file = pp->Tokenize(s, Len);
           if (IsComment(s[0], Len)) {}//comment line
           else if (!strcmp(s[0], ":Attributes")) {}//ignored by Blackbird - needed for GUIs
-          else if (!strcmp(s[0], ":EndPreprocHydTable")) { done = true; }
+          else if (!strcmp(s[0], ":EndSteadyFlows")) { done = true; }
           else
           {
-            if (Len < 75) { pp->ImproperFormat(s); }
-            pHO = NULL;
-            pHO = new hydraulic_output();
-            ExitGracefullyIf(pHO == NULL, "ParsePreprocesssedTables", OUT_OF_MEMORY);
-
-            if (strcmp(s[0], "NA")) {
-              if (StringIsLong(s[0])) {
-                pHO->nodeID = std::stoi(s[0]);
-              }
-              else {
-                error = "ParsePreprocessedTables File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of :PreprocHydTable must be a unique integer or long integer";
+            if (Len < 2) { pp->ImproperFormat(s); }
+            if (StringIsLong(s[0])) {
+              pSN = NULL;
+              pSN = pModel->get_streamnode_by_id(std::stoi(s[0]));
+              if (pSN == NULL) {
+                error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows does not exist in streamnodes object";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
             }
-            if (strcmp(s[1], "NA")) {
-              if (StringIsLong(s[1])) {
-                pHO->reachID = std::stoi(s[1]);
+            else {
+              error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be unique integer or long integer";
+              ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            }
+            for (int i = 1; i < Len; i++) {
+              if (StringIsDouble(s[i])) {
+                pSN->add_steadyflow(s[i]);
               }
               else {
-                error = "ParsePreprocessedTables File: reachID \"" + std::string(s[1]) + "\" in row " + std::to_string(row) + " of :PreprocHydTable must be a unique integer or long integer";
+                error = "ParseBoundaryConditions File: flowprofile \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be double";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
             }
-            if (strcmp(s[2], "NA")) {
-              if (StringIsLong(s[2])) {
-                pHO->downnodeID = std::stoi(s[2]);
-              }
-              else {
-                error = "ParsePreprocessedTables File: downnodeID \"" + std::string(s[2]) + "\" in row " + std::to_string(row) + " of :PreprocHydTable must be a unique integer or long integer";
-                ExitGracefully(error.c_str(), BAD_DATA_WARN);
-              }
-            }
-            if (strcmp(s[3], "NA")) {
-              if (StringIsLong(s[3])) {
-                pHO->upnodeID1 = std::stoi(s[3]);
-              }
-              else {
-                error = "ParsePreprocessedTables File: upnodeID1 \"" + std::string(s[3]) + "\" in row " + std::to_string(row) + " of :PreprocHydTable must be a unique integer or long integer";
-                ExitGracefully(error.c_str(), BAD_DATA_WARN);
-              }
-            }
-            if (strcmp(s[4], "NA")) {
-              if (StringIsLong(s[4])) {
-                pHO->upnodeID2 = std::stoi(s[4]);
-              }
-              else {
-                error = "ParsePreprocessedTables File: upnodeID2 \"" + std::string(s[4]) + "\" in row " + std::to_string(row) + " of :PreprocHydTable must be a unique integer or long integer";
-                ExitGracefully(error.c_str(), BAD_DATA_WARN);
-              }
-            }
-            if (strcmp(s[5], "NA")) {
-              pHO->stationname = std::string(s[5]);
-            }
-            if (strcmp(s[6], "NA")) {
-              if (StringIsDouble(s[6])) {
-                pHO->station = std::stod(s[6]);
-              }
-              else {
-                error = "ParsePreprocessedTables File: station \"" + std::string(s[6]) + "\" in row " + std::to_string(row) + " of :PreprocHydTable must be a double";
-                ExitGracefully(error.c_str(), BAD_DATA_WARN);
-              }
-            }
-            pSN->depthdf->push_back(pHO);
           }
         }
-        pModel->bbsn->push_back(pSN);
+      }
+      break;
+    }
+    case(101):  //----------------------------------------------
+    { /*:StreamnodeSourcesSinks*/
+      if (pOptions->noisy_run) { std::cout << "Sources Sinks table..." << std::endl; }
+      bool done = false;
+      int row = 0;
+      if (Len != 1) { pp->ImproperFormat(s); }
+      else {
+        std::string error;
+        while ((!done) && (!end_of_file))
+        {
+          row++;
+          end_of_file = pp->Tokenize(s, Len);
+          if (IsComment(s[0], Len)) {}//comment line
+          else if (!strcmp(s[0], ":Attributes")) {}//ignored by Blackbird - needed for GUIs
+          else if (!strcmp(s[0], ":EndSteadyFlows")) { done = true; }
+          else
+          {
+            if (Len < 2) { pp->ImproperFormat(s); }
+            if (StringIsLong(s[0])) {
+              pSN = NULL;
+              pSN = pModel->get_streamnode_by_id(std::stoi(s[0]));
+              if (pSN == NULL) {
+                error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows does not exist in streamnodes object";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            else {
+              error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be unique integer or long integer";
+              ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            }
+            for (int i = 1; i < Len; i += 2) {
+              if (i + 1 = Len) {
+                error = "ParseBoundaryConditions File: unmatched source in row " + std::to_string(row) + " of  :SteadyFlows needs a sink";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+              if (!StringIsDouble(s[i])) {
+                error = "ParseBoundaryConditions File: source \"" + std::string(s[i]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+              else if (!StringIsDouble(s[i + 1])) {
+                error = "ParseBoundaryConditions File: sink \"" + std::string(s[i + 1]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+              else {
+                int index = (i - 1) / 2;
+                if (!(pSN->add_sourcesink(index, std::stod(s[i]), std::stod(s[i + 1])))) {
+                  error = "ParseBoundaryConditions File: unable to add source \"" + std::string(s[i]) +
+                    " and sink \"" + std::string(s[i + 1]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows";
+                  ExitGracefully(error.c_str(), BAD_DATA_WARN);
+                }
+              }
+            }
+          }
+        }
       }
       break;
     }
@@ -210,7 +339,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
         else if (!strcmp(s[0], ":SourceFile")) { if (pOptions->noisy_run) { std::cout << "SourceFile" << std::endl; } }//do nothing
         else if (pOptions->noisy_run)
         {
-          std::string warn = "IGNORING unrecognized command: " + std::string(s[0]) + " in .rvh file";
+          std::string warn = "IGNORING unrecognized command: " + std::string(s[0]) + " in .bbb file";
           WriteWarning(warn, pOptions->noisy_run);
         }
       }

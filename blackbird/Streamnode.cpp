@@ -8,8 +8,7 @@ CStreamnode::CStreamnode()
   : nodeID(0), nodetype(""), downnodeID(0), upnodeID1(0), upnodeID2(0),
   stationname(""), station(0.0), reachID(0), contraction_coeff(0.0),
   expansion_coeff(0.0), ds_reach_length(0.0), us_reach_length1(0.0),
-  us_reach_length2(0.0), min_elev(0.0), bed_slope(0.0), flow_source(0.0),
-  flow_sink(0.0), output_depth(0.0), output_flow(0.0) {
+  us_reach_length2(0.0), min_elev(0.0), bed_slope(0.0), output_depth(0.0), output_flow(0.0) {
   // Default constructor implementation
 }
 
@@ -63,4 +62,39 @@ bool CStreamnode::add_depthdf_row(hydraulic_output*& row) {
 // Returns row of depthdf with depth 'depth'
 hydraulic_output* CStreamnode::get_depthdf_row_from_depth(double depth) {
   return depthdf_map.find(depth) != depthdf_map.end() ? depthdf->at(depthdf_map[depth]) : NULL;
+}
+
+// Function to add flowprofile
+bool CStreamnode::add_steadyflow(double flow) {
+  steady_flows.push_back(flow);
+  flow_sources.push_back(0);
+  flow_sinks.push_back(0);
+  sourcesink_map[flow] = steady_flows.size();
+  num_fp++;
+  return true;
+}
+
+// Returns number of flowprofiles
+int CStreamnode::get_num_steadyflows() {
+  return num_fp;
+}
+
+bool CStreamnode::add_sourcesink(int index, double source, double sink) {
+  if (index < num_fp) {
+    flow_sources[index] = source;
+    flow_sinks[index] = sink;
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+std::vector<double> CStreamnode::get_sourcesink_from_steadyflow(double steadyflow) {
+  if (sourcesink_map.find(steadyflow) == sourcesink_map.end()) {
+    return std::vector<double>(NULL);
+  }
+  double source = flow_sources.at(sourcesink_map[steadyflow]);
+  double sink = flow_sinks.at(sourcesink_map[steadyflow]);
+  return std::vector<double>({ source, sink });
 }

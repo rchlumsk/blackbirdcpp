@@ -19,6 +19,9 @@ public:
   // Functions
   hydraulic_output hyd_compute_profile();
   bool postprocess_floodresults();
+
+  bool calc_output_flows(); // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
+
   bool add_streamnode(CStreamnode*& pSN);
   CStreamnode* get_streamnode_by_id(int sid);
 
