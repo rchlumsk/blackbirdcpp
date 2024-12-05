@@ -8,7 +8,9 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <math.h>
+#include <set>
 #include <stdlib.h>
 #include <string>
 #include <strstream>
@@ -21,6 +23,14 @@
 //*****************************************************************
 extern std::string g_output_directory; ///< Had to be here to avoid passing Options structure around willy-nilly
 extern bool   g_suppress_warnings;///< Had to be here to avoid passing Options object around willy-nilly
+
+// Model version
+const std::string __BLACKBIRD_VERSION__ = "0.0.0";
+//*****************************************************************
+// Global Constants
+//*****************************************************************
+const double HEADWATER          = -111111; // arbitrary value indicating that a node is a headwater node
+const double PLACEHOLDER        = -222222; // arbitrary value indicating a placeholder value
 
 //*****************************************************************
 //Exit Strategies
@@ -239,5 +249,15 @@ bool          IsComment(const char* s, const int Len);
 void          WriteWarning(const std::string warn, bool noisy);
 void          WriteAdvisory(const std::string warn, bool noisy);
 double        fast_s_to_d(const char* s);
+
+
+
+#ifdef _WIN32
+#include <direct.h>
+#define GetCurrentDir _getcwd
+#else
+#include <unistd.h>
+#define GetCurrentDir getcwd
+#endif
 
 #endif

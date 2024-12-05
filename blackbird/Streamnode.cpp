@@ -8,7 +8,7 @@ CStreamnode::CStreamnode()
   : nodeID(0), nodetype(""), downnodeID(0), upnodeID1(0), upnodeID2(0),
   stationname(""), station(0.0), reachID(0), contraction_coeff(0.0),
   expansion_coeff(0.0), ds_reach_length(0.0), us_reach_length1(0.0),
-  us_reach_length2(0.0), min_elev(0.0), bed_slope(0.0), output_depth(0.0), output_flow(0.0) {
+  us_reach_length2(0.0), min_elev(0.0), bed_slope(0.0), output_depth(0.0) {
   // Default constructor implementation
 }
 
@@ -53,10 +53,9 @@ hydraulic_output CStreamnode::compute_profile_next() {
 }
 
 // Function to add row to depthdf
-bool CStreamnode::add_depthdf_row(hydraulic_output*& row) {
+void CStreamnode::add_depthdf_row(hydraulic_output*& row) {
   depthdf->push_back(row);
   depthdf_map[row->depth] = depthdf->size() - 1;
-  return true;
 }
 
 // Returns row of depthdf with depth 'depth'
@@ -65,36 +64,40 @@ hydraulic_output* CStreamnode::get_depthdf_row_from_depth(double depth) {
 }
 
 // Function to add flowprofile
-bool CStreamnode::add_steadyflow(double flow) {
-  steady_flows.push_back(flow);
-  flow_sources.push_back(0);
-  flow_sinks.push_back(0);
-  sourcesink_map[flow] = steady_flows.size();
-  num_fp++;
-  return true;
+void CStreamnode::add_steadyflow(double flow) {
+  output_flows.push_back(flow);
+  upstream_flows.push_back(HEADWATER);
 }
 
-// Returns number of flowprofiles
-int CStreamnode::get_num_steadyflows() {
-  return num_fp;
+// Adds source and sink at index
+void CStreamnode::add_sourcesink(int index, double source, double sink) {
+  allocate_flowprofiles(index + 1);
+  flow_sources[index] = source;
+  flow_sinks[index] = sink;
 }
 
-bool CStreamnode::add_sourcesink(int index, double source, double sink) {
-  if (index < num_fp) {
-    flow_sources[index] = source;
-    flow_sinks[index] = sink;
-    return true;
-  }
-  else {
-    return false;
+// Calculates the output flows of the node
+void CStreamnode::calc_output_flows(std::vector<double> upflows) {
+  allocate_flowprofiles(upflows.size());
+  for (int k = 0; k < upflows.size(); k++) {
+    upstream_flows[k] = upflows[k];
+    output_flows[k] = upflows[k] + flow_sources[k] - flow_sinks[k];
   }
 }
 
-std::vector<double> CStreamnode::get_sourcesink_from_steadyflow(double steadyflow) {
-  if (sourcesink_map.find(steadyflow) == sourcesink_map.end()) {
-    return std::vector<double>(NULL);
+// If necessary, allocates enough space in corresponding variables for num_fp flow profiles
+void CStreamnode::allocate_flowprofiles(int num_fp) {
+  ExitGracefullyIf(num_fp == PLACEHOLDER, "Streamnode.cpp: ERROR num_fp was not assigned or is PLACEHOLDER", RUNTIME_ERR);
+  while (upstream_flows.size() < num_fp) {
+    upstream_flows.push_back(PLACEHOLDER);
   }
-  double source = flow_sources.at(sourcesink_map[steadyflow]);
-  double sink = flow_sinks.at(sourcesink_map[steadyflow]);
-  return std::vector<double>({ source, sink });
+  while (flow_sources.size() < num_fp) {
+    flow_sources.push_back(0);
+  }
+  while (flow_sinks.size() < num_fp) {
+    flow_sinks.push_back(0);
+  }
+  while (output_flows.size() < num_fp) {
+    output_flows.push_back(PLACEHOLDER);
+  }
 }
