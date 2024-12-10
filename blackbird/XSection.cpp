@@ -1,11 +1,19 @@
 #include "XSection.h"
 
 // Default constructor
-CXSection::CXSection() : CStreamnode(), xx(0.0), zz(0.0), manning(0.0),
-manning_LOB(0.0), manning_main(0.0), manning_ROB(0.0),
-lbs_xx(0.0), rbs_xx(0.0), ds_length_LOB(0.0),
-ds_length_main(0.0), ds_length_ROB(0.0) {
-  // Default constructor implementation (inherits from CStreamnode)
+CXSection::CXSection()
+  : CStreamnode(),
+  xx(PLACEHOLDER),
+  zz(PLACEHOLDER),
+  manning(PLACEHOLDER),
+  manning_LOB(PLACEHOLDER),
+  manning_main(PLACEHOLDER),
+  manning_ROB(PLACEHOLDER),
+  lbs_xx(PLACEHOLDER),
+  rbs_xx(PLACEHOLDER),
+  ds_length_LOB(PLACEHOLDER),
+  ds_length_main(PLACEHOLDER),
+  ds_length_ROB(PLACEHOLDER) {
 }
 
 // Calculate minimum elevation

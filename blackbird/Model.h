@@ -1,10 +1,10 @@
 #ifndef MODEL_H
 #define MODEL_H
 
+#include "BlackbirdInclude.h"
 #include "Streamnode.h"
 #include "BoundaryConditions.h"
 #include "Options.h"
-#include "BlackbirdInclude.h"
 
 class CModel {
 public:
@@ -25,7 +25,12 @@ public:
   void add_streamnode(CStreamnode*& pSN);
   CStreamnode* get_streamnode_by_id(int sid);
 
-private:
+  // I/O Functions defined in StandardOutput.cpp
+  void WriteOutputFileHeaders(COptions*const& pOptions);
+  void WriteMajorOutput(std::string solfile, bool final) const;
+  void WriteTestOutput() const;
+
+protected:
   // Private variables
   std::unordered_map<int, int> streamnode_map;
 };

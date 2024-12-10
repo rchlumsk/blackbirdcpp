@@ -29,8 +29,9 @@ const std::string __BLACKBIRD_VERSION__ = "0.0.0";
 //*****************************************************************
 // Global Constants
 //*****************************************************************
-const double HEADWATER          = -111111; // arbitrary value indicating that a node is a headwater node
-const double PLACEHOLDER        = -222222; // arbitrary value indicating a placeholder value
+const double HEADWATER               = -111111; // arbitrary value indicating that a node is a headwater node
+const double PLACEHOLDER             = -222222; // arbitrary value indicating a placeholder value
+const std::string PLACEHOLDER_STR    = "-222222";  // arbitrary value indicating a placeholder string value
 
 //*****************************************************************
 //Exit Strategies
@@ -249,8 +250,6 @@ bool          IsComment(const char* s, const int Len);
 void          WriteWarning(const std::string warn, bool noisy);
 void          WriteAdvisory(const std::string warn, bool noisy);
 double        fast_s_to_d(const char* s);
-
-
 
 #ifdef _WIN32
 #include <direct.h>

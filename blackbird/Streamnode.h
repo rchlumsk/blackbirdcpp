@@ -48,8 +48,10 @@ public:
 
   void calc_output_flows(std::vector<double> upflows);
 
+  void pretty_print(); // defined in StandardOutput.cpp
 
-private:
+
+protected:
   // Private variables
   std::unordered_map<double, int> depthdf_map;
 

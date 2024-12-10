@@ -2,8 +2,11 @@
 
 // Default constructor
 CModel::CModel()
-  : bbsn(), bbbc(), bbopt() {
-  // Initialize member variables as needed
+  : bbsn(new std::vector<CStreamnode*>),
+  bbbc(new CBoundaryConditions),
+  bbopt(new COptions),
+  streamnode_map() {
+  // Default constructor implementation
 }
 
 // Function to compute hydraulic profile
@@ -69,5 +72,7 @@ void CModel::add_streamnode(CStreamnode*& pSN) {
 
 // Returns streamnode with id 'sid'
 CStreamnode* CModel::get_streamnode_by_id(int sid) {
+  //std::cout << "bbsn size: " << bbsn->size() << std::endl;
+  //std::cout << "sid: " << sid << std::endl;
   return streamnode_map.find(sid) != streamnode_map.end() ? bbsn->at(streamnode_map[sid]) : NULL;
 }

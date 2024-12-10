@@ -14,11 +14,12 @@ public:
   std::string bctype;
   double bcvalue;
   double init_WSL;
-  std::vector<int> headwater_nodes;
-  std::vector<double> initial_flows;
 
   // Constructor
   CBoundaryConditions();
+
+  // Functions
+  void pretty_print(); // defined in StandardOutput.cpp
 };
 
 #endif

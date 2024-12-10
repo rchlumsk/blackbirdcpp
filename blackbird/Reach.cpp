@@ -1,7 +1,8 @@
 #include "Reach.h"
 
 // Default constructor
-CReach::CReach() : CStreamnode() {
+CReach::CReach()
+  : CStreamnode() {
   // Default constructor implementation (inherits from CStreamnode)
 }
 

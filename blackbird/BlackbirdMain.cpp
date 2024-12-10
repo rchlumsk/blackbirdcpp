@@ -15,15 +15,14 @@ static std::string BlackbirdBuildDate(__DATE__);
 
 int main(int argc, char* argv[])
 {
-  double      t;
   clock_t     t0, t1;          //computational time markers
-  //time_struct tt;
+  pModel = new CModel();
   COptions*& pOptions = pModel->bbopt;
 
   pOptions->version = __BLACKBIRD_VERSION__;
 
   ProcessExecutableArguments(argc, argv, pOptions);
-  PrepareOutputdirectory(pOptions);
+  pOptions->PrepareOutputdirectory();
 
   if (!pOptions->silent_run) {
     int year = std::stoi(BlackbirdBuildDate.substr(BlackbirdBuildDate.length() - 4, 4).c_str());
@@ -35,7 +34,7 @@ int main(int argc, char* argv[])
     std::cout << "                BuildDate " << BlackbirdBuildDate << std::endl;
     std::cout << "============================================================" << std::endl;
   }
-  std::cout << pOptions->main_output_dir;
+  
   std::ofstream WARNINGS;
   WARNINGS.open((pOptions->main_output_dir + "Blackbird_errors.txt").c_str());
   if (WARNINGS.fail()) {
@@ -68,9 +67,10 @@ int main(int argc, char* argv[])
   }
 
   t1 = clock();
-
+  
   //Finished Solving----------------------------------------------------
-  pModel->WriteMajorOutput(pOptions, "solution", true);
+  //pModel->WriteMajorOutput("solution", true);
+  pModel->WriteTestOutput();
 
   if (!pOptions->silent_run)
   {
@@ -176,7 +176,7 @@ void CheckForErrorWarnings(bool quiet, CModel* pModel)
   char* s[MAXINPUTITEMS];
   bool     errors_found(false);
   bool     warnings_found(false);
-  const COptions*& pOptions = pModel->bbopt;
+  COptions*& pOptions = pModel->bbopt;
 
   std::ifstream WARNINGS;
   WARNINGS.open((pOptions->main_output_dir + "Blackbird_errors.txt").c_str());
@@ -208,7 +208,7 @@ void CheckForErrorWarnings(bool quiet, CModel* pModel)
 /// \note called during simulation to determine whether progress should be stopped
 ///
 //
-bool CheckForStopfile(const int step, const time_struct& tt, CModel* pModel)
+bool CheckForStopfile(const int step, CModel* pModel)
 {
   if (step % 100 != 0) { return false; } //only check every 100th timestep
   std::ifstream STOP;

@@ -2,47 +2,70 @@
 
 // Default constructor
 COptions::COptions()
-  : run_name(""),
-  workingfolder(""),
-  bbi_filename(""),
-  bbg_filename(""),
-  bbp_filename(""),
-  bbb_filename(""),
-  main_output_dir(""),
-  modelname(""),
-  modeltype(HAND_MANNING),
-  regimetype(SUBCRITICAL),
-  dx(0.0),
+  : version(PLACEHOLDER_STR),
+  run_name(PLACEHOLDER_STR),
+  workingfolder(PLACEHOLDER_STR),
+  bbi_filename(PLACEHOLDER_STR),
+  bbp_filename(PLACEHOLDER_STR),
+  bbb_filename(PLACEHOLDER_STR),
+  bbg_filename(PLACEHOLDER_STR),
+  main_output_dir(PLACEHOLDER_STR),
+  modelname(PLACEHOLDER_STR),
+  modeltype(enum_mt_method::HAND_MANNING),
+  regimetype(enum_rt_method::SUBCRITICAL),
+  dx(PLACEHOLDER),
   extrapolate_depth_table(true),
-  num_extrapolation_points(0.0),
-  friction_slope_method(AVERAGE_CONVEYANCE),
-  xsection_conveyance_method(OVERBANK_CONVEYANCE),
-  reach_conveyance_method(DISCRETIZED_CONVEYANCE_R),
+  num_extrapolation_points(PLACEHOLDER),
+  friction_slope_method(enum_fs_method::AVERAGE_CONVEYANCE),
+  xsection_conveyance_method(enum_xsc_method::OVERBANK_CONVEYANCE),
+  reach_conveyance_method(enum_rc_method::DISCRETIZED_CONVEYANCE_R),
   enforce_delta_Leff(false),
-  delta_reachlength(0.0),
-  tolerance_cp(0.0),
-  iteration_limit_cp(0.0),
-  next_WSL_split_cp(0.0),
-  tolerance_nd(0.0),
-  iteration_limit_nd(0.0),
-  next_WSL_split_nd(0.0),
+  delta_reachlength(PLACEHOLDER),
+  tolerance_cp(PLACEHOLDER),
+  iteration_limit_cp(PLACEHOLDER),
+  next_WSL_split_cp(PLACEHOLDER),
+  tolerance_nd(PLACEHOLDER),
+  iteration_limit_nd(PLACEHOLDER),
+  next_WSL_split_nd(PLACEHOLDER),
   silent_cp(false),
   silent_nd(false),
-  max_RHSQ_ratio(0.0),
-  min_RHSQ_ratio(0.0),
+  max_RHSQ_ratio(PLACEHOLDER),
+  min_RHSQ_ratio(PLACEHOLDER),
   use_dhand(false),
-  dhand_Hseq(0.0),
-  manning_composite_method(EQUAL_FORCE),
+  dhand_Hseq(PLACEHOLDER),
+  manning_composite_method(enum_mc_method::EQUAL_FORCE),
   manning_enforce_values(false),
-  reach_integration_method(EFFECTIVE_LENGTH),
-  interpolation_postproc_method(CATCHMENT_HAND),
-  postproc_elev_corr_threshold(0.0),
-  roughness_multiplier(0.0),
-  blended_conveyance_weights(0.0),
-  blended_nc_weights(0.0),
+  reach_integration_method(enum_ri_method::EFFECTIVE_LENGTH),
+  interpolation_postproc_method(enum_ppi_method::CATCHMENT_HAND),
+  postproc_elev_corr_threshold(PLACEHOLDER),
+  roughness_multiplier(PLACEHOLDER),
+  blended_conveyance_weights(PLACEHOLDER),
+  blended_nc_weights(PLACEHOLDER),
   silent_run(false),
-  noisy_run(false) {
-  // Default constructor implementation
+  noisy_run(false),
+  working_dir(PLACEHOLDER_STR) {
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief creates specified output directory, if needed
+///
+/// \param *&pOptions [in] global model options
+//
+void COptions::PrepareOutputdirectory()
+{
+  if (this->main_output_dir != "")
+  {
+#if defined(_WIN32)
+    _mkdir(this->main_output_dir.c_str());
+#elif defined(__linux__)
+    mkdir(this->main_output_dir.c_str(), 0777);
+#elif defined(__APPLE__)
+    mkdir(this->main_output_dir.c_str(), 0777);
+#elif defined(__unix__)
+    mkdir(this->main_output_dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
+  }
+  g_output_directory = this->main_output_dir;//necessary evil
 }
 
 // Check options function

@@ -3,9 +3,9 @@
 #include "ParseLib.h"
 
 bool ParseMainInputFile(CModel*& pModel, COptions*& pOptions);
-bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*& pOptions);
-bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*& pOptions);
-bool ParseGeometryFile(CModel*& pModel, COptions*& pOptions);
+bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*const& pOptions);
+bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions);
+bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions);
 void ImproperFormatWarning(std::string command, CParser* p, bool noisy);
 
 //////////////////////////////////////////////////////////////////
@@ -36,6 +36,12 @@ bool ParseInputFiles(CModel*& pModel,
     ExitGracefully("Cannot find or read .bbi file", BAD_DATA);return false;
   }
 
+  // Geometry file (.bbg)
+  //--------------------------------------------------------------------------------
+  if (!ParseGeometryFile(pModel, pOptions)) {
+    ExitGracefully("Cannot find or read .bbg file", BAD_DATA);return false;
+  }
+
   // Preprocessed Tables file (.bbp)
   //--------------------------------------------------------------------------------
   if (!ParsePreprocessedTablesFile(pModel, pOptions)) {
@@ -46,12 +52,6 @@ bool ParseInputFiles(CModel*& pModel,
   //--------------------------------------------------------------------------------
   if (!ParseBoundaryConditionsFile(pModel, pOptions)) {
     ExitGracefully("Cannot find or read .bbb file", BAD_DATA);return false;
-  }
-
-  // Geometry file (.bbg)
-  //--------------------------------------------------------------------------------
-  if (!ParseGeometryFile(pModel, pOptions)) {
-    ExitGracefully("Cannot find or read .bbg file", BAD_DATA);return false;
   }
 
   if (!pOptions->silent_run) {
@@ -95,8 +95,6 @@ bool ParseMainInputFile(CModel*& pModel,
 
   CParser* p = new CParser(INPUT, pOptions->bbi_filename, line);
 
-  pModel = NULL;
-
   //===============================================================================================
   // Sift through file, processing each command
   //===============================================================================================
@@ -138,7 +136,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":WSLSplitNormalDepth")) { code = 8; }
     else if (!strcmp(s[0], ":MaxRHRatio")) { code = 9; }
     else if (!strcmp(s[0], ":MinRHRatio")) { code = 10; }
-    else if (!strcmp(s[0], ":ExtrapolationMethod")) { code = 11; }
+    else if (!strcmp(s[0], ":ExtrapolateDepthTable")) { code = 11; }
     else if (!strcmp(s[0], ":NumExtrapolationPoints")) { code = 12; }
     else if (!strcmp(s[0], ":DynamicHAND")) { code = 13; }
     else if (!strcmp(s[0], ":FrictionSlopeMethod")) { code = 14; }
@@ -209,17 +207,17 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:ModelType [string type]*/
       if (pOptions->noisy_run) { std::cout << "ModelType" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ModelType", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "HAND_MANNING")) { pOptions->modeltype = HAND_MANNING; }
-      else if (!strcmp(s[1], "STEADYFLOW")) { pOptions->modeltype = STEADYFLOW; }
+      if (!strcmp(s[1], "HAND_MANNING")) { pOptions->modeltype = enum_mt_method::HAND_MANNING; }
+      else if (!strcmp(s[1], "STEADYFLOW")) { pOptions->modeltype = enum_mt_method::STEADYFLOW; }
       break;
     }
     case(3):
     {/*:RegimeType [string type]*/
       if (pOptions->noisy_run) { std::cout << "RegimeType" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":RegimeType", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "SUBCRITICAL")) { pOptions->regimetype = SUBCRITICAL; }
-      else if (!strcmp(s[1], "SUPERCRITICAL")) { pOptions->regimetype = SUPERCRITICAL; }
-      else if (!strcmp(s[1], "MIXED")) { pOptions->regimetype = MIXED; }
+      if (!strcmp(s[1], "SUBCRITICAL")) { pOptions->regimetype = enum_rt_method::SUBCRITICAL; }
+      else if (!strcmp(s[1], "SUPERCRITICAL")) { pOptions->regimetype = enum_rt_method::SUPERCRITICAL; }
+      else if (!strcmp(s[1], "MIXED")) { pOptions->regimetype = enum_rt_method::MIXED; }
       break;
     }
     case(4):
@@ -296,11 +294,11 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:FrictionSlopeMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "FrictionSlopeMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":FrictionSlopeMethod", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "AVERAGE_CONVEYANCE")) { pOptions->friction_slope_method = AVERAGE_CONVEYANCE; }
-      else if (!strcmp(s[1], "AVERAGE_FRICTION")) { pOptions->friction_slope_method = AVERAGE_FRICTION; }
-      else if (!strcmp(s[1], "GEOMETRIC_FRICTION")) { pOptions->friction_slope_method = GEOMETRIC_FRICTION; }
-      else if (!strcmp(s[1], "HARMONIC_FRICTION")) { pOptions->friction_slope_method = HARMONIC_FRICTION; }
-      else if (!strcmp(s[1], "REACH_FRICTION")) { pOptions->friction_slope_method = REACH_FRICTION; }
+      if (!strcmp(s[1], "AVERAGE_CONVEYANCE")) { pOptions->friction_slope_method = enum_fs_method::AVERAGE_CONVEYANCE; }
+      else if (!strcmp(s[1], "AVERAGE_FRICTION")) { pOptions->friction_slope_method = enum_fs_method::AVERAGE_FRICTION; }
+      else if (!strcmp(s[1], "GEOMETRIC_FRICTION")) { pOptions->friction_slope_method = enum_fs_method::GEOMETRIC_FRICTION; }
+      else if (!strcmp(s[1], "HARMONIC_FRICTION")) { pOptions->friction_slope_method = enum_fs_method::HARMONIC_FRICTION; }
+      else if (!strcmp(s[1], "REACH_FRICTION")) { pOptions->friction_slope_method = enum_fs_method::REACH_FRICTION; }
       break;
     }
     case(15):
@@ -321,12 +319,12 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:ManningCompositeMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "ManningCompositeMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ManningCompositeMethod", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "EQUAL_FORCE")) { pOptions->manning_composite_method = EQUAL_FORCE; }
-      else if (!strcmp(s[1], "WEIGHTED_AVERAGE_AREA")) { pOptions->manning_composite_method = WEIGHTED_AVERAGE_AREA; }
-      else if (!strcmp(s[1], "WEIGHTED_AVERAGE_WETPERIMETER")) { pOptions->manning_composite_method = WEIGHTED_AVERAGE_WETPERIMETER; }
-      else if (!strcmp(s[1], "WEIGHTED_AVERAGE_CONVEYANCE")) { pOptions->manning_composite_method = WEIGHTED_AVERAGE_CONVEYANCE; }
-      else if (!strcmp(s[1], "EQUAL_VELOCITY")) { pOptions->manning_composite_method = EQUAL_VELOCITY; }
-      else if (!strcmp(s[1], "BLENDED_NC")) { pOptions->manning_composite_method = BLENDED_NC; }
+      if (!strcmp(s[1], "EQUAL_FORCE")) { pOptions->manning_composite_method = enum_mc_method::EQUAL_FORCE; }
+      else if (!strcmp(s[1], "WEIGHTED_AVERAGE_AREA")) { pOptions->manning_composite_method = enum_mc_method::WEIGHTED_AVERAGE_AREA; }
+      else if (!strcmp(s[1], "WEIGHTED_AVERAGE_WETPERIMETER")) { pOptions->manning_composite_method = enum_mc_method::WEIGHTED_AVERAGE_WETPERIMETER; }
+      else if (!strcmp(s[1], "WEIGHTED_AVERAGE_CONVEYANCE")) { pOptions->manning_composite_method = enum_mc_method::WEIGHTED_AVERAGE_CONVEYANCE; }
+      else if (!strcmp(s[1], "EQUAL_VELOCITY")) { pOptions->manning_composite_method = enum_mc_method::EQUAL_VELOCITY; }
+      else if (!strcmp(s[1], "BLENDED_NC")) { pOptions->manning_composite_method = enum_mc_method::BLENDED_NC; }
       break;
     }
     case(18):
@@ -354,11 +352,11 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:XSectionConveyanceMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "XSectionConveyanceMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":XSectionConveyanceMethod", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "OVERBANK_CONVEYANCE")) { pOptions->xsection_conveyance_method = OVERBANK_CONVEYANCE; }
-      else if (!strcmp(s[1], "DEFAULT_CONVEYANCE")) { pOptions->xsection_conveyance_method = DEFAULT_CONVEYANCE; }
-      else if (!strcmp(s[1], "COORDINATE_CONVEYANCE")) { pOptions->xsection_conveyance_method = COORDINATE_CONVEYANCE; }
-      else if (!strcmp(s[1], "DISCRETIZED_CONVEYANCE_XS")) { pOptions->xsection_conveyance_method = DISCRETIZED_CONVEYANCE_XS; }
-      else if (!strcmp(s[1], "AREAWEIGHTED_CONVEYANCE_ONECALC_XS")) { pOptions->xsection_conveyance_method = AREAWEIGHTED_CONVEYANCE_ONECALC_XS; }
+      if (!strcmp(s[1], "OVERBANK_CONVEYANCE")) { pOptions->xsection_conveyance_method = enum_xsc_method::OVERBANK_CONVEYANCE; }
+      else if (!strcmp(s[1], "DEFAULT_CONVEYANCE")) { pOptions->xsection_conveyance_method = enum_xsc_method::DEFAULT_CONVEYANCE; }
+      else if (!strcmp(s[1], "COORDINATE_CONVEYANCE")) { pOptions->xsection_conveyance_method = enum_xsc_method::COORDINATE_CONVEYANCE; }
+      else if (!strcmp(s[1], "DISCRETIZED_CONVEYANCE_XS")) { pOptions->xsection_conveyance_method = enum_xsc_method::DISCRETIZED_CONVEYANCE_XS; }
+      else if (!strcmp(s[1], "AREAWEIGHTED_CONVEYANCE_ONECALC_XS")) { pOptions->xsection_conveyance_method = enum_xsc_method::AREAWEIGHTED_CONVEYANCE_ONECALC_XS; }
       else if (!strcmp(s[1], "AREAWEIGHTED_CONVEYANCE")) { pOptions->xsection_conveyance_method = AREAWEIGHTED_CONVEYANCE; }
       break;
     }
@@ -373,29 +371,29 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:ReachConveyanceMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "ReachConveyanceMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ReachConveyanceMethod", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "DISCRETIZED_CONVEYANCE_R")) { pOptions->reach_conveyance_method = DISCRETIZED_CONVEYANCE_R; }
-      else if (!strcmp(s[1], "AREAWEIGHTED_CONVEYANCE_ONECALC_R")) { pOptions->reach_conveyance_method = AREAWEIGHTED_CONVEYANCE_ONECALC_R; }
-      else if (!strcmp(s[1], "ROUGHZONE_CONVEYANCE")) { pOptions->reach_conveyance_method = ROUGHZONE_CONVEYANCE; }
-      else if (!strcmp(s[1], "BLENDED_CONVEYANCE")) { pOptions->reach_conveyance_method = BLENDED_CONVEYANCE; }
+      if (!strcmp(s[1], "DISCRETIZED_CONVEYANCE_R")) { pOptions->reach_conveyance_method = enum_rc_method::DISCRETIZED_CONVEYANCE_R; }
+      else if (!strcmp(s[1], "AREAWEIGHTED_CONVEYANCE_ONECALC_R")) { pOptions->reach_conveyance_method = enum_rc_method::AREAWEIGHTED_CONVEYANCE_ONECALC_R; }
+      else if (!strcmp(s[1], "ROUGHZONE_CONVEYANCE")) { pOptions->reach_conveyance_method = enum_rc_method::ROUGHZONE_CONVEYANCE; }
+      else if (!strcmp(s[1], "BLENDED_CONVEYANCE")) { pOptions->reach_conveyance_method = enum_rc_method::BLENDED_CONVEYANCE; }
       break;
     }
     case(301):
     {/*:ReachIntegrationMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "ReachIntegrationMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ReachIntegrationMethod", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "EFFECTIVE_LENGTH")) { pOptions->reach_integration_method = EFFECTIVE_LENGTH; }
-      else if (!strcmp(s[1], "REACH_LENGTH")) { pOptions->reach_integration_method = REACH_LENGTH; }
+      if (!strcmp(s[1], "EFFECTIVE_LENGTH")) { pOptions->reach_integration_method = enum_ri_method::EFFECTIVE_LENGTH; }
+      else if (!strcmp(s[1], "REACH_LENGTH")) { pOptions->reach_integration_method = enum_ri_method::REACH_LENGTH; }
       break;
     }
     case(400):
     {/*:PostprocessingInterpolationMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "PostprocessingInterpolationMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":PostprocessingInterpolationMethod", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "CATCHMENT_HAND")) { pOptions->interpolation_postproc_method = CATCHMENT_HAND; }
-      else if (!strcmp(s[1], "CATCHMENT_DHAND")) { pOptions->interpolation_postproc_method = CATCHMENT_DHAND; }
-      else if (!strcmp(s[1], "INTERP_HAND")) { pOptions->interpolation_postproc_method = INTERP_HAND; }
-      else if (!strcmp(s[1], "INTERP_DHAND")) { pOptions->interpolation_postproc_method = INTERP_DHAND; }
-      else if (!strcmp(s[1], "INTERP_DHAND_WSLCORR")) { pOptions->interpolation_postproc_method = INTERP_DHAND_WSLCORR; }
+      if (!strcmp(s[1], "CATCHMENT_HAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::CATCHMENT_HAND; }
+      else if (!strcmp(s[1], "CATCHMENT_DHAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::CATCHMENT_DHAND; }
+      else if (!strcmp(s[1], "INTERP_HAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::INTERP_HAND; }
+      else if (!strcmp(s[1], "INTERP_DHAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::INTERP_DHAND; }
+      else if (!strcmp(s[1], "INTERP_DHAND_WSLCORR")) { pOptions->interpolation_postproc_method = enum_ppi_method::INTERP_DHAND_WSLCORR; }
       break;
     }
     default://----------------------------------------------
@@ -412,7 +410,7 @@ bool ParseMainInputFile(CModel*& pModel,
         else if (!strcmp(s[0], ":Name")) { if (pOptions->noisy_run) { std::cout << "Name" << std::endl; } }//do nothing
         else
         {
-          std::string warn = "IGNORING unrecognized command: " + std::string(s[0]) + " in .rvi file";
+          std::string warn = "IGNORING unrecognized command: " + std::string(s[0]) + " in .bbi file";
           WriteWarning(warn, pOptions->noisy_run);
         }
     }

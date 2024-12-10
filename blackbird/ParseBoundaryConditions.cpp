@@ -3,6 +3,8 @@
 #include "ParseLib.h"
 #include "Streamnode.h"
 
+void  ImproperFormatWarning(std::string command, CParser* p, bool noisy);
+
 //////////////////////////////////////////////////////////////////
 /// \brief Parses Boundary Conditions file
 /// \details model.bbb: input file that defines boundary conditions \n
@@ -11,7 +13,7 @@
 /// \param *&pOptions [out] Global model options information
 /// \return True if operation is successful
 //
-bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
+bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
 {
   CStreamnode*               pSN(NULL);             //temp pointers
   CBoundaryConditions*       pBC(NULL);
@@ -141,7 +143,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
       if (pOptions->noisy_run) { std::cout << "StationName" << std::endl; }
       ExitGracefullyIf(pBC == NULL,
         "ParseBoundaryConditions File: :StationName specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":StationName", p, pOptions->noisy_run); break; }
+      if (Len < 2) { ImproperFormatWarning(":StationName", pp, pOptions->noisy_run); break; }
       pBC->stationname = s[1];
       break;
     }
@@ -150,13 +152,13 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
       if (pOptions->noisy_run) { std::cout << "Station" << std::endl; }
       ExitGracefullyIf(pBC == NULL,
         "ParseBoundaryConditions File: :Station specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":Station", p, pOptions->noisy_run); break; }
+      if (Len < 2) { ImproperFormatWarning(":Station", pp, pOptions->noisy_run); break; }
       if (strcmp(s[1], "NA")) {
         if (StringIsDouble(s[1])) {
           pBC->station = std::stod(s[1]);
         }
         else {
-          error = "ParsePreprocessedTables File: Station \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
+          std::string error = "ParsePreprocessedTables File: Station \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
           ExitGracefully(error.c_str(), BAD_DATA_WARN);
         }
       }
@@ -167,7 +169,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
       if (pOptions->noisy_run) { std::cout << "Reach" << std::endl; }
       ExitGracefullyIf(pBC == NULL,
         "ParseBoundaryConditions File: :Reach specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":Reach", p, pOptions->noisy_run); break; }
+      if (Len < 2) { ImproperFormatWarning(":Reach", pp, pOptions->noisy_run); break; }
       pBC->reach = s[1];
       break;
     }
@@ -176,7 +178,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
       if (pOptions->noisy_run) { std::cout << "Location" << std::endl; }
       ExitGracefullyIf(pBC == NULL,
         "ParseBoundaryConditions File: :Location specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":Location", p, pOptions->noisy_run); break; }
+      if (Len < 2) { ImproperFormatWarning(":Location", pp, pOptions->noisy_run); break; }
       pBC->location = s[1];
       break;
     }
@@ -185,7 +187,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
       if (pOptions->noisy_run) { std::cout << "BCType" << std::endl; }
       ExitGracefullyIf(pBC == NULL,
         "ParseBoundaryConditions File: :BCType specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":BCType", p, pOptions->noisy_run); break; }
+      if (Len < 2) { ImproperFormatWarning(":BCType", pp, pOptions->noisy_run); break; }
       pBC->bctype = s[1];
       break;
     }
@@ -194,13 +196,13 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
       if (pOptions->noisy_run) { std::cout << "BCValue" << std::endl; }
       ExitGracefullyIf(pBC == NULL,
         "ParseBoundaryConditions File: :BCValue specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":BCValue", p, pOptions->noisy_run); break; }
+      if (Len < 2) { ImproperFormatWarning(":BCValue", pp, pOptions->noisy_run); break; }
       if (strcmp(s[1], "NA")) {
         if (StringIsDouble(s[1])) {
           pBC->bcvalue = std::stod(s[1]);
         }
         else {
-          error = "ParseBoundaryConditions File: BCValue \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
+          std::string error = "ParseBoundaryConditions File: BCValue \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
           ExitGracefully(error.c_str(), BAD_DATA_WARN);
         }
       }
@@ -211,13 +213,13 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
       if (pOptions->noisy_run) { std::cout << "InitialWSL" << std::endl; }
       ExitGracefullyIf(pBC == NULL,
         "ParseBoundaryConditions File: :InitialWSL specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":InitialWSL", p, pOptions->noisy_run); break; }
+      if (Len < 2) { ImproperFormatWarning(":InitialWSL", pp, pOptions->noisy_run); break; }
       if (strcmp(s[1], "NA")) {
         if (StringIsDouble(s[1])) {
           pBC->init_WSL = std::stod(s[1]);
         }
         else {
-          error = "ParseBoundaryConditions File: InitialWSL \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
+          std::string error = "ParseBoundaryConditions File: InitialWSL \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
           ExitGracefully(error.c_str(), BAD_DATA_WARN);
         }
       }
@@ -233,13 +235,13 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
         std::string error;
         while ((!done) && (!end_of_file))
         {
-          row++;
           end_of_file = pp->Tokenize(s, Len);
           if (IsComment(s[0], Len)) {}//comment line
           else if (!strcmp(s[0], ":Attributes")) {}//ignored by Blackbird - needed for GUIs
           else if (!strcmp(s[0], ":EndSteadyFlows")) { done = true; }
           else
           {
+            row++;
             if (Len < 2) { pp->ImproperFormat(s); }
             if (StringIsLong(s[0])) {
               pSN = NULL;
@@ -255,7 +257,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
             }
             for (int i = 1; i < Len; i++) {
               if (StringIsDouble(s[i])) {
-                pSN->add_steadyflow(s[i]);
+                pSN->add_steadyflow(std::stod(s[i]));
               }
               else {
                 error = "ParseBoundaryConditions File: flowprofile \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be double";
@@ -277,46 +279,42 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, const COptions*& pOptions)
         std::string error;
         while ((!done) && (!end_of_file))
         {
-          row++;
           end_of_file = pp->Tokenize(s, Len);
           if (IsComment(s[0], Len)) {}//comment line
           else if (!strcmp(s[0], ":Attributes")) {}//ignored by Blackbird - needed for GUIs
-          else if (!strcmp(s[0], ":EndSteadyFlows")) { done = true; }
+          else if (!strcmp(s[0], ":EndStreamnodeSourcesSinks")) { done = true; }
           else
           {
+            row++;
             if (Len < 2) { pp->ImproperFormat(s); }
             if (StringIsLong(s[0])) {
               pSN = NULL;
               pSN = pModel->get_streamnode_by_id(std::stoi(s[0]));
               if (pSN == NULL) {
-                error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows does not exist in streamnodes object";
+                error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :StreamnodeSourcesSinks does not exist in streamnodes object";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
             }
             else {
-              error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be unique integer or long integer";
+              error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :StreamnodeSourcesSinks must be unique integer or long integer";
               ExitGracefully(error.c_str(), BAD_DATA_WARN);
             }
             for (int i = 1; i < Len; i += 2) {
-              if (i + 1 = Len) {
-                error = "ParseBoundaryConditions File: unmatched source in row " + std::to_string(row) + " of  :SteadyFlows needs a sink";
+              if (i + 1 == Len) {
+                error = "ParseBoundaryConditions File: unmatched source in row " + std::to_string(row) + " of  :StreamnodeSourcesSinks needs a sink";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
               if (!StringIsDouble(s[i])) {
-                error = "ParseBoundaryConditions File: source \"" + std::string(s[i]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be double";
+                error = "ParseBoundaryConditions File: source \"" + std::string(s[i]) + "\" in row " + std::to_string(row) + " of  :StreamnodeSourcesSinks must be double";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
               else if (!StringIsDouble(s[i + 1])) {
-                error = "ParseBoundaryConditions File: sink \"" + std::string(s[i + 1]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be double";
+                error = "ParseBoundaryConditions File: sink \"" + std::string(s[i + 1]) + "\" in row " + std::to_string(row) + " of  :StreamnodeSourcesSinks must be double";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
               else {
                 int index = (i - 1) / 2;
-                if (!(pSN->add_sourcesink(index, std::stod(s[i]), std::stod(s[i + 1])))) {
-                  error = "ParseBoundaryConditions File: unable to add source \"" + std::string(s[i]) +
-                    " and sink \"" + std::string(s[i + 1]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows";
-                  ExitGracefully(error.c_str(), BAD_DATA_WARN);
-                }
+                pSN->add_sourcesink(index, std::stod(s[i]), std::stod(s[i + 1]));
               }
             }
           }

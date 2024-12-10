@@ -11,7 +11,7 @@
 /// \param *&pOptions [out] Global model options information
 /// \return True if operation is successful
 //
-bool ParsePreprocessedTablesFile(CModel*& pModel, const COptions*& pOptions)
+bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*const& pOptions)
 {
   CStreamnode*       pSN(NULL);             //temp pointers
   hydraulic_output*  pHO(NULL);
@@ -108,26 +108,26 @@ bool ParsePreprocessedTablesFile(CModel*& pModel, const COptions*& pOptions)
       if (Len < 2) { pp->ImproperFormat(s); }
       else {
         std::string error;
-        if (StringIsLong(s[0])) {
+        if (StringIsLong(s[1])) {
           pSN = NULL;
-          pSN = pModel->get_streamnode_by_id(std::stoi(s[0]));
+          pSN = pModel->get_streamnode_by_id(std::stoi(s[1]));
           if (pSN == NULL) {
-            error = "ParsePreprocessedTables File: nodeID \"" + std::string(s[0]) + "\" after :PreprocHydTable does not exist in streamnodes object";
+            error = "ParsePreprocessedTables File: nodeID \"" + std::string(s[1]) + "\" after :PreprocHydTable does not exist in streamnodes object";
             ExitGracefully(error.c_str(), BAD_DATA_WARN);
           }
         } else {
-          error = "ParsePreprocessedTables File: nodeID \"" + std::string(s[0]) + "\" after :PreprocHydTable must be unique integer or long integer";
+          error = "ParsePreprocessedTables File: nodeID \"" + std::string(s[1]) + "\" after :PreprocHydTable must be unique integer or long integer";
           ExitGracefully(error.c_str(), BAD_DATA_WARN);
         }
         while ((!done) && (!end_of_file))
         {
-          row++;
           end_of_file = pp->Tokenize(s, Len);
           if (IsComment(s[0], Len)) {}//comment line
           else if (!strcmp(s[0], ":Attributes")) {}//ignored by Blackbird - needed for GUIs
           else if (!strcmp(s[0], ":EndPreprocHydTable")) { done = true; }
           else
           {
+            row++;
             if (Len < 75) { pp->ImproperFormat(s); }
             pHO = NULL;
             pHO = new hydraulic_output();

@@ -1,15 +1,31 @@
+#include "BlackbirdInclude.h"
 #include "Model.h"
 #include "Streamnode.h"
-#include "BlackbirdInclude.h"
 #include<string>
 
 // Default constructor
 CStreamnode::CStreamnode()
-  : nodeID(0), nodetype(""), downnodeID(0), upnodeID1(0), upnodeID2(0),
-  stationname(""), station(0.0), reachID(0), contraction_coeff(0.0),
-  expansion_coeff(0.0), ds_reach_length(0.0), us_reach_length1(0.0),
-  us_reach_length2(0.0), min_elev(0.0), bed_slope(0.0), output_depth(0.0) {
-  // Default constructor implementation
+  : nodeID(PLACEHOLDER),
+  nodetype(PLACEHOLDER_STR),
+  downnodeID(PLACEHOLDER),
+  upnodeID1(PLACEHOLDER),
+  upnodeID2(PLACEHOLDER),
+  stationname(PLACEHOLDER_STR),
+  station(PLACEHOLDER),
+  reachID(PLACEHOLDER),
+  ds_reach_length(PLACEHOLDER),
+  us_reach_length1(PLACEHOLDER),
+  us_reach_length2(PLACEHOLDER),
+  contraction_coeff(PLACEHOLDER),
+  expansion_coeff(PLACEHOLDER),
+  min_elev(PLACEHOLDER),
+  bed_slope(PLACEHOLDER),
+  depthdf(new std::vector<hydraulic_output*>),
+  upstream_flows(),
+  flow_sources(),
+  flow_sinks(),
+  output_depth(PLACEHOLDER),
+  output_flows() {
 }
 
 // Generate initial hydraulic profile

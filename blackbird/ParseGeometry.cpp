@@ -11,7 +11,7 @@
 /// \param *&pOptions [out] Global model options information
 /// \return True if operation is successful
 //
-bool ParseGeometryFile(CModel*& pModel, const COptions*& pOptions)
+bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
 {
   CStreamnode*     pSN(NULL);             //temp pointers
   bool             ended = false;
@@ -109,13 +109,13 @@ bool ParseGeometryFile(CModel*& pModel, const COptions*& pOptions)
         std::string error;
         while ((!done) && (!end_of_file))
         {
-          row++;
           end_of_file = pp->Tokenize(s, Len);
           if (IsComment(s[0], Len)) {}//comment line
           else if (!strcmp(s[0], ":Attributes")) {}//ignored by Blackbird - needed for GUIs
           else if (!strcmp(s[0], ":EndStreamnodes")) { done = true; }
           else
           {
+            row++;
             if (Len < 15) { pp->ImproperFormat(s); }
             pSN = NULL;
             pSN = new CStreamnode();
@@ -131,7 +131,7 @@ bool ParseGeometryFile(CModel*& pModel, const COptions*& pOptions)
               }
             }
             if (strcmp(s[1], "NA")) {
-              pSN->nodetype = std::string(s[1]);tr(), BAD_DATA_WARN);
+              pSN->nodetype = std::string(s[1]);
             }
             if (strcmp(s[2], "NA")) {
               if (StringIsLong(s[2])) {
@@ -284,6 +284,10 @@ bool ParseGeometryFile(CModel*& pModel, const COptions*& pOptions)
       break;
       default:
       {
+        // TEMP CONDITIONAL TO CATCH HAND FILES
+        if (std::string(s[0]).find("hand") != std::string::npos) {
+          break;
+        }
         std::string errString = "Unrecognized command in .bbg file:\n   " + std::string(s[0]);
         ExitGracefully(errString.c_str(), BAD_DATA);//STRICT
       }
