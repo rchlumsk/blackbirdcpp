@@ -48,7 +48,7 @@ public:
 
   void calc_output_flows(std::vector<double> upflows);
 
-  void pretty_print(); // defined in StandardOutput.cpp
+  void pretty_print() const; // defined in StandardOutput.cpp
 
 
 protected:

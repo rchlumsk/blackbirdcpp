@@ -23,7 +23,7 @@ bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*const& pOptions)
   if (bbp.fail()) {
     std::cout << "ERROR opening file: " << pOptions->bbp_filename << std::endl; return false;
   }
-
+  
   int   Len, line(0), code;
   char* s[MAXINPUTITEMS];
   CParser* pp = new CParser(bbp, pOptions->bbp_filename, line);

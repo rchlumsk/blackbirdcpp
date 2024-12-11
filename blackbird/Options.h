@@ -8,13 +8,13 @@ public:
   // Member variables
   std::string version;
   std::string run_name;
-  std::string workingfolder;
   std::string bbi_filename;
   std::string bbp_filename;
   std::string bbb_filename;
   std::string bbg_filename;
 
   std::string main_output_dir;
+  std::string working_dir;
   std::string modelname;
 
   enum_mt_method modeltype;
@@ -50,7 +50,6 @@ public:
 
   bool silent_run;
   bool noisy_run;
-  std::string working_dir;
 
   // Constructor
   COptions();
@@ -58,7 +57,7 @@ public:
   // Functions
   void PrepareOutputdirectory();
   void check_options();
-  void pretty_print(); // defined in StandardOutput.cpp
+  void pretty_print() const; // defined in StandardOutput.cpp
 };
 
 #endif

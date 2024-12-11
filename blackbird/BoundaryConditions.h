@@ -19,7 +19,7 @@ public:
   CBoundaryConditions();
 
   // Functions
-  void pretty_print(); // defined in StandardOutput.cpp
+  void pretty_print() const; // defined in StandardOutput.cpp
 };
 
 #endif

@@ -74,7 +74,6 @@ bool ParseInputFiles(CModel*& pModel,
 bool ParseMainInputFile(CModel*& pModel,
                         COptions*& pOptions)
 {
-  int i;
   std::ifstream          INPUT;
   std::ifstream          INPUT2;           //For Secondary input
   CParser* pMainParser = NULL; //for storage of main parser while reading secondary files

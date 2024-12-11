@@ -4,12 +4,12 @@
 COptions::COptions()
   : version(PLACEHOLDER_STR),
   run_name(PLACEHOLDER_STR),
-  workingfolder(PLACEHOLDER_STR),
   bbi_filename(PLACEHOLDER_STR),
   bbp_filename(PLACEHOLDER_STR),
   bbb_filename(PLACEHOLDER_STR),
   bbg_filename(PLACEHOLDER_STR),
   main_output_dir(PLACEHOLDER_STR),
+  working_dir(PLACEHOLDER_STR),
   modelname(PLACEHOLDER_STR),
   modeltype(enum_mt_method::HAND_MANNING),
   regimetype(enum_rt_method::SUBCRITICAL),
@@ -42,8 +42,7 @@ COptions::COptions()
   blended_conveyance_weights(PLACEHOLDER),
   blended_nc_weights(PLACEHOLDER),
   silent_run(false),
-  noisy_run(false),
-  working_dir(PLACEHOLDER_STR) {
+  noisy_run(false) {
 }
 
 //////////////////////////////////////////////////////////////////

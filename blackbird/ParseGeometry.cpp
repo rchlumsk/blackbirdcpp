@@ -22,7 +22,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
   if (bbg.fail()) {
     std::cout << "ERROR opening file: " << pOptions->bbg_filename << std::endl; return false;
   }
-
+  
   int   Len, line(0), code;
   char* s[MAXINPUTITEMS];
   CParser* pp = new CParser(bbg, pOptions->bbg_filename, line);
