@@ -55,9 +55,9 @@ public:
   COptions();
 
   // Functions
-  void PrepareOutputdirectory();
-  void check_options();
-  void pretty_print() const; // defined in StandardOutput.cpp
+  void PrepareOutputdirectory();  // ensures output directory exists
+  void check_options();           // checks validity of option variables
+  void pretty_print() const;      // defined in StandardOutput.cpp
 };
 
 #endif
