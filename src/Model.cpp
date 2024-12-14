@@ -11,6 +11,26 @@ CModel::CModel()
 
 // Function to compute hydraulic profile
 hydraulic_output CModel::hyd_compute_profile() {
+  double froude_threshold = 0.04;
+
+  ExitGracefullyIf(std::to_string(bbopt->regimetype) != "subcritical",
+                   "Model.cpp: hyd_compute_profile(): only subcritical mode "
+                   "with hardcoded options currently available",
+                   BAD_DATA);
+
+  ExitGracefullyIf(bbopt->dx <= 0,
+                   "Model.cpp: hyd_compute_profile(): dx must be greater than 0",
+                   BAD_DATA);
+
+  CStreamnode *start_streamnode = get_streamnode_by_stationname(bbbc->stationname);
+
+  ExitGracefullyIf(!start_streamnode,
+                   "Model.cpp: hyd_compute_profile(): boundary condition "
+                   "station name not represented in streamnodes",
+                   BAD_DATA);
+
+
+
   hydraulic_output result;
   return result;
 }
@@ -68,6 +88,7 @@ void CModel::calc_output_flows() {
 void CModel::add_streamnode(CStreamnode*& pSN) {
   bbsn->push_back(pSN);
   streamnode_map[pSN->nodeID] = bbsn->size() - 1;
+  stationname_map[pSN->stationname] = bbsn->size() - 1;
 }
 
 // Returns streamnode with id 'sid'
@@ -75,4 +96,13 @@ CStreamnode* CModel::get_streamnode_by_id(int sid) {
   //std::cout << "bbsn size: " << bbsn->size() << std::endl;
   //std::cout << "sid: " << sid << std::endl;
   return streamnode_map.find(sid) != streamnode_map.end() ? bbsn->at(streamnode_map[sid]) : NULL;
+}
+
+// Returns streamnode with stationname 'name'
+CStreamnode *CModel::get_streamnode_by_stationname(std::string name) {
+  // std::cout << "bbsn size: " << bbsn->size() << std::endl;
+  // std::cout << "stationname: " << name << std::endl;
+  return stationname_map.find(name) != stationname_map.end()
+             ? bbsn->at(stationname_map[name])
+             : NULL;
 }
