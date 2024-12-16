@@ -11,7 +11,7 @@ CModel::CModel()
 
 // Function to compute hydraulic profile
 hydraulic_output CModel::hyd_compute_profile() {
-  double froude_threshold = 0.04;
+  double froude_threshold = 0.94;
 
   ExitGracefullyIf(std::to_string(bbopt->regimetype) != "subcritical",
                    "Model.cpp: hyd_compute_profile(): only subcritical mode "
@@ -29,10 +29,44 @@ hydraulic_output CModel::hyd_compute_profile() {
                    "station name not represented in streamnodes",
                    BAD_DATA);
 
+  // update preproc tables?
 
+  std::vector<hydraulic_output*> *result = new std::vector<hydraulic_output*>;
 
-  hydraulic_output result;
-  return result;
+  for (int f = 0; f < start_streamnode->output_flows.size(); f++) {
+    std::vector<hydraulic_output*> *temp_result = new std::vector<hydraulic_output*>(bbsn->size());
+    //int num_computed = 0;
+    //while (num_computed != bbsn->size()) {
+    //  for (int s = 0; s < bbsn->size(); s++) {
+    //    if ((*bbsn)[s]->output_depth[f] == PLACEHOLDER && (*bbsn)[s]->down)
+    //    if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
+    //
+    //    }
+    //  }
+    //  
+    //}
+    // 
+    // change below ifs to use enums
+    if (bbopt->modeltype != enum_mt_method::HAND_MANNING) {
+      if (bbbc->bctype == "normal_depth") {
+        if (bbbc->bcvalue <= 0 || bbbc->bcvalue > 1) {
+          WriteWarning("Model.cpp: compute_streamnode: bcvalue may not be a "
+                       "reasonable slope, please check!",
+                       bbopt->noisy_run);
+        }
+      } else if (bbbc->bctype == "set_wsl") {
+        // review, finish, and revise these
+      } else if (bbbc->bctype == "set_depth") {
+        // review, finish, and revise these
+      } else {
+        ExitGracefully("Model.cpp: compute_streamnode: error in boundary "
+                       "condition input type",
+                       BAD_DATA);
+      }
+    }
+    compute_streamnode(start_streamnode, temp_result);
+  }
+  return *(*result)[0];
 }
 
 // Function to postprocess flood results
@@ -105,4 +139,24 @@ CStreamnode *CModel::get_streamnode_by_stationname(std::string name) {
   return stationname_map.find(name) != stationname_map.end()
              ? bbsn->at(stationname_map[name])
              : NULL;
+}
+
+// Recursively computes hyd profile for the tree with downstream most streamnode "sn"
+void CModel::compute_streamnode(CStreamnode *&sn, std::vector<hydraulic_output *> *&temp_res) {
+  if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
+    sn->compute_normal_depth();
+    // do stuff
+  } else {
+    // do stuff
+  }
+  // do stuff
+
+  CStreamnode *temp_sn = get_streamnode_by_id(sn->upnodeID1);
+  if (temp_sn) {
+    compute_streamnode(temp_sn, temp_res);
+  }
+  temp_sn = get_streamnode_by_id(sn->upnodeID2);
+  if (temp_sn) {
+    compute_streamnode(temp_sn, temp_res);
+  }
 }

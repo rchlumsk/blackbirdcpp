@@ -35,6 +35,9 @@ protected:
   // Private variables
   std::unordered_map<int, int> streamnode_map;            // maps streamnode id to index
   std::unordered_map<std::string, int> stationname_map;   // maps stationname to index
+
+  // Private functions
+  void compute_streamnode(CStreamnode *&sn, std::vector<hydraulic_output *> *&temp_res);
 };
 
 #endif

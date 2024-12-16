@@ -28,13 +28,6 @@ CStreamnode::CStreamnode()
   output_flows() {
 }
 
-// Generate initial hydraulic profile
-hydraulic_output CStreamnode::generate_initial_hydraulic_profile() {
-  hydraulic_output output;
-  // Logic to generate initial hydraulic profile
-  return output;
-}
-
 // Compute preprocessed depthdf
 void CStreamnode::compute_preprocessed_depthdf() {
   // Logic to compute preprocessed depthdf

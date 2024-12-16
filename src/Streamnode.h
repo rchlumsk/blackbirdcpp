@@ -33,7 +33,6 @@ public:
   CStreamnode();
 
   // Functions
-  hydraulic_output generate_initial_hydraulic_profile();
   void compute_preprocessed_depthdf();
   hydraulic_output compute_normal_depth();
   hydraulic_output compute_basic_depth_properties_interpolation();
