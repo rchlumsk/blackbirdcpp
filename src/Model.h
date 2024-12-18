@@ -25,6 +25,7 @@ public:
   void add_streamnode(CStreamnode*& pSN);
   CStreamnode* get_streamnode_by_id(int sid);
   CStreamnode *get_streamnode_by_stationname(std::string name);
+  int get_index_by_id(int id);
 
   // I/O Functions defined in StandardOutput.cpp
   void WriteOutputFileHeaders(COptions*const& pOptions);
@@ -35,9 +36,10 @@ protected:
   // Private variables
   std::unordered_map<int, int> streamnode_map;            // maps streamnode id to index
   std::unordered_map<std::string, int> stationname_map;   // maps stationname to index
+  int flow;
 
   // Private functions
-  void compute_streamnode(CStreamnode *&sn, std::vector<hydraulic_output *> *&temp_res);
+  void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&temp_res);
 };
 
 #endif

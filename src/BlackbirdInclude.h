@@ -71,7 +71,6 @@ inline void ExitGracefullyIf(bool condition, const char* statement, exitcode cod
 //Structures
 //*****************************************************************
 struct hydraulic_output {
-  // Attributes
   int nodeID                       = PLACEHOLDER;
   int reachID                      = PLACEHOLDER;
   int downnodeID                   = PLACEHOLDER;
@@ -147,6 +146,7 @@ struct hydraulic_output {
   double ws_err                    = PLACEHOLDER;
   double length_energyloss         = PLACEHOLDER;
   double length_effectiveadjusted  = PLACEHOLDER;
+  double bed_slope = PLACEHOLDER; // is this needed?
 };
 
 //*****************************************************************
@@ -215,6 +215,13 @@ enum enum_ppi_method
   INTERP_HAND,
   INTERP_DHAND,
   INTERP_DHAND_WSLCORR
+};
+
+enum enum_bc_type
+{
+  NORMAL_DEPTH,
+  SET_WSL,
+  SET_DEPTH
 };
 
 //*****************************************************************

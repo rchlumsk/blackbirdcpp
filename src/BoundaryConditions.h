@@ -11,7 +11,7 @@ public:
   double station;
   std::string reach;
   std::string location;
-  std::string bctype; // change to ENUM -> NORMAL_DEPTH, SET_WSL, and SET_DEPTH
+  enum_bc_type bctype; // change to ENUM -> NORMAL_DEPTH, SET_WSL, and SET_DEPTH
   double bcvalue;
   double init_WSL;
 

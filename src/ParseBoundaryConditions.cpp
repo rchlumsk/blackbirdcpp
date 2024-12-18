@@ -188,7 +188,9 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
       ExitGracefullyIf(pBC == NULL,
         "ParseBoundaryConditions File: :BCType specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
       if (Len < 2) { ImproperFormatWarning(":BCType", pp, pOptions->noisy_run); break; }
-      pBC->bctype = s[1];
+      if (!strcmp(s[1], "NORMAL_DEPTH")) { pBC->bctype = enum_bc_type::NORMAL_DEPTH; }
+      else if (!strcmp(s[1], "SET_WSL")) { pBC->bctype = enum_bc_type::SET_WSL; }
+      else if (!strcmp(s[1], "SET_DEPTH")) { pBC->bctype = enum_bc_type::SET_DEPTH; }
       break;
     }
     case(8):
