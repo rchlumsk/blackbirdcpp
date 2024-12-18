@@ -39,7 +39,7 @@ protected:
   int flow;
 
   // Private functions
-  void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&temp_res);
+  void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res);
 };
 
 #endif

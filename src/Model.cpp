@@ -33,10 +33,11 @@ hydraulic_output CModel::hyd_compute_profile() {
 
   // update preproc tables?
 
-  std::vector<hydraulic_output*> *result = new std::vector<hydraulic_output*>;
+  std::vector<hydraulic_output *> *result = new std::vector<hydraulic_output *>(
+      start_streamnode->output_flows.size() * bbsn->size());
 
   for (int f = 0; f < start_streamnode->output_flows.size(); f++) {
-    std::vector<hydraulic_output*> *temp_result = new std::vector<hydraulic_output*>(bbsn->size());
+    //std::vector<hydraulic_output*> *temp_result = new std::vector<hydraulic_output*>(bbsn->size());
     flow = f;
     //int num_computed = 0;
     //while (num_computed != bbsn->size()) {
@@ -73,8 +74,7 @@ hydraulic_output CModel::hyd_compute_profile() {
       }
       }
     }
-    compute_streamnode(start_streamnode, start_streamnode, temp_result);
-    result->insert(result->end(), temp_result->begin(), temp_result->end());
+    compute_streamnode(start_streamnode, start_streamnode, result);
   }
   flow = PLACEHOLDER;
   return *(*result)[0];
@@ -162,43 +162,43 @@ int CModel::get_index_by_id(int sid) {
 }
 
 // Recursively computes hyd profile for the tree with downstream most streamnode "sn"
-void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&temp_res) {
+void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res) {
   int ind = get_index_by_id(sn->nodeID);
-  (*temp_res)[ind]->nodeID = sn->nodeID;
-  (*temp_res)[ind]->reachID = sn->reachID;
-  (*temp_res)[ind]->downnodeID = sn->downnodeID;
-  (*temp_res)[ind]->upnodeID1 = sn->upnodeID1;
-  (*temp_res)[ind]->upnodeID2 = sn->upnodeID2;
-  (*temp_res)[ind]->stationname = sn->stationname;
-  (*temp_res)[ind]->station = sn->station;
-  (*temp_res)[ind]->min_elev = sn->min_elev;
-  (*temp_res)[ind]->reach_length_DS = sn->ds_reach_length;
-  (*temp_res)[ind]->reach_length_US1 = sn->us_reach_length1;
-  (*temp_res)[ind]->reach_length_US2 = sn->us_reach_length2;
-  (*temp_res)[ind]->bed_slope = sn->bed_slope;
-  (*temp_res)[ind]->flow = sn->output_flows[flow];
+  sn->mm->nodeID = sn->nodeID;
+  sn->mm->reachID = sn->reachID;
+  sn->mm->downnodeID = sn->downnodeID;
+  sn->mm->upnodeID1 = sn->upnodeID1;
+  sn->mm->upnodeID2 = sn->upnodeID2;
+  sn->mm->stationname = sn->stationname;
+  sn->mm->station = sn->station;
+  sn->mm->min_elev = sn->min_elev;
+  sn->mm->reach_length_DS = sn->ds_reach_length;
+  sn->mm->reach_length_US1 = sn->us_reach_length1;
+  sn->mm->reach_length_US2 = sn->us_reach_length2;
+  sn->mm->bed_slope = sn->bed_slope;
+  sn->mm->flow = sn->output_flows[flow];
 
   if (sn->nodeID == down_sn->nodeID) {
-    (*temp_res)[ind]->min_elev = sn->min_elev;
+    sn->mm->min_elev = sn->min_elev;
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
-      (*temp_res)[ind]->wsl = (sn->compute_normal_depth()).wsl; // function needs definition. consider return type
+      sn->mm->wsl = (sn->compute_normal_depth()).wsl; // function needs definition. consider return type
     } else {
       switch (bbbc->bctype)
       {
       case (enum_bc_type::NORMAL_DEPTH): {
-        (*temp_res)[ind]->wsl = (sn->compute_normal_depth()).wsl; // function needs definition. consider return type
-        (*temp_res)[ind]->sf = bbbc->bcvalue;
+        sn->mm->wsl = (sn->compute_normal_depth()).wsl; // function needs definition. consider return type
+        sn->mm->sf = bbbc->bcvalue;
       }
       case (enum_bc_type::SET_WSL): {
-        (*temp_res)[ind]->wsl = bbbc->bcvalue;
-        ExitGracefullyIf((*temp_res)[ind]->wsl < (*temp_res)[ind]->min_elev,
+        sn->mm->wsl = bbbc->bcvalue;
+        ExitGracefullyIf(sn->mm->wsl < sn->mm->min_elev,
                          "Model.cpp: compute_streamnode: SET_WSL used as "
                          "boundary condition but value provided is less than "
                          "minimum elevation, revise boundary condition!",
                          BAD_DATA);
       }
       case (enum_bc_type::SET_DEPTH): {
-        (*temp_res)[ind]->wsl = bbbc->bcvalue + (*temp_res)[ind]->min_elev;
+        sn->mm->wsl = bbbc->bcvalue + sn->mm->min_elev;
         ExitGracefullyIf(bbbc->bcvalue < 0,
                          "Model.cpp: compute_streamnode: SET_DEPTH used as "
                          "boundary condition, value must be >= 0",
@@ -211,7 +211,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
       }
       }
     }
-    (*temp_res)[ind]->depth = (*temp_res)[ind]->wsl - (*temp_res)[ind]->min_elev;
+    sn->mm->depth = sn->mm->wsl - sn->mm->min_elev;
     //compute profile, etc.
   } else {
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
@@ -230,10 +230,10 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
   CStreamnode *temp_sn = get_streamnode_by_id(sn->upnodeID1);
   if (temp_sn) {
-    compute_streamnode(temp_sn, sn, temp_res);
+    compute_streamnode(temp_sn, sn, res);
   }
   temp_sn = get_streamnode_by_id(sn->upnodeID2);
   if (temp_sn) {
-    compute_streamnode(temp_sn, sn, temp_res);
+    compute_streamnode(temp_sn, sn, res);
   }
 }

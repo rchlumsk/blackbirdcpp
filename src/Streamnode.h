@@ -3,12 +3,13 @@
 
 #include <string>
 #include "BlackbirdInclude.h"
+#include "Options.h"
 
 class CStreamnode {
 public:
   // Member variables
   int nodeID;
-  std::string nodetype;
+  std::string nodetype; // change to enum
   int downnodeID;
   int upnodeID1;
   int upnodeID2;
@@ -29,14 +30,17 @@ public:
   double output_depth;
   std::vector<double> output_flows;         // flow of streamnode w/ source/sink included
 
+  // For internal use
+  hydraulic_output *mm;
+
   // Constructor
   CStreamnode();
 
   // Functions
   void compute_preprocessed_depthdf();
-  hydraulic_output compute_normal_depth();
+  hydraulic_output compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt);
   hydraulic_output compute_basic_depth_properties_interpolation();
-  hydraulic_output compute_profile();
+  hydraulic_output compute_profile(double flow, double wsl, COptions *bbopt);
   hydraulic_output compute_profile_next();
 
   void add_depthdf_row(hydraulic_output*& row);
@@ -48,6 +52,10 @@ public:
   void calc_output_flows(std::vector<double> upflows);
 
   void pretty_print() const; // defined in StandardOutput.cpp
+
+  // Virtual Functions
+  virtual hydraulic_output compute_basic_depth_properties() {};
+  virtual hydraulic_output compute_basic_flow_properties() {}; 
 
 
 protected:
