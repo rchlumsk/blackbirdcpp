@@ -32,6 +32,7 @@ const std::string __BLACKBIRD_VERSION__ = "0.0.0";
 const double HEADWATER               = -111111; // arbitrary value indicating that a node is a headwater node
 const double PLACEHOLDER             = -222222; // arbitrary value indicating a placeholder value
 const std::string PLACEHOLDER_STR    = "-222222";  // arbitrary value indicating a placeholder string value
+const double GRAVITY                 = 9.81; // gravitational acceleration
 
 //*****************************************************************
 //Exit Strategies

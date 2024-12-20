@@ -66,7 +66,7 @@ hydraulic_output CStreamnode::compute_normal_depth(double flow, double slope, do
       prevWSL_lag1 = mm->wsl;
       max_depth_change = 0.5 * (0.5 * (prevWSL_lag2 + prevWSL_lag1 - 2 * mm->min_elev));
 
-      compute_profile();
+      compute_profile(flow, init_wsl, bbopt);
       mm->sf = slope;
       mm->sf_avg = slope;
     }
@@ -160,9 +160,58 @@ hydraulic_output CStreamnode::compute_profile(double flow, double wsl, COptions 
 }
 
 // Compute next profile
-hydraulic_output CStreamnode::compute_profile_next() {
+hydraulic_output CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt) {
+  compute_profile(flow, wsl, bbopt);
+
+  if (bbopt->reach_integration_method == enum_ri_method::EFFECTIVE_LENGTH) {
+    double reach_length = 0;
+    if (mm->reach_length_US2 != PLACEHOLDER) {
+      reach_length = mm->reach_length_US2;
+    } else {
+      reach_length = mm->reach_length_US1;
+    }
+    mm->sf *= std::pow(mm->length_effective / 2.0, 2.0);
+  }
+
+  if (bbopt->friction_slope_method == enum_fs_method::AVERAGE_CONVEYANCE) {
+    if (mm->flow == PLACEHOLDER || down_mm->flow == PLACEHOLDER ||
+        mm->k_total == PLACEHOLDER || down_mm->k_total == PLACEHOLDER) {
+      mm->sf_avg = (mm->sf + down_mm->sf) / 2;
+    } else {
+      mm->sf_avg = std::pow((mm->flow + down_mm->flow) / (mm->k_total + down_mm->k_total), 2.0);
+    }
+  } else if (bbopt->friction_slope_method == enum_fs_method::AVERAGE_FRICTION) {
+    mm->sf_avg = (mm->sf + down_mm->sf) / 2;
+  } else if (bbopt->friction_slope_method == enum_fs_method::GEOMETRIC_FRICTION) {
+    mm->sf_avg = std::sqrt(mm->sf * down_mm->sf);
+  } else if (bbopt->friction_slope_method == enum_fs_method::HARMONIC_FRICTION) {
+    mm->sf_avg = 2 * mm->sf * down_mm->sf / (mm->sf + down_mm->sf);
+  } else if (bbopt->friction_slope_method == enum_fs_method::REACH_FRICTION) {
+    if (bbopt->regimetype == enum_rt_method::SUBCRITICAL) {
+      mm->sf_avg = down_mm->sf;
+    } else {
+      mm->sf_avg = mm->sf;
+    }
+  }
+
+  double loss_coeff = 0;
+  if (down_mm->velocity_head > mm->velocity_head) {
+    loss_coeff = contraction_coeff;
+  } else {
+    loss_coeff = expansion_coeff;
+  }
+
+  // no Leff method check? assuming us_leff (default)
+  mm->length_energyloss = mm->length_effectiveadjusted;
+
+  mm->head_loss =
+      mm->length_energyloss * mm->sf_avg +
+      loss_coeff *
+          std::abs(((mm->alpha * std::pow(mm->velocity, 2) / 2) / GRAVITY) -
+                   ((down_mm->alpha * std::pow(down_mm->velocity, 2) / 2) / GRAVITY));
+
+  //temp
   hydraulic_output output;
-  // Logic to compute the next profile
   return output;
 }
 

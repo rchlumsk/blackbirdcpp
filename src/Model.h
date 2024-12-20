@@ -17,7 +17,7 @@ public:
   CModel();
 
   // Functions
-  hydraulic_output hyd_compute_profile();
+  std::vector<hydraulic_output *> *hyd_compute_profile();
   void postprocess_floodresults();
 
   void calc_output_flows(); // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
