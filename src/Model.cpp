@@ -13,7 +13,7 @@ CModel::CModel()
 
 // Function to compute hydraulic profile
 hydraulic_output CModel::hyd_compute_profile() {
-  double froude_threshold = 0.94;
+  bbopt->froude_threshold = 0.94;
 
   ExitGracefullyIf(std::to_string(bbopt->regimetype) != "subcritical",
                    "Model.cpp: hyd_compute_profile(): only subcritical mode "
@@ -163,6 +163,10 @@ int CModel::get_index_by_id(int sid) {
 
 // Recursively computes hyd profile for the tree with downstream most streamnode "sn"
 void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res) {
+  if (!bbopt->silent_cp) {
+    std::cout << "Computing profile for streamnode with node id " << sn->nodeID << std::endl;
+  }
+
   int ind = get_index_by_id(sn->nodeID);
   sn->mm->nodeID = sn->nodeID;
   sn->mm->reachID = sn->reachID;
@@ -179,14 +183,14 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   sn->mm->flow = sn->output_flows[flow];
 
   if (sn->nodeID == down_sn->nodeID) {
-    sn->mm->min_elev = sn->min_elev;
+    sn->mm->min_elev = sn->min_elev; // redundant?
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
-      sn->mm->wsl = (sn->compute_normal_depth()).wsl; // function needs definition. consider return type
+      sn->mm->wsl = (sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt)).wsl; // consider making new function for only wsl?
     } else {
       switch (bbbc->bctype)
       {
       case (enum_bc_type::NORMAL_DEPTH): {
-        sn->mm->wsl = (sn->compute_normal_depth()).wsl; // function needs definition. consider return type
+        sn->mm->wsl = (sn->compute_normal_depth(sn->mm->flow, bbbc->bcvalue, bbbc->init_WSL, bbopt)).wsl; // consider making new function for only wsl?
         sn->mm->sf = bbbc->bcvalue;
       }
       case (enum_bc_type::SET_WSL): {
@@ -212,22 +216,73 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
       }
     }
     sn->mm->depth = sn->mm->wsl - sn->mm->min_elev;
-    //compute profile, etc.
+    sn->compute_profile(sn->mm->flow, sn->mm->wsl, bbopt);
   } else {
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
-      sn->compute_normal_depth();
-      sn->compute_profile();
+      sn->mm->wsl = sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt).wsl;
+      sn->compute_profile(sn->mm->flow, sn->mm->wsl, bbopt);
     } else {
-      sn->min_elev = sn->min_elev;
-      for (int i = 0; i < sn->depthdf->size(); i++) {
-        (*sn->depthdf)[i]->min_elev = sn->min_elev; // redundant?
-        (*sn->depthdf)[i]->wsl =
-            (*down_sn->depthdf)[i]->wsl + (*sn->depthdf)[i]->min_elev;
+      sn->mm->wsl = down_sn->mm->depth + sn->mm->min_elev;
+      sn->mm->depth = down_sn->mm->depth;
+
+      double err_lag1 = PLACEHOLDER, err_lag2 = PLACEHOLDER,
+             prevWSL_lag1 = PLACEHOLDER, prevWSL_lag2 = PLACEHOLDER,
+             min_err_wsl = PLACEHOLDER, min_err = PLACEHOLDER,
+             actual_err = PLACEHOLDER, min_fr = PLACEHOLDER;
+      bool found_supercritical = false;
+      for (int i = 0; i < bbopt->iteration_limit_cp; i++) {
+        prevWSL_lag2 = prevWSL_lag1;
+        prevWSL_lag1 = sn->mm->wsl;
+        sn->compute_profile_next(sn->mm->flow, sn->mm->wsl, down_sn->mm, bbopt);
+        double max_depth_change = 0.5 * sn->mm->depth;
+        double comp_wsl = down_sn->mm->wsl + down_sn->mm->velocity_head + sn->mm->head_loss - sn->mm->velocity_head;
+
+        if (comp_wsl <= sn->mm->min_elev) {
+          comp_wsl = sn->mm->flow == 0
+                  ? sn->mm->min_elev
+                  : std::max(comp_wsl,
+                             sn->mm->min_elev + 0.05 +
+                                 0.05 * (1 - (i + 1) / bbopt->iteration_limit_cp));
+        }
+
+        // add check for divergence
+
+        err_lag2 = err_lag1;
+        err_lag1 = comp_wsl - prevWSL_lag1;
+        double err_diff = err_lag2 == PLACEHOLDER ? PLACEHOLDER : err_lag2 - err_lag1;
+        double assum_diff = prevWSL_lag2 == PLACEHOLDER ? PLACEHOLDER : prevWSL_lag2 - prevWSL_lag1;
+
+        if (min_err == PLACEHOLDER || std::abs(err_lag1) < min_err) {
+          min_err = std::abs(err_lag1);
+          actual_err = err_lag1;
+          min_err_wsl = prevWSL_lag1;
+          min_fr = sn->mm->froude;
+        }
+
+        sn->mm->ws_err = err_lag1;
+        sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
+        sn->mm->cp_iterations = i + 1;
+
+        if (std::abs(err_lag1) > bbopt->tolerance_cp) {
+          if (i + 1 == bbopt->iteration_limit_cp) {
+            WriteWarning("compute_profile(): iteration limit reached on streamnode" + sn->nodeID, bbopt->noisy_run);
+
+            sn->compute_profile_next(sn->mm->flow, min_err_wsl, down_sn->mm, bbopt);
+            sn->mm->ws_err = actual_err;
+            sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
+
+            if (min_err < 0.03 && sn->mm->froude <= bbopt->froude_threshold) {
+              //continue here
+            }
+          }
+        }
       }
+
     }
     // do stuff
   }
 
+  (*res)[flow * bbsn->size() + ind] = sn->mm;
   CStreamnode *temp_sn = get_streamnode_by_id(sn->upnodeID1);
   if (temp_sn) {
     compute_streamnode(temp_sn, sn, res);

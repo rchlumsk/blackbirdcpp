@@ -42,7 +42,8 @@ COptions::COptions()
   blended_conveyance_weights(PLACEHOLDER),
   blended_nc_weights(PLACEHOLDER),
   silent_run(false),
-  noisy_run(false) {
+  noisy_run(false),
+  froude_threshold(PLACEHOLDER) {
 }
 
 //////////////////////////////////////////////////////////////////

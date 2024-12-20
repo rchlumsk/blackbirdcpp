@@ -47,6 +47,7 @@ public:
   double roughness_multiplier;
   double blended_conveyance_weights;
   double blended_nc_weights;
+  double froude_threshold;
 
   bool silent_run;
   bool noisy_run;

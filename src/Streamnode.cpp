@@ -45,7 +45,7 @@ hydraulic_output CStreamnode::compute_normal_depth(double flow, double slope, do
     }
   }
 
-  compute_profile();
+  compute_profile(flow, init_wsl, bbopt);
   mm->sf = slope;
   mm->sf_avg = slope;
 
@@ -85,6 +85,14 @@ hydraulic_output CStreamnode::compute_normal_depth(double flow, double slope, do
     double err_diff = err_lag2 == PLACEHOLDER ? PLACEHOLDER : err_lag2 - err_lag1;
     double assum_diff = prevWSL_lag2 == PLACEHOLDER ? PLACEHOLDER : prevWSL_lag2 - prevWSL_lag1;
     if (std::abs(err_lag1) > bbopt->tolerance_nd) {
+
+      if (i + 1 == bbopt->iteration_limit_nd) {
+        WriteWarning("Iteration limit on normal depth calculation exceeded, "
+                     "terminating normal depth calculation.",
+                     bbopt->noisy_run);
+        break;
+      }
+
       double proposed_wsl = PLACEHOLDER;
       if (i == 0) {
         proposed_wsl = mm->wsl + 0.7 * err_lag1;
