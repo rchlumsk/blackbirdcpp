@@ -5,6 +5,7 @@ CModel::CModel()
   : bbsn(new std::vector<CStreamnode*>),
   bbbc(new CBoundaryConditions),
   bbopt(new COptions),
+  hyd_result(nullptr),
   streamnode_map(),
   stationname_map(),
   flow(PLACEHOLDER) {
@@ -79,6 +80,7 @@ std::vector<hydraulic_output *> *CModel::hyd_compute_profile() {
   std::cout << "Successfully completed all hydraulic calculations :-)" << std::endl;
   // write results?
   flow = PLACEHOLDER;
+  hyd_result = result;
   return result;
 }
 
@@ -276,10 +278,11 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
             if (min_err < 0.03 && sn->mm->froude <= bbopt->froude_threshold) {
               std::cout << "setting to min error result on streamnode " << sn->nodeID << std::endl;
             } else {
-              // brent optimization
+              // optimization placeholder
+              double depth_critical = std::max(0.5, down_sn->mm->depth);
 
               if (true) { // if optimization worked
-                //sn->mm->depth_critical = something
+                sn->mm->depth_critical = depth_critical;
                 sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
                 sn->mm->ws_err = PLACEHOLDER;
                 sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
@@ -323,9 +326,11 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
             }
             break;
           } else {
-            // brent optimization
+            // optimization placeholder
+            double depth_critical = std::max(0.5, down_sn->mm->depth);
+
             if (true) { // if optimization worked
-              // stuff
+              sn->mm->depth_critical = depth_critical;
               if (sn->mm->depth < sn->mm->depth_critical) {
                 if (found_supercritical) {
                   sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
@@ -380,4 +385,22 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   if (temp_sn) {
     compute_streamnode(temp_sn, sn, res);
   }
+}
+
+// Destructor
+CModel::~CModel() {
+  for (std::vector<CStreamnode *>::iterator i = bbsn->begin(); i != bbsn->end(); i++) {
+    delete (*i);
+    *i = nullptr;
+  }
+  bbsn->clear();
+  bbsn->shrink_to_fit();
+  delete bbsn;
+  bbsn = nullptr;
+  delete bbbc;
+  bbbc = nullptr;
+  delete bbopt;
+  bbopt = nullptr;
+  delete hyd_result;
+  hyd_result = nullptr;
 }

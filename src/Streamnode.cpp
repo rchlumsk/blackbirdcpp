@@ -39,7 +39,8 @@ hydraulic_output CStreamnode::compute_normal_depth(double flow, double slope, do
   if (init_wsl == -99) {
     if (nodetype == "xsection") { // maybe change to type check
       double area_req = flow / 3;
-      // brent optimization for init_wsl
+      // optimization placeholder
+      init_wsl = mm->min_elev + 1;
     } else {
       init_wsl = mm->min_elev + 1;
     }
@@ -115,7 +116,7 @@ hydraulic_output CStreamnode::compute_normal_depth(double flow, double slope, do
       mm->depth = mm->wsl - mm->min_elev;
     } else {
       if (!bbopt->silent_nd) {
-        std::cout << "Norma depth estimated successfully." << std::endl;
+        std::cout << "Normal depth estimated successfully." << std::endl;
       }
     }
   }
@@ -263,4 +264,19 @@ void CStreamnode::allocate_flowprofiles(int num_fp) {
   while (output_flows.size() < num_fp) {
     output_flows.push_back(PLACEHOLDER);
   }
+}
+
+// Destructor
+CStreamnode::~CStreamnode() {
+  for (std::vector<hydraulic_output *>::iterator i = depthdf->begin(); i != depthdf->end();
+       i++) {
+    delete (*i);
+    *i = nullptr;
+  }
+  depthdf->clear();
+  depthdf->shrink_to_fit();
+  delete depthdf;
+  depthdf = nullptr;
+  delete mm;
+  mm = nullptr;
 }

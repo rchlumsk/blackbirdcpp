@@ -9,7 +9,7 @@ public:
   CReach();
 
   // Functions
-  hydraulic_output compute_basic_flow_properties();
+  void compute_basic_flow_properties(double flow, COptions *&bbopt);
 };
 
 #endif

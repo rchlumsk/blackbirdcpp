@@ -33,8 +33,9 @@ public:
   // For internal use
   hydraulic_output *mm;
 
-  // Constructor
+  // Constructor and destructor
   CStreamnode();
+  ~CStreamnode();
 
   // Functions
   void compute_preprocessed_depthdf();
@@ -54,8 +55,8 @@ public:
   void pretty_print() const; // defined in StandardOutput.cpp
 
   // Virtual Functions
-  virtual hydraulic_output compute_basic_depth_properties() {};
-  virtual hydraulic_output compute_basic_flow_properties() {}; 
+  virtual void compute_basic_depth_properties() {};
+  virtual void compute_basic_flow_properties() {}; 
 
 
 protected:

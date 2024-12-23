@@ -13,8 +13,12 @@ public:
   CBoundaryConditions *bbbc;      // A single bb_boundarycondition object
   COptions *bbopt;               // A single bb_options object
 
-  // Constructor
+  //temp?
+  std::vector<hydraulic_output *> *hyd_result;
+
+  // Constructor and destructor
   CModel();
+  ~CModel();
 
   // Functions
   std::vector<hydraulic_output *> *hyd_compute_profile();

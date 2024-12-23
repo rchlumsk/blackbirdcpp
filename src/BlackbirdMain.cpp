@@ -68,6 +68,8 @@ int main(int argc, char* argv[])
 
   t1 = clock();
   
+  pModel->hyd_compute_profile();
+
   //Finished Solving----------------------------------------------------
   //pModel->WriteMajorOutput("solution", true);
   //Test output
@@ -198,6 +200,9 @@ void CheckForErrorWarnings(bool quiet, CModel* pModel)
       if (!strcmp(s[0], "WARNING")) { warnings_found = true; }
     }
   }
+  delete p;
+  p = nullptr;
+
   WARNINGS.close();
   if ((warnings_found) && (!quiet)) {
     std::cout << "*******************************************************" << std::endl << std::endl;

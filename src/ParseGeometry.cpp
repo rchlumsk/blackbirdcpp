@@ -131,6 +131,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
               }
             }
             if (strcmp(s[1], "NA")) {
+              //std::cout << s[1] << std::endl;
               pSN->nodetype = std::string(s[1]);
             }
             if (strcmp(s[2], "NA")) {
