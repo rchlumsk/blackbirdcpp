@@ -108,7 +108,7 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
       if (mm->wsl < std::min(t_zz[i], t_zz[i + 1])) {
         area[i] = 0;
       } else {
-        area[i] = std::max(mm->wsl - std::max(t_zz[i], t_zz[i + 1]) * (t_xx[i + 1] - t_xx[i]), 0.0);
+        area[i] = std::max(mm->wsl - std::max(t_zz[i], t_zz[i + 1]) * (t_xx[i + 1] - t_xx[i]), 0.);
         if (mm->wsl > std::max(t_zz[i + 1], t_zz[i])) {
           area[i] += 0.5 * (t_xx[i + 1] - t_xx[i]) * std::abs(t_zz[i + 1] - t_zz[i]);
         } else {
@@ -138,12 +138,12 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
         top_width[i] = 0;
         wet_per[i] = 0;
       } else if (mm->wsl > std::max(zz[i + 1], zz[i])) {
-        // finiteorzero?
+        // finite or zero? 1359
         top_width[i] = t_xx[i + 1] - t_xx[i];
         wet_per[i] = std::sqrt(std::pow(t_xx[i + 1] - t_xx[i], 2) +
                                std::pow(t_zz[i + 1] - t_zz[i], 2));
       } else {
-        // finiteorzero?
+        // finite or zero? 1364
         top_width[i] = std::abs(t_xx[i + 1] - t_xx[i]) *
                        (mm->wsl - std::min(t_zz[i], t_zz[i + 1]) /
                                       (t_zz[i + 1] - t_zz[i]));
@@ -193,7 +193,7 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     mm->top_width_main = len_m * bbopt->dx;
     mm->top_width_rob = len_r * bbopt->dx;
 
-    // assign wet perimeter logic. "wetted_perimeter" , "get_breakpoints" , etc. ?
+    // assign wet perimeter logic. "wetted_perimeter" , "get_breakpoints" , etc. ? 1401
 
     if (t_zz.size() > 0 && mm->wsl > t_zz[0]) {
       wet_per[0] += mm->wsl - t_zz[0];
@@ -206,17 +206,244 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
   }
   mm->wet_perimeter = mm->wet_perimeter_lob + mm->wet_perimeter_main + mm->wet_perimeter_rob;
   // might need na.rm ?
-  mm->hradius = std::max(mm->area / mm->wet_perimeter, 0.0);
-  mm->hradius_main = std::max(mm->area_main / mm->wet_perimeter_main, 0.0);
-  mm->hradius_lob = std::max(mm->area_lob / mm->wet_perimeter_lob, 0.0);
-  mm->hradius_rob = std::max(mm->area_rob / mm->wet_perimeter_rob, 0.0);
+  mm->hradius = std::max(mm->area / mm->wet_perimeter, 0.);
+  mm->hradius_main = std::max(mm->area_main / mm->wet_perimeter_main, 0.);
+  mm->hradius_lob = std::max(mm->area_lob / mm->wet_perimeter_lob, 0.);
+  mm->hradius_rob = std::max(mm->area_rob / mm->wet_perimeter_rob, 0.);
   std::valarray<double> hradius = area / wet_per;
   mm->hyd_depth = mm->area / mm->top_width;
   mm->hyd_depth_lob = mm->area_lob / mm->top_width_lob;
   mm->hyd_depth_main = mm->area_main / mm->top_width_main;
   mm->hyd_depth_rob = mm->area_rob / mm->top_width_rob;
 
-  // left off here
+  std::valarray<double> k = (1. / t_nn) * area * std::pow(hradius, 2. / 3.);
+  k[notind] = 0;
+  k[k < 0] = 0;
+
+  std::valarray<double> temp_t_nn; // check where to put this
+
+  if (bbopt->xsection_conveyance_method == enum_xsc_method::OVERBANK_CONVEYANCE) {
+    mm->k_lob = (1. / manning_LOB) * mm->area_lob * std::pow(mm->hradius_lob, 2. / 3.);
+    mm->k_main = (1. / manning_main) * mm->area_main * std::pow(mm->hradius_main, 2. / 3.);
+    mm->k_rob = (1. / manning_ROB) * mm->area_rob * std::pow(mm->hradius_rob, 2. / 3.);
+    mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
+    // might need finite or zero solved? 1447
+    double fac1 = mm->area_lob != 0
+                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      : 0;
+    double fac2 = mm->area_main != 0
+                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      : 0;
+    double fac3 = mm->area_rob != 0
+                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      : 0;
+    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+  } else if (bbopt->xsection_conveyance_method == enum_xsc_method::DEFAULT_CONVEYANCE){
+    std::valarray<double> roughness_zones(t_xx.size());
+    roughness_zones[0] = 1;
+    for (int i = 1; i < t_xx.size(); i++) {
+      if (t_nn[i] != t_nn[i - 1]) {
+        roughness_zones[i] = roughness_zones[i - 1] + 1;
+      } else {
+        roughness_zones[i] = roughness_zones[i - 1];
+      }
+    }
+    roughness_zones[ind_main || ind_rob] = (std::valarray<double>)roughness_zones[ind_main || ind_rob] + 1;
+    roughness_zones[ind_rob] = (std::valarray<double>)roughness_zones[ind_rob] + 1;
+
+    std::valarray<double> conv(t_xx.size());
+    temp_t_nn = t_nn;
+    std::valarray<double> temp_area = area;
+    std::valarray<double> temp_wet_per = wet_per;
+
+    // more logic 1471 "unique"
+
+    wet_per = temp_wet_per;
+    k = conv;
+    area = temp_area;
+    hradius = area / wet_per; // finite or zero solved?
+    hradius[wet_per == 0] = 0;
+
+    mm->k_lob = ((std::valarray<double>)conv[ind_lob]).sum();
+    mm->k_main = ((std::valarray<double>)conv[ind_main]).sum();
+    mm->k_rob = ((std::valarray<double>)conv[ind_rob]).sum();
+    mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
+    // might need finite or zero solved? 1503
+    double fac1 = mm->area_lob != 0
+                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      : 0;
+    double fac2 = mm->area_main != 0
+                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      : 0;
+    double fac3 = mm->area_rob != 0
+                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      : 0;
+    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+  } else if (bbopt->xsection_conveyance_method == enum_xsc_method::COORDINATE_CONVEYANCE){
+    std::valarray<double> conv(t_xx.size());
+    temp_t_nn = t_nn;
+    // finite or zero solved? 1513
+    conv = ConvCalc(manning, area, area / wet_per);
+    conv[wet_per == 0 || manning == 0] = 0;
+    conv[notind] = 0;
+    conv[xx.size() - 1] = 0;
+
+    mm->k_lob = ((std::valarray<double>)conv[ind_lob]).sum();
+    mm->k_main = ((std::valarray<double>)conv[ind_main]).sum();
+    mm->k_rob = ((std::valarray<double>)conv[ind_rob]).sum();
+    mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
+    // might need finite or zero solved? 1524
+    double fac1 = mm->area_lob != 0
+                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      : 0;
+    double fac2 = mm->area_main != 0
+                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      : 0;
+    double fac3 = mm->area_rob != 0
+                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      : 0;
+    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+  } else if (bbopt->xsection_conveyance_method == enum_xsc_method::AREAWEIGHTED_CONVEYANCE){
+    std::valarray<double> sum = area / t_nn;
+    temp_t_nn = t_nn;
+    // finite or zero solved? 1543-1545
+    mm->k_lob = mm->wet_perimeter_lob != 0
+                    ? ((std::valarray<double>)sum[ind_lob]).sum() *
+                          std::pow(mm->area_lob / mm->wet_perimeter_lob, 2 / 3)
+                    : 0;
+    mm->k_main = mm->wet_perimeter_main != 0
+                     ? ((std::valarray<double>)sum[ind_main]).sum() *
+                           std::pow(mm->area_main / mm->wet_perimeter_main, 2 / 3)
+                     : 0;
+    mm->k_rob = mm->wet_perimeter_rob != 0
+                    ? ((std::valarray<double>)sum[ind_rob]).sum() *
+                          std::pow(mm->area_rob / mm->wet_perimeter_rob, 2 / 3)
+                    : 0;
+    mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
+    // might need finite or zero solved? 1548
+    double fac1 = mm->area_lob != 0
+                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      : 0;
+    double fac2 = mm->area_main != 0
+                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      : 0;
+    double fac3 = mm->area_rob != 0
+                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      : 0;
+    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+  } else if (bbopt->xsection_conveyance_method == enum_xsc_method::AREAWEIGHTED_CONVEYANCE_ONECALC_XS){
+    std::valarray<double> sum = area / t_nn;
+    temp_t_nn = t_nn;
+    // finite or zero solved? 1557
+    mm->k_total = mm->wet_perimeter != 0
+                      ? ((std::valarray<double>)sum[ind]).sum() *
+                            std::pow(mm->area / mm->wet_perimeter, 2. / 3.)
+                      : 0;
+    mm->k_lob = mm->k_total * mm->area_lob / mm->area;
+    mm->k_main = mm->k_total * mm->area_main / mm->area;
+    mm->k_rob = mm->k_total * mm->area_rob / mm->area;
+    mm->alpha = 1;
+  } else if (bbopt->xsection_conveyance_method == enum_xsc_method::DISCRETIZED_CONVEYANCE_XS){
+    mm->k_lob = ((std::valarray<double>)k[ind_lob]).sum();
+    mm->k_main = ((std::valarray<double>)k[ind_main]).sum();
+    mm->k_rob = ((std::valarray<double>)k[ind_rob]).sum();
+    mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
+    temp_t_nn = t_nn;
+    // might need finite or zero solved? 1572
+    double fac1 = mm->area_lob != 0
+                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      : 0;
+    double fac2 = mm->area_main != 0
+                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      : 0;
+    double fac3 = mm->area_rob != 0
+                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      : 0;
+    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+  }
+
+  mm->length_effective = (ds_length_LOB * mm->k_lob + ds_length_main * mm->k_main + ds_length_ROB * mm->k_rob) / mm->k_total;
+  mm->length_effectiveadjusted = mm->length_effective;
+
+  if (bbopt->xsection_conveyance_method == enum_xsc_method::OVERBANK_CONVEYANCE) {
+    mm->manning_lob = manning_LOB * bbopt->roughness_multiplier;
+    mm->manning_main = manning_main * bbopt->roughness_multiplier;
+    mm->manning_rob = manning_ROB * bbopt->roughness_multiplier;
+
+    if (bbopt->manning_composite_method == enum_mc_method::EQUAL_FORCE) {
+      mm->manning_composite =
+          std::sqrt((1. / mm->wet_perimeter) *
+                    (mm->wet_perimeter_lob * std::pow(mm->manning_lob, 2) +
+                     mm->wet_perimeter_main * std::pow(mm->manning_main, 2) +
+                     mm->wet_perimeter_rob * std::pow(mm->manning_rob, 2)));
+    } else if (bbopt->manning_composite_method == enum_mc_method::WEIGHTED_AVERAGE_AREA) {
+      mm->manning_composite = (mm->area_lob * mm->manning_lob +
+                               mm->area_main * mm->manning_main +
+                               mm->area_rob * mm->manning_rob) /
+                              mm->area;
+    } else if (bbopt->manning_composite_method == enum_mc_method::WEIGHTED_AVERAGE_WETPERIMETER) {
+      mm->manning_composite = (mm->wet_perimeter_lob * mm->manning_lob +
+                               mm->wet_perimeter_main * mm->manning_main +
+                               mm->wet_perimeter_rob * mm->manning_rob) /
+                              mm->area;
+    } else if (bbopt->manning_composite_method == enum_mc_method::WEIGHTED_AVERAGE_CONVEYANCE) {
+      mm->manning_composite = (mm->k_lob * mm->manning_lob +
+                               mm->k_main * mm->manning_main +
+                               mm->k_rob * mm->manning_rob) /
+                              mm->k_total;
+    } else if (bbopt->manning_composite_method == enum_mc_method::EQUAL_VELOCITY) {
+      mm->manning_composite = std::pow(
+          (1. / mm->wet_perimeter) *
+              (mm->wet_perimeter_lob * std::pow(mm->manning_lob, 3. / 2.) +
+               mm->wet_perimeter_main * std::pow(mm->manning_main, 3. / 2.) +
+               mm->wet_perimeter_rob * std::pow(mm->manning_rob, 3. / 2.)),
+          2. / 3.);
+    }
+  } else {
+    if (bbopt->manning_composite_method == enum_mc_method::EQUAL_FORCE) {
+      std::valarray<double> temp_coeff = wet_per * std::pow(temp_t_nn, 2);
+      mm->manning_lob = std::sqrt((1. / mm->wet_perimeter_lob) * ((std::valarray<double>)temp_coeff[ind_lob]).sum());
+      mm->manning_main = std::sqrt((1. / mm->wet_perimeter_main) * ((std::valarray<double>)temp_coeff[ind_main]).sum());
+      mm->manning_rob = std::sqrt((1. / mm->wet_perimeter_rob) * ((std::valarray<double>)temp_coeff[ind_rob]).sum());
+      mm->manning_composite = std::sqrt((1. / mm->wet_perimeter) * ((std::valarray<double>)temp_coeff[ind]).sum());
+    } else if (bbopt->manning_composite_method == enum_mc_method::WEIGHTED_AVERAGE_AREA) {
+      std::valarray<double> temp_coeff = area * temp_t_nn;
+      mm->manning_lob = ((std::valarray<double>)temp_coeff[ind_lob]).sum() /
+                        ((std::valarray<double>)area[ind_lob]).sum();
+      mm->manning_main = ((std::valarray<double>)temp_coeff[ind_main]).sum() /
+                         ((std::valarray<double>)area[ind_main]).sum();
+      mm->manning_rob = ((std::valarray<double>)temp_coeff[ind_rob]).sum() /
+                        ((std::valarray<double>)area[ind_rob]).sum();
+      mm->manning_composite = ((std::valarray<double>)temp_coeff[ind]).sum() /
+                              ((std::valarray<double>)area[ind]).sum();
+    } else if (bbopt->manning_composite_method == enum_mc_method::WEIGHTED_AVERAGE_WETPERIMETER) {
+      std::valarray<double> temp_coeff = wet_per * temp_t_nn;
+      mm->manning_lob = ((std::valarray<double>)temp_coeff[ind_lob]).sum() /
+                        ((std::valarray<double>)wet_per[ind_lob]).sum();
+      mm->manning_main = ((std::valarray<double>)temp_coeff[ind_main]).sum() /
+                         ((std::valarray<double>)wet_per[ind_main]).sum();
+      mm->manning_rob = ((std::valarray<double>)temp_coeff[ind_rob]).sum() /
+                        ((std::valarray<double>)wet_per[ind_rob]).sum();
+      mm->manning_composite = ((std::valarray<double>)temp_coeff[ind]).sum() /
+                              ((std::valarray<double>)wet_per[ind]).sum();
+    } else if (bbopt->manning_composite_method == enum_mc_method::WEIGHTED_AVERAGE_CONVEYANCE) {
+      std::valarray<double> temp_coeff = k * temp_t_nn;
+      mm->manning_lob = ((std::valarray<double>)temp_coeff[ind_lob]).sum() /
+                        ((std::valarray<double>)k[ind_lob]).sum();
+      mm->manning_main = ((std::valarray<double>)temp_coeff[ind_main]).sum() /
+                         ((std::valarray<double>)k[ind_main]).sum();
+      mm->manning_rob = ((std::valarray<double>)temp_coeff[ind_rob]).sum() /
+                        ((std::valarray<double>)k[ind_rob]).sum();
+      mm->manning_composite = ((std::valarray<double>)temp_coeff[ind]).sum() /
+                              ((std::valarray<double>)k[ind]).sum();
+    } else if (bbopt->manning_composite_method == enum_mc_method::EQUAL_VELOCITY) {
+      std::valarray<double> temp_coeff = wet_per * std::pow(temp_t_nn, 3. / 2.);
+      mm->manning_lob = std::pow((1. / mm->wet_perimeter_lob) * ((std::valarray<double>)temp_coeff[ind_lob]).sum(), 2. / 3.);
+      mm->manning_main = std::pow((1. / mm->wet_perimeter_main) * ((std::valarray<double>)temp_coeff[ind_main]).sum(), 2. / 3.);
+      mm->manning_rob = std::pow((1. / mm->wet_perimeter_rob) * ((std::valarray<double>)temp_coeff[ind_rob]).sum(), 2. / 3.);
+      mm->manning_composite = std::pow((1. / mm->wet_perimeter) * ((std::valarray<double>)temp_coeff[ind]).sum(), 2. / 3.);
+    }
+  }
 }
 
 // Compute basic flow properties

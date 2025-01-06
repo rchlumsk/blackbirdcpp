@@ -241,6 +241,14 @@ inline bool StringIsLong(const char* s1)
   return !(*p);
 }
 
+inline std::valarray<double> ConvCalc(std::valarray<double> n,
+                                      std::valarray<double> A,
+                                      std::valarray<double> Rh) {
+  std::valarray<double> res = (1. / n) * A * std::pow(Rh, 2. / 3.);
+  res[res < 0] = 0;
+  return res;
+}
+
 ///////////////////////////////////////////////////////////////////
 /// \brief returns true if character string is long integer
 /// \return true if character string is long integer
