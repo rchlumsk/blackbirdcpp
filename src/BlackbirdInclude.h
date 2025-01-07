@@ -154,6 +154,12 @@ struct hydraulic_output {
 //*****************************************************************
 //Enumerables
 //*****************************************************************
+enum enum_nodetype
+{
+  REACH,
+  XSECTION
+};
+
 enum enum_mt_method
 {
   HAND_MANNING,
@@ -246,6 +252,11 @@ inline std::valarray<double> ConvCalc(std::valarray<double> n,
                                       std::valarray<double> Rh) {
   std::valarray<double> res = (1. / n) * A * std::pow(Rh, 2. / 3.);
   res[res < 0] = 0;
+  return res;
+}
+inline double ConvCalc(double n, double A, double Rh) {
+  double res = (1. / n) * A * std::pow(Rh, 2. / 3.);
+  res = res < 0 ? 0 : res;
   return res;
 }
 

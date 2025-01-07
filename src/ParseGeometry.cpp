@@ -2,6 +2,8 @@
 #include "Model.h"
 #include "ParseLib.h"
 #include "Streamnode.h"
+#include "Reach.h"
+#include "XSection.h"
 
 //////////////////////////////////////////////////////////////////
 /// \brief Parses Geometry file
@@ -118,7 +120,18 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
             row++;
             if (Len < 15) { pp->ImproperFormat(s); }
             pSN = NULL;
-            pSN = new CStreamnode();
+            if (strcmp(s[1], "NA")) {
+              if (!strcmp(s[1], "REACH")) {
+                pSN = new CReach();
+                pSN->nodetype = enum_nodetype::REACH;
+              } else if (!strcmp(s[1], "XSECTION")) {
+                pSN = new CXSection();
+                pSN->nodetype = enum_nodetype::XSECTION;
+              } else {
+                error = "ParseGeometry File: nodetype \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of :Streamnodes must be a REACH or XSECTION";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
             ExitGracefullyIf(pSN == NULL, "ParseGeometry", OUT_OF_MEMORY);
 
             if (strcmp(s[0], "NA")) {
@@ -129,10 +142,6 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
                 error = "ParseGeometry File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of :Streamnodes must be a unique integer or long integer";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
-            }
-            if (strcmp(s[1], "NA")) {
-              //std::cout << s[1] << std::endl;
-              pSN->nodetype = std::string(s[1]);
             }
             if (strcmp(s[2], "NA")) {
               if (StringIsLong(s[2])) {

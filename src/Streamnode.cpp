@@ -6,7 +6,7 @@
 // Default constructor
 CStreamnode::CStreamnode()
   : nodeID(PLACEHOLDER),
-  nodetype(PLACEHOLDER_STR),
+  nodetype(enum_nodetype::REACH),
   downnodeID(PLACEHOLDER),
   upnodeID1(PLACEHOLDER),
   upnodeID2(PLACEHOLDER),
@@ -37,7 +37,7 @@ void CStreamnode::compute_preprocessed_depthdf() {
 // Compute normal depth
 hydraulic_output CStreamnode::compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt) {
   if (init_wsl == -99) {
-    if (nodetype == "xsection") { // maybe change to type check
+    if (nodetype == enum_nodetype::XSECTION) {
       double area_req = flow / 3;
       // optimization placeholder
       init_wsl = mm->min_elev + 1;

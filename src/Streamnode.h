@@ -9,7 +9,7 @@ class CStreamnode {
 public:
   // Member variables
   int nodeID;
-  std::string nodetype; // change to enum
+  enum_nodetype nodetype;
   int downnodeID;
   int upnodeID1;
   int upnodeID2;
