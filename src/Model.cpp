@@ -5,6 +5,8 @@ CModel::CModel()
   : bbsn(new std::vector<CStreamnode*>),
   bbbc(new CBoundaryConditions),
   bbopt(new COptions),
+  hand_depth_seq(),
+  dhand_depth_seq(),
   hyd_result(nullptr),
   streamnode_map(),
   stationname_map(),
