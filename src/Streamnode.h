@@ -39,10 +39,10 @@ public:
 
   // Functions
   void compute_preprocessed_depthdf();
-  hydraulic_output compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt);
+  void compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt);
   hydraulic_output compute_basic_depth_properties_interpolation();
-  hydraulic_output compute_profile(double flow, double wsl, COptions *bbopt);
-  hydraulic_output compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt);
+  void compute_profile(double flow, double wsl, COptions *bbopt);
+  void compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt);
 
   void add_depthdf_row(hydraulic_output*& row);
   hydraulic_output* get_depthdf_row_from_depth(double depth);

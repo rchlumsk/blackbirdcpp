@@ -38,7 +38,6 @@ public:
   double max_RHSQ_ratio;
   double min_RHSQ_ratio;
   bool use_dhand;
-  double dhand_Hseq;
   enum_mc_method manning_composite_method;
   bool manning_enforce_values;
   enum_ri_method reach_integration_method;

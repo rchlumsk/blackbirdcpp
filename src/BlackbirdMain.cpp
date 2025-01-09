@@ -79,7 +79,8 @@ int main(int argc, char* argv[])
     ExitGracefully("Main::Unable to open Blackbird_testoutput.txt. Bad output directory specified?", BLACKBIRD_OPEN_ERR);
   }
   TESTOUTPUT.close();
-  pModel->WriteTestOutput();
+  //pModel->WriteTestOutput();
+  pModel->hyd_result_pretty_print();
 
   if (!pOptions->silent_run)
   {

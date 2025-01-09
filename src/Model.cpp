@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "XSection.h"
 
 // Default constructor
 CModel::CModel()
@@ -18,7 +19,7 @@ CModel::CModel()
 std::vector<hydraulic_output *> *CModel::hyd_compute_profile() {
   bbopt->froude_threshold = 0.94;
 
-  ExitGracefullyIf(std::to_string(bbopt->regimetype) != "subcritical",
+  ExitGracefullyIf(bbopt->regimetype != enum_rt_method::SUBCRITICAL,
                    "Model.cpp: hyd_compute_profile(): only subcritical mode "
                    "with hardcoded options currently available",
                    BAD_DATA);
@@ -34,53 +35,14 @@ std::vector<hydraulic_output *> *CModel::hyd_compute_profile() {
                    "station name not represented in streamnodes",
                    BAD_DATA);
 
-  // update preproc tables?
-
   std::vector<hydraulic_output *> *result = new std::vector<hydraulic_output *>(
       start_streamnode->output_flows.size() * bbsn->size());
 
   for (int f = 0; f < start_streamnode->output_flows.size(); f++) {
-    //std::vector<hydraulic_output*> *temp_result = new std::vector<hydraulic_output*>(bbsn->size());
     flow = f;
-    //int num_computed = 0;
-    //while (num_computed != bbsn->size()) {
-    //  for (int s = 0; s < bbsn->size(); s++) {
-    //    if ((*bbsn)[s]->output_depth[f] == PLACEHOLDER && (*bbsn)[s]->down)
-    //    if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
-    //
-    //    }
-    //  }
-    //  
-    //}
-    // 
-    // change below ifs to use enums
-    if (bbopt->modeltype != enum_mt_method::HAND_MANNING) {
-      switch (bbbc->bctype)
-      {
-      case (enum_bc_type::NORMAL_DEPTH): {
-        if (bbbc->bcvalue <= 0 || bbbc->bcvalue > 1) {
-          WriteWarning("Model.cpp: compute_streamnode: bcvalue may not be a "
-                       "reasonable slope, please check!",
-                       bbopt->noisy_run);
-        }
-      }
-      case (enum_bc_type::SET_WSL): {
-        // review, finish, and revise these
-      }
-      case (enum_bc_type::SET_DEPTH): {
-        // review, finish, and revise these
-      }
-      default: {
-        ExitGracefully("Model.cpp: compute_streamnode: error in boundary "
-                       "condition input type",
-                       BAD_DATA);
-      }
-      }
-    }
     compute_streamnode(start_streamnode, start_streamnode, result);
   }
   std::cout << "Successfully completed all hydraulic calculations :-)" << std::endl;
-  // write results?
   flow = PLACEHOLDER;
   hyd_result = result;
   return result;
@@ -191,13 +153,19 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   if (sn->nodeID == down_sn->nodeID) {
     sn->mm->min_elev = sn->min_elev; // redundant?
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
-      sn->mm->wsl = (sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt)).wsl; // consider making new function for only wsl?
+      sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt);
     } else {
       switch (bbbc->bctype)
       {
       case (enum_bc_type::NORMAL_DEPTH): {
-        sn->mm->wsl = (sn->compute_normal_depth(sn->mm->flow, bbbc->bcvalue, bbbc->init_WSL, bbopt)).wsl; // consider making new function for only wsl?
+        if (bbbc->bcvalue <= 0 || bbbc->bcvalue > 1) {
+          WriteWarning("Model.cpp: compute_streamnode: bcvalue may not be a "
+                       "reasonable slope, please check!",
+                       bbopt->noisy_run);
+        }
+        sn->compute_normal_depth(sn->mm->flow, bbbc->bcvalue, bbbc->init_WSL, bbopt);
         sn->mm->sf = bbbc->bcvalue;
+        break;
       }
       case (enum_bc_type::SET_WSL): {
         sn->mm->wsl = bbbc->bcvalue;
@@ -206,6 +174,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                          "boundary condition but value provided is less than "
                          "minimum elevation, revise boundary condition!",
                          BAD_DATA);
+        break;
       }
       case (enum_bc_type::SET_DEPTH): {
         sn->mm->wsl = bbbc->bcvalue + sn->mm->min_elev;
@@ -213,11 +182,13 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                          "Model.cpp: compute_streamnode: SET_DEPTH used as "
                          "boundary condition, value must be >= 0",
                          BAD_DATA);
+        break;
       }
       default: {
         ExitGracefully("Model.cpp: compute_streamnode: error in boundary "
                        "condition input type",
                        BAD_DATA);
+        break;
       }
       }
     }
@@ -225,7 +196,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
     sn->compute_profile(sn->mm->flow, sn->mm->wsl, bbopt);
   } else {
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
-      sn->mm->wsl = sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt).wsl;
+      sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt);
       sn->compute_profile(sn->mm->flow, sn->mm->wsl, bbopt);
     } else {
       sn->mm->wsl = down_sn->mm->depth + sn->mm->min_elev;
@@ -250,8 +221,6 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                              sn->mm->min_elev + 0.05 +
                                  0.05 * (1 - (i + 1) / bbopt->iteration_limit_cp));
         }
-
-        // add check for divergence
 
         err_lag2 = err_lag1;
         err_lag1 = comp_wsl - prevWSL_lag1;
@@ -360,11 +329,30 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
       }
     }
   }
-  // some check here 537
+  if (sn->nodetype == enum_nodetype::REACH) {
+    if (!sn->depthdf->empty() && sn->mm->depth > sn->depthdf->back()->depth) {
+      WriteWarning("Model.cpp: compute_streamnode: Results for flow of " +
+                       std::to_string(flow) + " at streamnode " +
+                       std::to_string(sn->nodeID) + " estimated a depth " +
+                       std::to_string(sn->mm->depth) +
+                       " beyond those provided for pre-processing;\nResults "
+                       "should be re-run with a broader set of depths",
+                   bbopt->noisy_run);
+    }
+  } else {
+    if (sn->mm->wsl > ((CXSection*)sn)->zz.max() ) {
+      WriteWarning("Model.cpp: compute_streamnode: Results for flow of " +
+                       std::to_string(flow) + " at streamnode " +
+                       std::to_string(sn->nodeID) +
+                       " estimated a water surface level " +
+                       std::to_string(sn->mm->wsl) +
+                       " exceeding the zz value;\nResults should be re-run "
+                       "with extended cross sections",
+                   bbopt->noisy_run);
+    }
+  }
 
-  // setting flowprofile ignored
-
-  (*res)[flow * bbsn->size() + ind] = sn->mm;
+  (*res)[flow * bbsn->size() + ind] = new hydraulic_output(*(sn->mm));
 
   if (sn->mm->alpha != PLACEHOLDER && sn->mm->alpha > 5) {
     WriteWarning("alpha value greater than 5 found, indicating possible instability in results. Please review.", bbopt->noisy_run);
@@ -403,6 +391,10 @@ CModel::~CModel() {
   bbbc = nullptr;
   delete bbopt;
   bbopt = nullptr;
+  for (std::vector<hydraulic_output*>::iterator i = hyd_result->begin(); i != hyd_result->end(); i++) {
+    delete (*i);
+    *i = nullptr;
+  }
   delete hyd_result;
   hyd_result = nullptr;
 }

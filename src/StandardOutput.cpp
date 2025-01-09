@@ -44,7 +44,7 @@ void CModel::WriteMajorOutput(std::string solfile, bool final) const
 //
 void CModel::WriteTestOutput() const
 {
-  if (bbopt->noisy_run) { std::cout << "  Writing Test Output File..." << std::endl; }
+  if (bbopt->noisy_run) { std::cout << "  Writing Test Output File full model..." << std::endl; }
   std::ofstream TESTOUTPUT;
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "===================== Full Model =====================" << std::endl;
@@ -94,7 +94,6 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::setw(35) << "Max RHSQ Ratio:" << max_RHSQ_ratio << std::endl;
   TESTOUTPUT << std::setw(35) << "Min RHSQ Ratio:" << min_RHSQ_ratio << std::endl;
   TESTOUTPUT << std::setw(35) << "Use DHand:" << (use_dhand ? "True" : "False") << std::endl;
-  TESTOUTPUT << std::setw(35) << "DHand HSeq:" << dhand_Hseq << std::endl;
   TESTOUTPUT << std::setw(35) << "Manning Composite Method:" << manning_composite_method << std::endl;
   TESTOUTPUT << std::setw(35) << "Manning Enforce Values:" << (manning_enforce_values ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Reach Integration Method:" << reach_integration_method << std::endl;
@@ -335,5 +334,177 @@ void CStreamnode::pretty_print() const
     TESTOUTPUT << "=================================" << std::endl;
   }
   TESTOUTPUT << "===========================================\n" << std::endl;
+  TESTOUTPUT.close();
+}
+
+void CModel::hyd_result_pretty_print() const
+{
+  if (bbopt->noisy_run) {
+    std::cout << "  Writing Test Output File hyd_result..." << std::endl;
+  }
+  std::ofstream TESTOUTPUT;
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(),
+                  std::ios::app);
+  TESTOUTPUT << "===================== Hydraulic Output =====================" << std::endl;
+  if (this->hyd_result) {
+    // Print headers for the hydraulic_output table
+    TESTOUTPUT << std::setw(10) << "nodeId"
+      << std::setw(10) << "reachId"
+      << std::setw(15) << "downNodeId"
+      << std::setw(15) << "upNodeId1"
+      << std::setw(15) << "upNodeId2"
+      << std::setw(15) << "stationName"
+      << std::setw(15) << "station"
+      << std::setw(15) << "reachLengthDs"
+      << std::setw(15) << "reachLengthUs1"
+      << std::setw(15) << "reachLengthUs2"
+      << std::setw(10) << "flow"
+      << std::setw(10) << "flowLob"
+      << std::setw(10) << "flowMain"
+      << std::setw(10) << "flowRob"
+      << std::setw(15) << "minElev"
+      << std::setw(15) << "wsl"
+      << std::setw(10) << "depth"
+      << std::setw(15) << "hydDepth"
+      << std::setw(15) << "hydDepthLob"
+      << std::setw(15) << "hydDepthMain"
+      << std::setw(15) << "hydDepthRob"
+      << std::setw(15) << "topWidth"
+      << std::setw(15) << "topWidthLob"
+      << std::setw(15) << "topWidthMain"
+      << std::setw(15) << "topWidthRob"
+      << std::setw(10) << "velocity"
+      << std::setw(15) << "velocityLob"
+      << std::setw(15) << "velocityMain"
+      << std::setw(15) << "velocityRob"
+      << std::setw(10) << "kTotal"
+      << std::setw(10) << "kLob"
+      << std::setw(10) << "kMain"
+      << std::setw(10) << "kRob"
+      << std::setw(10) << "alpha"
+      << std::setw(10) << "area"
+      << std::setw(10) << "areaLob"
+      << std::setw(10) << "areaMain"
+      << std::setw(10) << "areaRob"
+      << std::setw(15) << "radius"
+      << std::setw(15) << "radiusLob"
+      << std::setw(15) << "radiusMain"
+      << std::setw(15) << "radiusRob"
+      << std::setw(15) << "wetPerimeter"
+      << std::setw(20) << "wetPerimeterLob"
+      << std::setw(20) << "wetPerimeterMain"
+      << std::setw(20) << "wetPerimeterRob"
+      << std::setw(15) << "energyTotal"
+      << std::setw(15) << "velocityHead"
+      << std::setw(10) << "froude"
+      << std::setw(10) << "sf"
+      << std::setw(15) << "sfAvg"
+      << std::setw(10) << "sbed"
+      << std::setw(15) << "lengthEffective"
+      << std::setw(15) << "headLoss"
+      << std::setw(15) << "manningLob"
+      << std::setw(15) << "manningMain"
+      << std::setw(15) << "manningRob"
+      << std::setw(20) << "manningComposite"
+      << std::setw(20) << "kTotalAreaConv"
+      << std::setw(20) << "kTotalRoughConv"
+      << std::setw(20) << "kTotalDisconv"
+      << std::setw(20) << "alphaAreaConv"
+      << std::setw(20) << "alphaRoughConv"
+      << std::setw(20) << "alphaDisconv"
+      << std::setw(20) << "ncEqualForce"
+      << std::setw(20) << "ncEqualVelocity"
+      << std::setw(15) << "ncWavgwp"
+      << std::setw(15) << "ncWavgArea"
+      << std::setw(15) << "ncWavgConv"
+      << std::setw(20) << "criticalDepth"
+      << std::setw(20) << "cpIterations"
+      << std::setw(10) << "kErr"
+      << std::setw(10) << "wsErr"
+      << std::setw(20) << "lengthEnergyloss"
+      << std::setw(25) << "lengthEffectiveAdjusted"
+      << std::endl;
+
+    // Iterate over all hydraulic_output objects in depthdf and print them
+    for (const auto &ho : *(this->hyd_result)) {
+      TESTOUTPUT << std::setw(10) << ho->nodeID
+        << std::setw(10) << ho->reachID
+        << std::setw(15) << ho->downnodeID
+        << std::setw(15) << ho->upnodeID1
+        << std::setw(15) << ho->upnodeID2
+        << std::setw(15) << ho->stationname
+        << std::setw(15) << ho->station
+        << std::setw(15) << ho->reach_length_DS
+        << std::setw(15) << ho->reach_length_US1
+        << std::setw(15) << ho->reach_length_US2
+        << std::setw(10) << ho->flow
+        << std::setw(10) << ho->flow_lob
+        << std::setw(10) << ho->flow_main
+        << std::setw(10) << ho->flow_rob
+        << std::setw(15) << ho->min_elev
+        << std::setw(15) << ho->wsl
+        << std::setw(10) << ho->depth
+        << std::setw(15) << ho->hyd_depth
+        << std::setw(15) << ho->hyd_depth_lob
+        << std::setw(15) << ho->hyd_depth_main
+        << std::setw(15) << ho->hyd_depth_rob
+        << std::setw(15) << ho->top_width
+        << std::setw(15) << ho->top_width_lob
+        << std::setw(15) << ho->top_width_main
+        << std::setw(15) << ho->top_width_rob
+        << std::setw(10) << ho->velocity
+        << std::setw(15) << ho->velocity_lob
+        << std::setw(15) << ho->velocity_main
+        << std::setw(15) << ho->velocity_rob
+        << std::setw(10) << ho->k_total
+        << std::setw(10) << ho->k_lob
+        << std::setw(10) << ho->k_main
+        << std::setw(10) << ho->k_rob
+        << std::setw(10) << ho->alpha
+        << std::setw(10) << ho->area
+        << std::setw(10) << ho->area_lob
+        << std::setw(10) << ho->area_main
+        << std::setw(10) << ho->area_rob
+        << std::setw(15) << ho->hradius
+        << std::setw(15) << ho->hradius_lob
+        << std::setw(15) << ho->hradius_main
+        << std::setw(15) << ho->hradius_rob
+        << std::setw(15) << ho->wet_perimeter
+        << std::setw(20) << ho->wet_perimeter_lob
+        << std::setw(20) << ho->wet_perimeter_main
+        << std::setw(20) << ho->wet_perimeter_rob
+        << std::setw(15) << ho->energy_total
+        << std::setw(15) << ho->velocity_head
+        << std::setw(10) << ho->froude
+        << std::setw(10) << ho->sf
+        << std::setw(15) << ho->sf_avg
+        << std::setw(10) << ho->sbed
+        << std::setw(15) << ho->length_effective
+        << std::setw(15) << ho->head_loss
+        << std::setw(15) << ho->manning_lob
+        << std::setw(15) << ho->manning_main
+        << std::setw(15) << ho->manning_rob
+        << std::setw(20) << ho->manning_composite
+        << std::setw(20) << ho->k_total_areaconv
+        << std::setw(20) << ho->k_total_roughconv
+        << std::setw(20) << ho->k_total_disconv
+        << std::setw(20) << ho->alpha_areaconv
+        << std::setw(20) << ho->alpha_roughconv
+        << std::setw(20) << ho->alpha_disconv
+        << std::setw(20) << ho->nc_equalforce
+        << std::setw(20) << ho->nc_equalvelocity
+        << std::setw(15) << ho->nc_wavgwp
+        << std::setw(15) << ho->nc_wavgarea
+        << std::setw(15) << ho->nc_wavgconv
+        << std::setw(20) << ho->depth_critical
+        << std::setw(20) << ho->cp_iterations
+        << std::setw(10) << ho->k_err
+        << std::setw(10) << ho->ws_err
+        << std::setw(20) << ho->length_energyloss
+        << std::setw(25) << ho->length_effectiveadjusted
+        << std::endl;
+    }
+    TESTOUTPUT << "=================================" << std::endl;
+  }
   TESTOUTPUT.close();
 }

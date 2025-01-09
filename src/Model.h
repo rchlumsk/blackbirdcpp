@@ -16,7 +16,7 @@ public:
   std::vector<double> dhand_depth_seq; // sequence of depths for dhand
 
   //temp?
-  std::vector<hydraulic_output *> *hyd_result;
+  std::vector<hydraulic_output *> *hyd_result; // hydraulic outputs here reference 
 
   // Constructor and destructor
   CModel();
@@ -37,6 +37,7 @@ public:
   void WriteOutputFileHeaders(COptions*const& pOptions);
   void WriteMajorOutput(std::string solfile, bool final) const;
   void WriteTestOutput() const;
+  void hyd_result_pretty_print() const;
 
 protected:
   // Private variables

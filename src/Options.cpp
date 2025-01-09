@@ -32,7 +32,6 @@ COptions::COptions()
   max_RHSQ_ratio(PLACEHOLDER),
   min_RHSQ_ratio(PLACEHOLDER),
   use_dhand(false),
-  dhand_Hseq(PLACEHOLDER),
   manning_composite_method(enum_mc_method::EQUAL_FORCE),
   manning_enforce_values(false),
   reach_integration_method(enum_ri_method::EFFECTIVE_LENGTH),

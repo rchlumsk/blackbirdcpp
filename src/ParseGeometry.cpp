@@ -128,7 +128,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
                 pSN = new CXSection();
                 pSN->nodetype = enum_nodetype::XSECTION;
               } else {
-                error = "ParseGeometry File: nodetype \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of :Streamnodes must be a REACH or XSECTION";
+                error = "ParseGeometry File: nodetype \"" + std::string(s[1]) + "\" in row " + std::to_string(row) + " of :Streamnodes must be a REACH or XSECTION";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
             }

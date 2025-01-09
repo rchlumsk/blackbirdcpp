@@ -35,7 +35,7 @@ void CStreamnode::compute_preprocessed_depthdf() {
 }
 
 // Compute normal depth
-hydraulic_output CStreamnode::compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt) {
+void CStreamnode::compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt) {
   if (init_wsl == -99) {
     if (nodetype == enum_nodetype::XSECTION) {
       double area_req = flow / 3;
@@ -120,10 +120,6 @@ hydraulic_output CStreamnode::compute_normal_depth(double flow, double slope, do
       }
     }
   }
-
-  //temp
-  hydraulic_output output;
-  return output;
 }
 
 // Compute basic depth properties with interpolation
@@ -134,7 +130,7 @@ hydraulic_output CStreamnode::compute_basic_depth_properties_interpolation() {
 }
 
 // Compute profile
-hydraulic_output CStreamnode::compute_profile(double flow, double wsl, COptions *bbopt) {
+void CStreamnode::compute_profile(double flow, double wsl, COptions *bbopt) {
   mm->flow = flow;
   mm->wsl = wsl;
   
@@ -154,14 +150,10 @@ hydraulic_output CStreamnode::compute_profile(double flow, double wsl, COptions 
   // assuming always use_preproc ?
   compute_basic_depth_properties_interpolation();
   compute_basic_flow_properties();
-
-  //temp
-  hydraulic_output output;
-  return output;
 }
 
 // Compute next profile
-hydraulic_output CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt) {
+void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt) {
   compute_profile(flow, wsl, bbopt);
 
   if (bbopt->reach_integration_method == enum_ri_method::EFFECTIVE_LENGTH) {
@@ -210,10 +202,6 @@ hydraulic_output CStreamnode::compute_profile_next(double flow, double wsl, hydr
       loss_coeff *
           std::abs(((mm->alpha * std::pow(mm->velocity, 2) / 2) / GRAVITY) -
                    ((down_mm->alpha * std::pow(down_mm->velocity, 2) / 2) / GRAVITY));
-
-  //temp
-  hydraulic_output output;
-  return output;
 }
 
 // Function to add row to depthdf
