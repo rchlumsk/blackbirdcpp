@@ -123,10 +123,85 @@ void CStreamnode::compute_normal_depth(double flow, double slope, double init_ws
 }
 
 // Compute basic depth properties with interpolation
-hydraulic_output CStreamnode::compute_basic_depth_properties_interpolation() {
-  hydraulic_output output;
-  // Logic to compute basic depth properties with interpolation
-  return output;
+void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COptions*& bbopt) {
+  ExitGracefullyIf(
+      depthdf->size() == 0,
+      "Streamnode.cpp: compute_basic_depth_properties_interpolation: depthdf "
+      "has not been computed, please run compute_preprocessed_depthdf first.",
+      exitcode::BAD_DATA);
+  ExitGracefullyIf(
+      mm->stationname != (*depthdf)[0]->stationname,
+      "Streamnode.cpp: compute_basic_depth_properties_interpolation: check "
+      "properties in interpolation, they do not match those in the provided mm "
+      "structure",
+      exitcode::BAD_DATA);
+  std::vector<double> vec_depthdf_wsl = hyd_out_collect(&hydraulic_output::wsl, *depthdf);
+  std::valarray<double> val_depthdf_wsl(vec_depthdf_wsl.data(), vec_depthdf_wsl.size());
+  if (wsl < val_depthdf_wsl.min() || wsl > val_depthdf_wsl.max()) {
+    ExitGracefullyIf(
+        !bbopt->extrapolate_depth_table,
+        "Streamnode.cpp: compute_basic_depth_properties_interpolation: wsl "
+        "provided is outside of the range in depthdf",
+        exitcode::RUNTIME_ERR);
+    WriteWarning(
+        "Streamnode.cpp: compute_basic_depth_properties_interpolation: wsl "
+        "provided (" +
+            std::to_string(wsl) + ") is outside of the range in depthdf [" +
+            std::to_string(val_depthdf_wsl.min()) + ", " +
+            std::to_string(val_depthdf_wsl.max()) + "] in calculating flow " +
+            std::to_string(mm->flow) +
+            ",\nExtrapolating to continue computation.",
+        bbopt->noisy_run);
+    mm->depth = wsl - mm->min_elev; // pointless?
+    mm->depth = extrapolate(wsl, &hydraulic_output::depth, *depthdf);
+    mm->k_total = extrapolate(wsl, &hydraulic_output::k_total, *depthdf);
+    mm->alpha = extrapolate(wsl, &hydraulic_output::alpha, *depthdf);
+    mm->area = extrapolate(wsl, &hydraulic_output::area, *depthdf);
+    mm->hradius = extrapolate(wsl, &hydraulic_output::hradius, *depthdf);
+    mm->wet_perimeter = extrapolate(wsl, &hydraulic_output::wet_perimeter, *depthdf);
+    mm->manning_composite = extrapolate(wsl, &hydraulic_output::manning_composite, *depthdf);
+    mm->length_effective = extrapolate(wsl, &hydraulic_output::length_effective, *depthdf);
+    mm->hyd_depth = extrapolate(wsl, &hydraulic_output::hyd_depth, *depthdf);
+    mm->top_width = extrapolate(wsl, &hydraulic_output::top_width, *depthdf);
+    mm->k_total_areaconv = extrapolate(wsl, &hydraulic_output::k_total_areaconv, *depthdf);
+    mm->k_total_disconv = extrapolate(wsl, &hydraulic_output::k_total_disconv, *depthdf);
+    mm->k_total_roughconv = extrapolate(wsl, &hydraulic_output::k_total_roughconv, *depthdf);
+    mm->alpha_areaconv = extrapolate(wsl, &hydraulic_output::alpha_areaconv, *depthdf);
+    mm->alpha_disconv = extrapolate(wsl, &hydraulic_output::alpha_disconv, *depthdf);
+    mm->alpha_roughconv = extrapolate(wsl, &hydraulic_output::alpha_roughconv, *depthdf);
+    mm->nc_equalforce = extrapolate(wsl, &hydraulic_output::nc_equalforce, *depthdf);
+    mm->nc_equalvelocity = extrapolate(wsl, &hydraulic_output::nc_equalvelocity, *depthdf);
+    mm->nc_wavgwp = extrapolate(wsl, &hydraulic_output::nc_wavgwp, *depthdf);
+    mm->nc_wavgarea = extrapolate(wsl, &hydraulic_output::nc_wavgarea, *depthdf);
+    mm->nc_wavgconv = extrapolate(wsl, &hydraulic_output::nc_wavgconv, *depthdf);
+  } else {
+    mm->depth = wsl - mm->min_elev; // pointless?
+    mm->depth = interpolate(wsl, &hydraulic_output::depth, *depthdf);
+    mm->k_total = interpolate(wsl, &hydraulic_output::k_total, *depthdf);
+    mm->alpha = interpolate(wsl, &hydraulic_output::alpha, *depthdf);
+    mm->area = interpolate(wsl, &hydraulic_output::area, *depthdf);
+    mm->hradius = interpolate(wsl, &hydraulic_output::hradius, *depthdf);
+    mm->wet_perimeter = interpolate(wsl, &hydraulic_output::wet_perimeter, *depthdf);
+    mm->manning_composite = interpolate(wsl, &hydraulic_output::manning_composite, *depthdf);
+    mm->length_effective = interpolate(wsl, &hydraulic_output::length_effective, *depthdf);
+    mm->hyd_depth = interpolate(wsl, &hydraulic_output::hyd_depth, *depthdf);
+    mm->top_width = interpolate(wsl, &hydraulic_output::top_width, *depthdf);
+    mm->k_total_areaconv = interpolate(wsl, &hydraulic_output::k_total_areaconv, *depthdf);
+    mm->k_total_disconv = interpolate(wsl, &hydraulic_output::k_total_disconv, *depthdf);
+    mm->k_total_roughconv = interpolate(wsl, &hydraulic_output::k_total_roughconv, *depthdf);
+    mm->alpha_areaconv = interpolate(wsl, &hydraulic_output::alpha_areaconv, *depthdf);
+    mm->alpha_disconv = interpolate(wsl, &hydraulic_output::alpha_disconv, *depthdf);
+    mm->alpha_roughconv = interpolate(wsl, &hydraulic_output::alpha_roughconv, *depthdf);
+    mm->nc_equalforce = interpolate(wsl, &hydraulic_output::nc_equalforce, *depthdf);
+    mm->nc_equalvelocity = interpolate(wsl, &hydraulic_output::nc_equalvelocity, *depthdf);
+    mm->nc_wavgwp = interpolate(wsl, &hydraulic_output::nc_wavgwp, *depthdf);
+    mm->nc_wavgarea = interpolate(wsl, &hydraulic_output::nc_wavgarea, *depthdf);
+    mm->nc_wavgconv = interpolate(wsl, &hydraulic_output::nc_wavgconv, *depthdf);
+  }
+
+  mm->length_effectiveadjusted = mm->length_effective;
+
+  return;
 }
 
 // Compute profile
@@ -148,8 +223,8 @@ void CStreamnode::compute_profile(double flow, double wsl, COptions *bbopt) {
   mm->depth = mm->wsl - mm->min_elev;
 
   // assuming always use_preproc ?
-  compute_basic_depth_properties_interpolation();
-  compute_basic_flow_properties();
+  compute_basic_depth_properties_interpolation(mm->wsl, bbopt);
+  compute_basic_flow_properties(mm->flow, bbopt);
 }
 
 // Compute next profile

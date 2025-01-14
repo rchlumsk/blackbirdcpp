@@ -196,9 +196,11 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
     sn->compute_profile(sn->mm->flow, sn->mm->wsl, bbopt);
   } else {
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
+      sn->mm->min_elev = sn->min_elev;
       sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt);
       sn->compute_profile(sn->mm->flow, sn->mm->wsl, bbopt);
     } else {
+      sn->mm->min_elev = sn->min_elev;
       sn->mm->wsl = down_sn->mm->depth + sn->mm->min_elev;
       sn->mm->depth = down_sn->mm->depth;
 
@@ -235,6 +237,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
         }
 
         sn->mm->ws_err = err_lag1;
+        std::cout << "test1" << sn->mm->ws_err;
         sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
         sn->mm->cp_iterations = i + 1;
 
@@ -244,6 +247,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
             sn->compute_profile_next(sn->mm->flow, min_err_wsl, down_sn->mm, bbopt);
             sn->mm->ws_err = actual_err;
+            std::cout << "test2" << sn->mm->ws_err;
             sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
 
             if (min_err < 0.03 && sn->mm->froude <= bbopt->froude_threshold) {

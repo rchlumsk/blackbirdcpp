@@ -72,83 +72,161 @@ inline void ExitGracefullyIf(bool condition, const char* statement, exitcode cod
 //*****************************************************************
 //Structures
 //*****************************************************************
+//struct hydraulic_output {
+//  int nodeID                       = PLACEHOLDER;
+//  int reachID                      = PLACEHOLDER;
+//  int downnodeID                   = PLACEHOLDER;
+//  int upnodeID1                    = PLACEHOLDER;
+//  int upnodeID2                    = PLACEHOLDER;
+//  std::string stationname          = PLACEHOLDER_STR;
+//  double station                   = PLACEHOLDER;
+//  double reach_length_DS           = PLACEHOLDER;
+//  double reach_length_US1          = PLACEHOLDER;
+//  double reach_length_US2          = PLACEHOLDER;
+//  double flow                      = PLACEHOLDER;
+//  double flow_lob                  = PLACEHOLDER;
+//  double flow_main                 = PLACEHOLDER;
+//  double flow_rob                  = PLACEHOLDER;
+//  double min_elev                  = PLACEHOLDER;
+//  double wsl                       = PLACEHOLDER;
+//  double depth                     = PLACEHOLDER;
+//  double hyd_depth                 = PLACEHOLDER;
+//  double hyd_depth_lob             = PLACEHOLDER;
+//  double hyd_depth_main            = PLACEHOLDER;
+//  double hyd_depth_rob             = PLACEHOLDER;
+//  double top_width                 = PLACEHOLDER;
+//  double top_width_lob             = PLACEHOLDER;
+//  double top_width_main            = PLACEHOLDER;
+//  double top_width_rob             = PLACEHOLDER;
+//  double velocity                  = PLACEHOLDER;
+//  double velocity_lob              = PLACEHOLDER;
+//  double velocity_main             = PLACEHOLDER;
+//  double velocity_rob              = PLACEHOLDER;
+//  double k_total                   = PLACEHOLDER;
+//  double k_lob                     = PLACEHOLDER;
+//  double k_main                    = PLACEHOLDER;
+//  double k_rob                     = PLACEHOLDER;
+//  double alpha                     = PLACEHOLDER;
+//  double area                      = PLACEHOLDER;
+//  double area_lob                  = PLACEHOLDER;
+//  double area_main                 = PLACEHOLDER;
+//  double area_rob                  = PLACEHOLDER;
+//  double hradius                   = PLACEHOLDER;
+//  double hradius_lob               = PLACEHOLDER;
+//  double hradius_main              = PLACEHOLDER;
+//  double hradius_rob               = PLACEHOLDER;
+//  double wet_perimeter             = PLACEHOLDER;
+//  double wet_perimeter_lob         = PLACEHOLDER;
+//  double wet_perimeter_main        = PLACEHOLDER;
+//  double wet_perimeter_rob         = PLACEHOLDER;
+//  double energy_total              = PLACEHOLDER;
+//  double velocity_head             = PLACEHOLDER;
+//  double froude                    = PLACEHOLDER;
+//  double sf                        = PLACEHOLDER;
+//  double sf_avg                    = PLACEHOLDER;
+//  double sbed                      = PLACEHOLDER;
+//  double length_effective          = PLACEHOLDER;
+//  double head_loss                 = PLACEHOLDER;
+//  double manning_lob               = PLACEHOLDER;
+//  double manning_main              = PLACEHOLDER;
+//  double manning_rob               = PLACEHOLDER;
+//  double manning_composite         = PLACEHOLDER;
+//  double k_total_areaconv          = PLACEHOLDER;
+//  double k_total_roughconv         = PLACEHOLDER;
+//  double k_total_disconv           = PLACEHOLDER;
+//  double alpha_areaconv            = PLACEHOLDER;
+//  double alpha_roughconv           = PLACEHOLDER;
+//  double alpha_disconv             = PLACEHOLDER;
+//  double nc_equalforce             = PLACEHOLDER;
+//  double nc_equalvelocity          = PLACEHOLDER;
+//  double nc_wavgwp                 = PLACEHOLDER;
+//  double nc_wavgarea               = PLACEHOLDER;
+//  double nc_wavgconv               = PLACEHOLDER;
+//  double depth_critical            = PLACEHOLDER;
+//  int cp_iterations                = PLACEHOLDER;
+//  double k_err                     = PLACEHOLDER;
+//  double ws_err                    = PLACEHOLDER;
+//  double length_energyloss         = PLACEHOLDER;
+//  double length_effectiveadjusted  = PLACEHOLDER;
+//  double bed_slope = PLACEHOLDER; // is this needed?
+//};
 struct hydraulic_output {
-  int nodeID                       = PLACEHOLDER;
-  int reachID                      = PLACEHOLDER;
-  int downnodeID                   = PLACEHOLDER;
-  int upnodeID1                    = PLACEHOLDER;
-  int upnodeID2                    = PLACEHOLDER;
-  std::string stationname          = PLACEHOLDER_STR;
-  double station                   = PLACEHOLDER;
-  double reach_length_DS           = PLACEHOLDER;
-  double reach_length_US1          = PLACEHOLDER;
-  double reach_length_US2          = PLACEHOLDER;
-  double flow                      = PLACEHOLDER;
-  double flow_lob                  = PLACEHOLDER;
-  double flow_main                 = PLACEHOLDER;
-  double flow_rob                  = PLACEHOLDER;
-  double min_elev                  = PLACEHOLDER;
-  double wsl                       = PLACEHOLDER;
-  double depth                     = PLACEHOLDER;
-  double hyd_depth                 = PLACEHOLDER;
-  double hyd_depth_lob             = PLACEHOLDER;
-  double hyd_depth_main            = PLACEHOLDER;
-  double hyd_depth_rob             = PLACEHOLDER;
-  double top_width                 = PLACEHOLDER;
-  double top_width_lob             = PLACEHOLDER;
-  double top_width_main            = PLACEHOLDER;
-  double top_width_rob             = PLACEHOLDER;
-  double velocity                  = PLACEHOLDER;
-  double velocity_lob              = PLACEHOLDER;
-  double velocity_main             = PLACEHOLDER;
-  double velocity_rob              = PLACEHOLDER;
-  double k_total                   = PLACEHOLDER;
-  double k_lob                     = PLACEHOLDER;
-  double k_main                    = PLACEHOLDER;
-  double k_rob                     = PLACEHOLDER;
-  double alpha                     = PLACEHOLDER;
-  double area                      = PLACEHOLDER;
-  double area_lob                  = PLACEHOLDER;
-  double area_main                 = PLACEHOLDER;
-  double area_rob                  = PLACEHOLDER;
-  double hradius                   = PLACEHOLDER;
-  double hradius_lob               = PLACEHOLDER;
-  double hradius_main              = PLACEHOLDER;
-  double hradius_rob               = PLACEHOLDER;
-  double wet_perimeter             = PLACEHOLDER;
-  double wet_perimeter_lob         = PLACEHOLDER;
-  double wet_perimeter_main        = PLACEHOLDER;
-  double wet_perimeter_rob         = PLACEHOLDER;
-  double energy_total              = PLACEHOLDER;
-  double velocity_head             = PLACEHOLDER;
-  double froude                    = PLACEHOLDER;
-  double sf                        = PLACEHOLDER;
-  double sf_avg                    = PLACEHOLDER;
-  double sbed                      = PLACEHOLDER;
-  double length_effective          = PLACEHOLDER;
-  double head_loss                 = PLACEHOLDER;
-  double manning_lob               = PLACEHOLDER;
-  double manning_main              = PLACEHOLDER;
-  double manning_rob               = PLACEHOLDER;
-  double manning_composite         = PLACEHOLDER;
-  double k_total_areaconv          = PLACEHOLDER;
-  double k_total_roughconv         = PLACEHOLDER;
-  double k_total_disconv           = PLACEHOLDER;
-  double alpha_areaconv            = PLACEHOLDER;
-  double alpha_roughconv           = PLACEHOLDER;
-  double alpha_disconv             = PLACEHOLDER;
-  double nc_equalforce             = PLACEHOLDER;
-  double nc_equalvelocity          = PLACEHOLDER;
-  double nc_wavgwp                 = PLACEHOLDER;
-  double nc_wavgarea               = PLACEHOLDER;
-  double nc_wavgconv               = PLACEHOLDER;
-  double depth_critical            = PLACEHOLDER;
-  int cp_iterations                = PLACEHOLDER;
-  double k_err                     = PLACEHOLDER;
-  double ws_err                    = PLACEHOLDER;
-  double length_energyloss         = PLACEHOLDER;
-  double length_effectiveadjusted  = PLACEHOLDER;
-  double bed_slope = PLACEHOLDER; // is this needed?
+  int nodeID = 0;
+  int reachID = 0;
+  int downnodeID = 0;
+  int upnodeID1 = 0;
+  int upnodeID2 = 0;
+  std::string stationname = "";
+  double station = 0;
+  double reach_length_DS = 0;
+  double reach_length_US1 = 0;
+  double reach_length_US2 = 0;
+  double flow = 0;
+  double flow_lob = 0;
+  double flow_main = 0;
+  double flow_rob = 0;
+  double min_elev = 0;
+  double wsl = 0;
+  double depth = 0;
+  double hyd_depth = 0;
+  double hyd_depth_lob = 0;
+  double hyd_depth_main = 0;
+  double hyd_depth_rob = 0;
+  double top_width = 0;
+  double top_width_lob = 0;
+  double top_width_main = 0;
+  double top_width_rob = 0;
+  double velocity = 0;
+  double velocity_lob = 0;
+  double velocity_main = 0;
+  double velocity_rob = 0;
+  double k_total = 0;
+  double k_lob = 0;
+  double k_main = 0;
+  double k_rob = 0;
+  double alpha = 0;
+  double area = 0;
+  double area_lob = 0;
+  double area_main = 0;
+  double area_rob = 0;
+  double hradius = 0;
+  double hradius_lob = 0;
+  double hradius_main = 0;
+  double hradius_rob = 0;
+  double wet_perimeter = 0;
+  double wet_perimeter_lob = 0;
+  double wet_perimeter_main = 0;
+  double wet_perimeter_rob = 0;
+  double energy_total = 0;
+  double velocity_head = 0;
+  double froude = 0;
+  double sf = 0;
+  double sf_avg = 0;
+  double sbed = 0;
+  double length_effective = 0;
+  double head_loss = 0;
+  double manning_lob = 0;
+  double manning_main = 0;
+  double manning_rob = 0;
+  double manning_composite = 0;
+  double k_total_areaconv = 0;
+  double k_total_roughconv = 0;
+  double k_total_disconv = 0;
+  double alpha_areaconv = 0;
+  double alpha_roughconv = 0;
+  double alpha_disconv = 0;
+  double nc_equalforce = 0;
+  double nc_equalvelocity = 0;
+  double nc_wavgwp = 0;
+  double nc_wavgarea = 0;
+  double nc_wavgconv = 0;
+  double depth_critical = 0;
+  int cp_iterations = 0;
+  double k_err = 0;
+  double ws_err = 0;
+  double length_energyloss = 0;
+  double length_effectiveadjusted = 0;
+  double bed_slope = 0; // is this needed?
 };
 
 //*****************************************************************
@@ -261,8 +339,66 @@ inline double ConvCalc(double n, double A, double Rh) {
 }
 
 ///////////////////////////////////////////////////////////////////
-/// \brief returns true if character string is long integer
-/// \return true if character string is long integer
+/// \brief returns a vector of all values in the f column of a vector of hydraulic outputs.
+/// Example call with std::vector<hydraulic_output *> v as the vector: res = hyd_out_collect(&hydraulic_output::wsl, v)
+/// \return a vector of all values in the f column of a vector of hydraulic outputs
+//
+template<typename T>
+inline std::vector<T> hyd_out_collect(T hydraulic_output::* f, std::vector<hydraulic_output *> const& v) {
+  std::vector<T> output;
+  for (auto const &elem : v) {
+    output.push_back(elem->*f);
+  }
+  return output;
+}
+
+///////////////////////////////////////////////////////////////////
+/// \brief returns extrapolated value for the f column of hydraulic_output based on the last 2 rows of depthdf and new wsl value
+/// \return extrapolated value for the f column of hydraulic_output based on the last 2 rows of depthdf and new wsl value
+//
+inline double extrapolate(double new_wsl, double hydraulic_output::* f, std::vector<hydraulic_output*> const& v) {
+  double x2 = v[v.size() - 1]->wsl;
+  double x1 = v[v.size() - 2]->wsl;
+  double y2 = v[v.size() - 1]->*f;
+  double y1 = v[v.size() - 2]->*f;
+  if (x2 == PLACEHOLDER || x1 == PLACEHOLDER || y2 == PLACEHOLDER || y1 == PLACEHOLDER) {
+    return PLACEHOLDER;
+  }
+  double slope = (y2 - y1) / (x2 - x1);
+  return y2 + slope * (new_wsl - x2);
+}
+
+///////////////////////////////////////////////////////////////////
+/// \brief returns interpolated value for the f column of hydraulic_output based on the closest 2 rows of depthdf and new wsl value
+/// \return interpolated value for the f column of hydraulic_output based on the closest 2 rows of depthdf and new wsl value
+//
+inline double interpolate(double new_wsl, double hydraulic_output::* f, std::vector<hydraulic_output*> const& v) {
+  ExitGracefullyIf(v.size() == 0,
+                   "BlackbirdInclude.h: interpolate: provided v is of size 0",
+                   exitcode::RUNTIME_ERR);
+  int i = 0;
+  while (i < v.size() && v[i]->wsl < new_wsl) {
+    i++;
+  }
+  if (i == v.size() || i == 0) {
+    ExitGracefully("BlackbirdInclude.h: interpolate: new_wsl found to be "
+                   "outside of depthdf bounds",
+                   exitcode::RUNTIME_ERR);
+  }
+  double x2 = v[i]->wsl;
+  double x1 = v[i - 1]->wsl;
+  double y2 = v[i]->*f;
+  double y1 = v[i - 1]->*f;
+  if (x2 == PLACEHOLDER || x1 == PLACEHOLDER || y2 == PLACEHOLDER || y1 == PLACEHOLDER) {
+    return PLACEHOLDER;
+  }
+  double slope = (y2 - y1) / (x2 - x1);
+  return y2 + slope * (new_wsl - x2);
+}
+
+///////////////////////////////////////////////////////////////////
+/// \brief returns true if character string is double
+/// \return true if character string is double
 //
 inline bool StringIsDouble(const char* s1)
 {

@@ -40,7 +40,7 @@ public:
   // Functions
   void compute_preprocessed_depthdf();
   void compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt);
-  hydraulic_output compute_basic_depth_properties_interpolation();
+  void compute_basic_depth_properties_interpolation(double wsl, COptions*& bbopt);
   void compute_profile(double flow, double wsl, COptions *bbopt);
   void compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt);
 
@@ -55,8 +55,8 @@ public:
   void pretty_print() const; // defined in StandardOutput.cpp
 
   // Virtual Functions
-  virtual void compute_basic_depth_properties() {};
-  virtual void compute_basic_flow_properties() {}; 
+  virtual void compute_basic_depth_properties(double wsl, COptions *&bbopt) {};
+  virtual void compute_basic_flow_properties(double flow, COptions *&bbopt) {}; 
 
 
 protected:

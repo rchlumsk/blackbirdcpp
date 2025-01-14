@@ -20,7 +20,7 @@ public:
   enum_mt_method modeltype;
   enum_rt_method regimetype;
   double dx;
-  bool extrapolate_depth_table; // On extrapolation beyond depth range of the table, true -> throw warning, false -> throw error
+  bool extrapolate_depth_table; // On extrapolation beyond depth range of the table, true -> throw warning but extrapolate, false -> throw error and stop
   double num_extrapolation_points;
   enum_fs_method friction_slope_method;
   enum_xsc_method xsection_conveyance_method;
