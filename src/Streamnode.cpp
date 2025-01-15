@@ -201,6 +201,56 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
 
   mm->length_effectiveadjusted = mm->length_effective;
 
+  if (bbopt->roughness_multiplier != 1) {
+    mm->k_total /= bbopt->roughness_multiplier;
+    mm->manning_composite *= bbopt->roughness_multiplier;
+  }
+
+  double reach_length = PLACEHOLDER;
+
+  if (bbopt->enforce_delta_Leff) {
+    if (mm->reach_length_US2 != -99) {
+      reach_length = mm->reach_length_US2;
+    } else {
+      reach_length = mm->reach_length_US1;
+    }
+    if (mm->length_effective < reach_length * (1 - bbopt->delta_reachlength)) {
+      std::cout << "Enforcing Leff on node with nodeID " + std::to_string(nodeID) << std::endl;
+      mm->length_effectiveadjusted = reach_length * (1 - bbopt->delta_reachlength);
+      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective;
+
+      //cim
+      mm->area *= leff_ratio;
+      mm->wet_perimeter *= leff_ratio;
+      mm->k_total *= leff_ratio;
+      mm->top_width *= leff_ratio;
+      mm->hyd_depth *= leff_ratio;
+    } else if (mm->length_effective > reach_length * (1 + bbopt->delta_reachlength)) {
+      std::cout << "Enforcing Leff on node with nodeID " + std::to_string(nodeID) << std::endl;
+      mm->length_effectiveadjusted = reach_length * (1 + bbopt->delta_reachlength);
+      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective;
+
+      //cim
+      mm->area *= leff_ratio;
+      mm->wet_perimeter *= leff_ratio;
+      mm->k_total *= leff_ratio;
+      mm->top_width *= leff_ratio;
+      mm->hyd_depth *= leff_ratio;
+    }
+  }
+
+  //cim
+  if (mm->reach_length_US2 != -99) {
+    reach_length = mm->reach_length_US2;
+  } else {
+    reach_length = mm->reach_length_US1;
+  }
+  mm->area *= mm->length_effective / reach_length;
+  mm->wet_perimeter *= mm->length_effective / reach_length;
+  mm->k_total *= mm->length_effective / reach_length;
+  mm->top_width *= mm->length_effective / reach_length;
+  mm->hyd_depth *= mm->length_effective / reach_length;
+
   return;
 }
 
