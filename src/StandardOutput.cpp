@@ -11,6 +11,21 @@
 #endif
 
 //////////////////////////////////////////////////////////////////
+/// \brief Adds output directory & prefix to base file name
+/// \param filebase [in] base filename, with extension, no directory information
+/// \param &Options [in] Global model options information
+//
+std::string FilenamePrepare(std::string filebase, const COptions *Options) {
+  std::string fn;
+  if (Options->run_name == "") {
+    fn = Options->main_output_dir + filebase;
+  } else {
+    fn = Options->main_output_dir + Options->run_name + "_" + filebase;
+  }
+  return fn;
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Write output file headers
 /// \details Called prior to simulation (but after initialization) from CModel::Initialize()
 /// \param *&pOptions [in] Global model options information
@@ -337,6 +352,9 @@ void CStreamnode::pretty_print() const
   TESTOUTPUT.close();
 }
 
+//////////////////////////////////////////////////////////////////
+/// \brief Cleanly prints hydraulic_output data to testoutput
+//
 void CModel::hyd_result_pretty_print() const
 {
   if (bbopt->noisy_run) {
@@ -507,4 +525,89 @@ void CModel::hyd_result_pretty_print() const
     TESTOUTPUT << "=================================" << std::endl;
   }
   TESTOUTPUT.close();
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Cleanly prints hydraulic_output data to testoutput as csv
+//
+void CModel::hyd_result_pretty_print_csv() const
+{
+  std::string tmpFilename = FilenamePrepare("HydraulicOutput.csv", bbopt);
+  std::ofstream HYD_OUTPUT;
+  HYD_OUTPUT.open(tmpFilename.c_str());
+  if (HYD_OUTPUT.fail()) {
+    ExitGracefully(
+        ("CModel::hyd_result_pretty_print_csv: Unable to open output file " +
+         tmpFilename + " for writing.")
+            .c_str(),
+        FILE_OPEN_ERR);
+  }
+
+  HYD_OUTPUT << "nodeId" << "," << "reachId" << "," << "downNodeId" << ","
+             << "upNodeId1" << "," << "upNodeId2" << "," << "stationName" << ","
+             << "station" << "," << "reachLengthDs" << "," << "reachLengthUs1"
+             << "," << "reachLengthUs2" << "," << "flow" << "," << "flowLob"
+             << "," << "flowMain" << "," << "flowRob" << "," << "minElev" << ","
+             << "wsl" << "," << "depth" << "," << "hydDepth" << ","
+             << "hydDepthLob" << "," << "hydDepthMain" << "," << "hydDepthRob"
+             << "," << "topWidth" << "," << "topWidthLob" << ","
+             << "topWidthMain" << "," << "topWidthRob" << "," << "velocity"
+             << "," << "velocityLob" << "," << "velocityMain" << ","
+             << "velocityRob" << "," << "kTotal" << "," << "kLob" << ","
+             << "kMain" << "," << "kRob" << "," << "alpha" << "," << "area"
+             << "," << "areaLob" << "," << "areaMain" << "," << "areaRob" << ","
+             << "radius" << "," << "radiusLob" << "," << "radiusMain" << ","
+             << "radiusRob" << "," << "wetPerimeter" << "," << "wetPerimeterLob"
+             << "," << "wetPerimeterMain" << "," << "wetPerimeterRob" << ","
+             << "energyTotal" << "," << "velocityHead" << "," << "froude" << ","
+             << "sf" << "," << "sfAvg" << "," << "sbed" << ","
+             << "lengthEffective" << "," << "headLoss" << "," << "manningLob"
+             << "," << "manningMain" << "," << "manningRob" << ","
+             << "manningComposite" << "," << "kTotalAreaConv" << ","
+             << "kTotalRoughConv" << "," << "kTotalDisconv" << ","
+             << "alphaAreaConv" << "," << "alphaRoughConv" << ","
+             << "alphaDisconv" << "," << "ncEqualForce" << ","
+             << "ncEqualVelocity" << "," << "ncWavgwp" << "," << "ncWavgArea"
+             << "," << "ncWavgConv" << "," << "criticalDepth" << ","
+             << "cpIterations" << "," << "kErr" << "," << "wsErr" << ","
+             << "lengthEnergyloss" << "," << "lengthEffectiveAdjusted"
+             << std::endl;
+  // Iterate over all hydraulic_output objects in depthdf and print them
+  for (const auto &ho : *(this->hyd_result)) {
+    HYD_OUTPUT << ho->nodeID << "," << ho->reachID << "," << ho->downnodeID
+               << "," << ho->upnodeID1 << "," << ho->upnodeID2 << ","
+               << ho->stationname << "," << ho->station << ","
+               << ho->reach_length_DS << "," << ho->reach_length_US1 << ","
+               << ho->reach_length_US2 << "," << ho->flow << "," << ho->flow_lob
+               << "," << ho->flow_main << "," << ho->flow_rob << ","
+               << ho->min_elev << "," << ho->wsl << "," << ho->depth << ","
+               << ho->hyd_depth << "," << ho->hyd_depth_lob << ","
+               << ho->hyd_depth_main << "," << ho->hyd_depth_rob << ","
+               << ho->top_width << "," << ho->top_width_lob << ","
+               << ho->top_width_main << "," << ho->top_width_rob << ","
+               << ho->velocity << "," << ho->velocity_lob << ","
+               << ho->velocity_main << "," << ho->velocity_rob << ","
+               << ho->k_total << "," << ho->k_lob << "," << ho->k_main << ","
+               << ho->k_rob << "," << ho->alpha << "," << ho->area << ","
+               << ho->area_lob << "," << ho->area_main << "," << ho->area_rob
+               << "," << ho->hradius << "," << ho->hradius_lob << ","
+               << ho->hradius_main << "," << ho->hradius_rob << ","
+               << ho->wet_perimeter << "," << ho->wet_perimeter_lob << ","
+               << ho->wet_perimeter_main << "," << ho->wet_perimeter_rob << ","
+               << ho->energy_total << "," << ho->velocity_head << ","
+               << ho->froude << "," << ho->sf << "," << ho->sf_avg << ","
+               << ho->sbed << "," << ho->length_effective << ","
+               << ho->head_loss << "," << ho->manning_lob << ","
+               << ho->manning_main << "," << ho->manning_rob << ","
+               << ho->manning_composite << "," << ho->k_total_areaconv << ","
+               << ho->k_total_roughconv << "," << ho->k_total_disconv << ","
+               << ho->alpha_areaconv << "," << ho->alpha_roughconv << ","
+               << ho->alpha_disconv << "," << ho->nc_equalforce << ","
+               << ho->nc_equalvelocity << "," << ho->nc_wavgwp << ","
+               << ho->nc_wavgarea << "," << ho->nc_wavgconv << ","
+               << ho->depth_critical << "," << ho->cp_iterations << ","
+               << ho->k_err << "," << ho->ws_err << "," << ho->length_energyloss
+               << "," << ho->length_effectiveadjusted << std::endl;
+  }
+  HYD_OUTPUT.close();
 }

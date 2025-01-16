@@ -67,7 +67,7 @@ void CStreamnode::compute_normal_depth(double flow, double slope, double init_ws
       prevWSL_lag1 = mm->wsl;
       max_depth_change = 0.5 * (0.5 * (prevWSL_lag2 + prevWSL_lag1 - 2 * mm->min_elev));
 
-      compute_profile(flow, init_wsl, bbopt);
+      compute_profile(flow, mm->wsl, bbopt);
       mm->sf = slope;
       mm->sf_avg = slope;
     }
@@ -118,6 +118,7 @@ void CStreamnode::compute_normal_depth(double flow, double slope, double init_ws
       if (!bbopt->silent_nd) {
         std::cout << "Normal depth estimated successfully." << std::endl;
       }
+      return;
     }
   }
 }
@@ -219,7 +220,6 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
       mm->length_effectiveadjusted = reach_length * (1 - bbopt->delta_reachlength);
       double leff_ratio = mm->length_effectiveadjusted / mm->length_effective;
 
-      //cim
       mm->area *= leff_ratio;
       mm->wet_perimeter *= leff_ratio;
       mm->k_total *= leff_ratio;
@@ -230,7 +230,6 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
       mm->length_effectiveadjusted = reach_length * (1 + bbopt->delta_reachlength);
       double leff_ratio = mm->length_effectiveadjusted / mm->length_effective;
 
-      //cim
       mm->area *= leff_ratio;
       mm->wet_perimeter *= leff_ratio;
       mm->k_total *= leff_ratio;
@@ -239,7 +238,6 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     }
   }
 
-  //cim
   if (mm->reach_length_US2 != -99) {
     reach_length = mm->reach_length_US2;
   } else {

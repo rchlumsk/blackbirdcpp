@@ -237,7 +237,6 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
         }
 
         sn->mm->ws_err = err_lag1;
-        std::cout << "test1" << sn->mm->ws_err;
         sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
         sn->mm->cp_iterations = i + 1;
 
@@ -247,7 +246,6 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
             sn->compute_profile_next(sn->mm->flow, min_err_wsl, down_sn->mm, bbopt);
             sn->mm->ws_err = actual_err;
-            std::cout << "test2" << sn->mm->ws_err;
             sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
 
             if (min_err < 0.03 && sn->mm->froude <= bbopt->froude_threshold) {
@@ -370,7 +368,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   if (sn->mm->cp_iterations != PLACEHOLDER && sn->mm->cp_iterations > bbopt->iteration_limit_cp) {
     WriteWarning("Iteration limit hit at streamnode " + std::to_string(sn->nodeID) + ", consider increasing bbopt->iteration_limit_cp", bbopt->noisy_run);
   }
-
+  
   CStreamnode *temp_sn = get_streamnode_by_id(sn->upnodeID1);
   if (temp_sn) {
     compute_streamnode(temp_sn, sn, res);

@@ -73,14 +73,15 @@ int main(int argc, char* argv[])
   //Finished Solving----------------------------------------------------
   //pModel->WriteMajorOutput("solution", true);
   //Test output
-  std::ofstream TESTOUTPUT;
-  TESTOUTPUT.open((pOptions->main_output_dir + "Blackbird_testoutput.txt").c_str());
-  if (TESTOUTPUT.fail()) {
-    ExitGracefully("Main::Unable to open Blackbird_testoutput.txt. Bad output directory specified?", BLACKBIRD_OPEN_ERR);
-  }
-  TESTOUTPUT.close();
+  //std::ofstream TESTOUTPUT;
+  //TESTOUTPUT.open((pOptions->main_output_dir + "Blackbird_testoutput.txt").c_str());
+  //if (TESTOUTPUT.fail()) {
+  //  ExitGracefully("Main::Unable to open Blackbird_testoutput.txt. Bad output directory specified?", BLACKBIRD_OPEN_ERR);
+  //}
+  //TESTOUTPUT.close();
   //pModel->WriteTestOutput();
-  pModel->hyd_result_pretty_print();
+  //pModel->hyd_result_pretty_print();
+  pModel->hyd_result_pretty_print_csv();
 
   if (!pOptions->silent_run)
   {

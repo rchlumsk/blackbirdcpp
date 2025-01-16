@@ -38,6 +38,7 @@ public:
   void WriteMajorOutput(std::string solfile, bool final) const;
   void WriteTestOutput() const;
   void hyd_result_pretty_print() const;
+  void hyd_result_pretty_print_csv() const;
 
 protected:
   // Private variables
