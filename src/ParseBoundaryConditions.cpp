@@ -191,7 +191,6 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
       if (!strcmp(s[1], "NORMAL_DEPTH")) { pBC->bctype = enum_bc_type::NORMAL_DEPTH; }
       else if (!strcmp(s[1], "SET_WSL")) { pBC->bctype = enum_bc_type::SET_WSL; }
       else if (!strcmp(s[1], "SET_DEPTH")) { pBC->bctype = enum_bc_type::SET_DEPTH; }
-      std::cout << s[1] << std::endl;
       break;
     }
     case(8):

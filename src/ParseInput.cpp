@@ -136,25 +136,26 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":RegimeType")) { code = 3; }
     else if (!strcmp(s[0], ":Tolerance")) { code = 4; }
     else if (!strcmp(s[0], ":IterationLimit")) { code = 5; }
-    else if (!strcmp(s[0], ":ToleranceNormalDepth")) { code = 6; }
-    else if (!strcmp(s[0], ":IterationLimitNormalDepth")) { code = 7; }
-    else if (!strcmp(s[0], ":WSLSplitNormalDepth")) { code = 8; }
-    else if (!strcmp(s[0], ":MaxRHRatio")) { code = 9; }
-    else if (!strcmp(s[0], ":MinRHRatio")) { code = 10; }
-    else if (!strcmp(s[0], ":ExtrapolateDepthTable")) { code = 11; }
-    else if (!strcmp(s[0], ":NumExtrapolationPoints")) { code = 12; }
-    else if (!strcmp(s[0], ":DynamicHAND")) { code = 13; }
-    else if (!strcmp(s[0], ":FrictionSlopeMethod")) { code = 14; }
-    else if (!strcmp(s[0], ":EnforceDeltaLeff")) { code = 15; }
-    else if (!strcmp(s[0], ":ReachLengthDelta")) { code = 16; }
-    else if (!strcmp(s[0], ":ManningCompositeMethod")) { code = 17; }
-    else if (!strcmp(s[0], ":SilentRun")) { code = 18; }
-    else if (!strcmp(s[0], ":HANDDepthSeq")) { code = 19; }
-    else if (!strcmp(s[0], ":HANDMaxDepth")) { code = 20; }
-    else if (!strcmp(s[0], ":HANDDepthStep")) { code = 21; }
-    else if (!strcmp(s[0], ":DHANDDepthSeq")) { code = 22; }
-    else if (!strcmp(s[0], ":DHANDMaxDepth")) { code = 23; }
-    else if (!strcmp(s[0], ":DHANDDepthStep")) { code = 24; }
+    else if (!strcmp(s[0], ":WSLSplitNormalDepth")) { code = 6; }
+    else if (!strcmp(s[0], ":ToleranceNormalDepth")) { code = 7; }
+    else if (!strcmp(s[0], ":IterationLimitNormalDepth")) { code = 8; }
+    else if (!strcmp(s[0], ":WSLSplitNormalDepth")) { code = 9; }
+    else if (!strcmp(s[0], ":MaxRHRatio")) { code = 10; }
+    else if (!strcmp(s[0], ":MinRHRatio")) { code = 11; }
+    else if (!strcmp(s[0], ":ExtrapolateDepthTable")) { code = 12; }
+    else if (!strcmp(s[0], ":NumExtrapolationPoints")) { code = 13; }
+    else if (!strcmp(s[0], ":DynamicHAND")) { code = 14; }
+    else if (!strcmp(s[0], ":FrictionSlopeMethod")) { code = 15; }
+    else if (!strcmp(s[0], ":EnforceDeltaLeff")) { code = 16; }
+    else if (!strcmp(s[0], ":ReachLengthDelta")) { code = 17; }
+    else if (!strcmp(s[0], ":ManningCompositeMethod")) { code = 18; }
+    else if (!strcmp(s[0], ":SilentRun")) { code = 19; }
+    else if (!strcmp(s[0], ":HANDDepthSeq")) { code = 20; }
+    else if (!strcmp(s[0], ":HANDMaxDepth")) { code = 21; }
+    else if (!strcmp(s[0], ":HANDDepthStep")) { code = 22; }
+    else if (!strcmp(s[0], ":DHANDDepthSeq")) { code = 23; }
+    else if (!strcmp(s[0], ":DHANDMaxDepth")) { code = 24; }
+    else if (!strcmp(s[0], ":DHANDDepthStep")) { code = 25; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -246,62 +247,69 @@ bool ParseMainInputFile(CModel*& pModel,
       break;
     }
     case(6):
+    {/*:WSLSplit [double WSL_split]*/
+      if (pOptions->noisy_run) { std::cout << "WSLSplit" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":WSLSplit", p, pOptions->noisy_run); break; }
+      pOptions->next_WSL_split_cp = std::atof(s[1]);
+      break;
+    }
+    case(7):
     {/*:ToleranceNormalDepth [double tolerance]*/
       if (pOptions->noisy_run) { std::cout << "ToleranceNormalDepth" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ToleranceNormalDepth", p, pOptions->noisy_run); break; }
       pOptions->tolerance_nd = std::atof(s[1]);
       break;
     }
-    case(7):
+    case(8):
     {/*:IterationLimitNormalDepth [int limit]*/
       if (pOptions->noisy_run) { std::cout << "IterationLimitNormalDepth" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":IterationLimitNormalDepth", p, pOptions->noisy_run); break; }
       pOptions->iteration_limit_nd = std::atoi(s[1]);
       break;
     }
-    case(8):
+    case(9):
     {/*:WSLSplitNormalDepth [double WSL_split]*/
       if (pOptions->noisy_run) { std::cout << "WSLSplitNormalDepth" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":WSLSplitNormalDepth", p, pOptions->noisy_run); break; }
       pOptions->next_WSL_split_nd = std::atof(s[1]);
       break;
     }
-    case(9):
+    case(10):
     {/*:MaxRHRatio [double ratio]*/
       if (pOptions->noisy_run) { std::cout << "MaxRHRatio" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":MaxRHRatio", p, pOptions->noisy_run); break; }
       pOptions->max_RHSQ_ratio = std::atof(s[1]);
       break;
     }
-    case(10):
+    case(11):
     {/*:MinRHRatio [double ratio]*/
       if (pOptions->noisy_run) { std::cout << "MinRHRatio" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":MinRHRatio", p, pOptions->noisy_run); break; }
       pOptions->min_RHSQ_ratio = std::atof(s[1]);
       break;
     }
-    case(11):
+    case(12):
     {/*:ExtrapolateDepthTable [string method]*/
       if (pOptions->noisy_run) { std::cout << "ExtrapolateDepthTable" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ExtrapolateDepthTable", p, pOptions->noisy_run); break; }
       std::istringstream(s[1]) >> pOptions->extrapolate_depth_table;
       break;
     }
-    case(12):
+    case(13):
     {/*:NumExtrapolationPoints [int num]*/
       if (pOptions->noisy_run) { std::cout << "NumExtrapolationPoints" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":NumExtrapolationPoints", p, pOptions->noisy_run); break; }
       pOptions->num_extrapolation_points = std::atoi(s[1]);
       break;
     }
-    case(13):
+    case(14):
     {/*:DynamicHAND [bool dhand]*/
       if (pOptions->noisy_run) { std::cout << "DynamicHAND" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":DynamicHAND", p, pOptions->noisy_run); break; }
       std::istringstream(s[1]) >> pOptions->use_dhand;
       break;
     }
-    case(14):
+    case(15):
     {/*:FrictionSlopeMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "FrictionSlopeMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":FrictionSlopeMethod", p, pOptions->noisy_run); break; }
@@ -312,21 +320,21 @@ bool ParseMainInputFile(CModel*& pModel,
       else if (!strcmp(s[1], "REACH_FRICTION")) { pOptions->friction_slope_method = enum_fs_method::REACH_FRICTION; }
       break;
     }
-    case(15):
+    case(16):
     {/*:EnforceDeltaLeff [bool enforce]*/
       if (pOptions->noisy_run) { std::cout << "EnforceDeltaLeff" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":EnforceDeltaLeff", p, pOptions->noisy_run); break; }
       std::istringstream(s[1]) >> pOptions->enforce_delta_Leff;
       break;
     }
-    case(16):
+    case(17):
     {/*:ReachLengthDelta [double length]*/
       if (pOptions->noisy_run) { std::cout << "ReachLengthDelta" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ReachLengthDelta", p, pOptions->noisy_run); break; }
       pOptions->delta_reachlength = std::atof(s[1]);
       break;
     }
-    case(17):
+    case(18):
     {/*:ManningCompositeMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "ManningCompositeMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ManningCompositeMethod", p, pOptions->noisy_run); break; }
@@ -338,14 +346,14 @@ bool ParseMainInputFile(CModel*& pModel,
       else if (!strcmp(s[1], "BLENDED_NC")) { pOptions->manning_composite_method = enum_mc_method::BLENDED_NC; }
       break;
     }
-    case(18):
+    case(19):
     {/*:SilentRun [bool silent]*/
       if (pOptions->noisy_run) { std::cout << "SilentRun" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":SilentRun", p, pOptions->noisy_run); break; }
       std::istringstream(s[1]) >> pOptions->silent_run;
       break;
     }
-    case(19):
+    case(20):
     {/*:HANDDepthSeq [std::vector<double> sequence]*/
       if (pOptions->noisy_run) { std::cout << "HANDDepthSeq" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":HANDDepthSeq", p, pOptions->noisy_run); break; }
@@ -358,7 +366,7 @@ bool ParseMainInputFile(CModel*& pModel,
       }
       break;
     }
-    case(20):
+    case(21):
     {/*:HANDMaxDepth [double max_depth]*/
       if (pOptions->noisy_run) { std::cout << "HANDMaxDepth" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":HANDMaxDepth", p, pOptions->noisy_run); break; }
@@ -371,7 +379,7 @@ bool ParseMainInputFile(CModel*& pModel,
       }
       break;
     }
-    case(21):
+    case(22):
     {/*:HANDDepthStep [double depth_step]*/
       if (pOptions->noisy_run) { std::cout << "HANDDepthStep" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":HANDDepthStep", p, pOptions->noisy_run); break; }
@@ -384,7 +392,7 @@ bool ParseMainInputFile(CModel*& pModel,
       }
       break;
     }
-    case(22):
+    case(23):
     {/*:DHANDDepthSeq [std::vector<double> sequence]*/
       if (pOptions->noisy_run) { std::cout << "DHANDDepthSeq" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":DHANDDepthSeq", p, pOptions->noisy_run); break; }
@@ -397,7 +405,7 @@ bool ParseMainInputFile(CModel*& pModel,
       }
       break;
     }
-    case(23):
+    case(24):
     {/*:DHANDMaxDepth [double max_depth]*/
       if (pOptions->noisy_run) { std::cout << "DHANDMaxDepth" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":DHANDMaxDepth", p, pOptions->noisy_run); break; }
@@ -410,7 +418,7 @@ bool ParseMainInputFile(CModel*& pModel,
       }
       break;
     }
-    case(24):
+    case(25):
     {/*:DHANDDepthStep [double depth_step]*/
       if (pOptions->noisy_run) { std::cout << "DHANDDepthStep" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":DHANDDepthStep", p, pOptions->noisy_run); break; }
@@ -533,12 +541,12 @@ bool ParseMainInputFile(CModel*& pModel,
       WriteWarning("ParseInput.cpp: hand_depth_step provided without "
                    "hand_max_depth. hand_depth_seq cannot be determined",
                    pOptions->noisy_run);
-    } else if (hand_depth_step == PLACEHOLDER) {
+    } else if (hand_depth_step == PLACEHOLDER || hand_depth_step == 0) {
       WriteWarning("ParseInput.cpp: hand_max_depth provided without "
                    "hand_depth_step. hand_depth_seq cannot be determined",
                    pOptions->noisy_run);
     } else {
-      for (int i = 0; i < hand_max_depth; i += hand_depth_step) {
+      for (double i = 0; i < hand_max_depth; i += hand_depth_step) {
         pModel->hand_depth_seq.push_back(i);
       }
     }
@@ -548,12 +556,12 @@ bool ParseMainInputFile(CModel*& pModel,
       WriteWarning("ParseInput.cpp: dhand_depth_step provided without "
                    "dhand_max_depth. dhand_depth_seq cannot be determined",
                    pOptions->noisy_run);
-    } else if (dhand_depth_step == PLACEHOLDER) {
+    } else if (dhand_depth_step == PLACEHOLDER || dhand_depth_step == 0) {
       WriteWarning("ParseInput.cpp: dhand_max_depth provided without "
                    "dhand_depth_step. dhand_depth_seq cannot be determined",
                    pOptions->noisy_run);
     } else {
-      for (int i = 0; i < dhand_max_depth; i += dhand_depth_step) {
+      for (double i = 0; i < dhand_max_depth; i += dhand_depth_step) {
         pModel->dhand_depth_seq.push_back(i);
       }
     }
