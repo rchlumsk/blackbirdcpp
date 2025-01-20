@@ -6,6 +6,7 @@ bool ParseMainInputFile(CModel*& pModel, COptions*& pOptions);
 bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*const& pOptions);
 bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions);
 bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions);
+bool ParseRasterFiles(CModel *&pModel, COptions *const &pOptions);
 void ImproperFormatWarning(std::string command, CParser* p, bool noisy);
 
 //////////////////////////////////////////////////////////////////
@@ -52,6 +53,12 @@ bool ParseInputFiles(CModel*& pModel,
   //--------------------------------------------------------------------------------
   if (!ParseBoundaryConditionsFile(pModel, pOptions)) {
     ExitGracefully("Cannot find or read .bbb file", BAD_DATA);return false;
+  }
+
+  // Raster files
+  //--------------------------------------------------------------------------------
+  if (!ParseRasterFiles(pModel, pOptions)) {
+    ExitGracefully("Cannot find or read raster files", BAD_DATA); return false;
   }
 
   if (!pOptions->silent_run) {
@@ -171,6 +178,7 @@ bool ParseMainInputFile(CModel*& pModel,
 
     //-------------------- POSTPROCESSING OPTIONS ------------------------
     else if (!strcmp(s[0], ":PostprocessingInterpolationMethod")) { code = 400; }
+    else if (!strcmp(s[0], ":RasterFolder")) { code = 401; }
 
     switch (code)
     {
@@ -486,11 +494,19 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:PostprocessingInterpolationMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "PostprocessingInterpolationMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":PostprocessingInterpolationMethod", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "CATCHMENT_HAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::CATCHMENT_HAND; }
+      if (!strcmp(s[1], "NONE")) { pOptions->interpolation_postproc_method = enum_ppi_method::NONE; }
+      else if (!strcmp(s[1], "CATCHMENT_HAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::CATCHMENT_HAND; }
       else if (!strcmp(s[1], "CATCHMENT_DHAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::CATCHMENT_DHAND; }
       else if (!strcmp(s[1], "INTERP_HAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::INTERP_HAND; }
       else if (!strcmp(s[1], "INTERP_DHAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::INTERP_DHAND; }
       else if (!strcmp(s[1], "INTERP_DHAND_WSLCORR")) { pOptions->interpolation_postproc_method = enum_ppi_method::INTERP_DHAND_WSLCORR; }
+      break;
+    }
+    case(401):
+    {/*:RasterFolder [string path_to_folder]*/
+      if (pOptions->noisy_run) { std::cout << "RasterFolder" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":RasterFolder", p, pOptions->noisy_run); break; }
+      pOptions->raster_folder = s[1];
       break;
     }
     default://----------------------------------------------

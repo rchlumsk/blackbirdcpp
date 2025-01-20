@@ -16,6 +16,7 @@ public:
   std::string main_output_dir;
   std::string working_dir;
   std::string modelname;
+  std::string raster_folder;
 
   enum_mt_method modeltype;
   enum_rt_method regimetype;

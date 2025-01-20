@@ -296,6 +296,7 @@ enum enum_ri_method
 
 enum enum_ppi_method
 {
+  NONE,
   CATCHMENT_HAND,
   CATCHMENT_DHAND,
   INTERP_HAND,
