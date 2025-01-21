@@ -49,6 +49,14 @@ int main(int argc, char* argv[])
     ExitGracefully("Main::Unable to read input file(s)", BAD_DATA);
   }
 
+  if (pOptions->interpolation_postproc_method != enum_ppi_method::NONE) {
+    if (!pOptions->silent_run) {
+      std::cout << "======================================================" << std::endl;
+      std::cout << "Reading Raster Data..." << std::endl;
+    }
+    pModel->ReadRasterFiles();
+  }
+
   CheckForErrorWarnings(true, pModel);
 
   if (!pOptions->silent_run) {

@@ -118,10 +118,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\heron\anaconda3\pkgs\libgdal-3.6.2-h676b171_3\Library\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\heron\anaconda3\pkgs\libgdal-3.6.2-h676b171_3\Library\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -132,12 +134,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\heron\anaconda3\pkgs\libgdal-3.6.2-h676b171_3\Library\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\heron\anaconda3\pkgs\libgdal-3.6.2-h676b171_3\Library\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -152,6 +156,7 @@
     <ClCompile Include="ParseInput.cpp" />
     <ClCompile Include="ParseLib.cpp" />
     <ClCompile Include="ParsePreprocessedTables.cpp" />
+    <ClCompile Include="Raster.cpp" />
     <ClCompile Include="Reach.cpp" />
     <ClCompile Include="StandardOutput.cpp" />
     <ClCompile Include="Streamnode.cpp" />

@@ -3,8 +3,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cpl_conv.h>
 #include <cstring>
 #include <fstream>
+#include <gdal_priv.h>
 #include <iomanip>
 #include <iostream>
 #include <limits>

@@ -6,7 +6,6 @@ bool ParseMainInputFile(CModel*& pModel, COptions*& pOptions);
 bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*const& pOptions);
 bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions);
 bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions);
-bool ParseRasterFiles(CModel *&pModel, COptions *const &pOptions);
 void ImproperFormatWarning(std::string command, CParser* p, bool noisy);
 
 //////////////////////////////////////////////////////////////////
@@ -53,12 +52,6 @@ bool ParseInputFiles(CModel*& pModel,
   //--------------------------------------------------------------------------------
   if (!ParseBoundaryConditionsFile(pModel, pOptions)) {
     ExitGracefully("Cannot find or read .bbb file", BAD_DATA);return false;
-  }
-
-  // Raster files
-  //--------------------------------------------------------------------------------
-  if (!ParseRasterFiles(pModel, pOptions)) {
-    ExitGracefully("Cannot find or read raster files", BAD_DATA); return false;
   }
 
   if (!pOptions->silent_run) {
