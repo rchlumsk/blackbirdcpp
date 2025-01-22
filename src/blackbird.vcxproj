@@ -124,6 +124,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\Users\heron\anaconda3\pkgs\libgdal-3.6.2-h676b171_3\Library\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>gdal.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -142,6 +143,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\Users\heron\anaconda3\pkgs\libgdal-3.6.2-h676b171_3\Library\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>gdal.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

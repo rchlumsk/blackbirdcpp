@@ -1,27 +1,96 @@
 #include "BlackbirdInclude.h"
 #include "Model.h"
-#include "ParseLib.h"
 
 //////////////////////////////////////////////////////////////////
-/// \brief Reads Raster files generated from GenerateRasterFilepaths()
+/// \brief Reads Raster files
 /// \return True if operation is successful
 //
-bool CModel::ReadRasterFiles()
+void CModel::ReadRasterFiles()
 {
   GDALAllRegister();
-  std::string tmp_filename{""};
 
-  // bb_hand.tif
-  tmp_filename = bbopt->raster_folder + "/bb_hand.tif";
-  GDALDataset *dataset = static_cast<GDALDataset *>(GDALOpen(tmp_filename.c_str(), GA_ReadOnly));
-  ExitGracefullyIf(dataset == nullptr, "Raster.cpp: ReadRasterFiles: couldn't open bb_hand.tif", exitcode::FILE_OPEN_ERR);
-  raster_xsize = dataset->GetRasterXSize();
-  raster_ysize = dataset->GetRasterYSize();
-  hand = static_cast<double *>(CPLMalloc(sizeof(double) * raster_xsize * raster_ysize));
+  GDALDataset *first_dataset = static_cast<GDALDataset *>(GDALOpen((bbopt->raster_folder + "/bb_catchments_fromstreamnodes.tif").c_str(), GA_ReadOnly));
+  ExitGracefullyIf(first_dataset == nullptr, "Raster.cpp: ReadRasterFiles: couldn't open bb_catchments_fromstreamnodes.tif", exitcode::FILE_OPEN_ERR);
+  raster_xsize = first_dataset->GetRasterXSize();
+  raster_ysize = first_dataset->GetRasterYSize();
+  raster_proj = first_dataset->GetProjectionRef();
+  first_dataset->GetGeoTransform(raster_geotrans);
+  GDALClose(first_dataset);
+
+  ReadRasterFile(bbopt->raster_folder + "/bb_catchments_fromstreamnodes.tif", c_from_s);
+  if (!bbopt->use_dhand) {
+    ReadRasterFile(bbopt->raster_folder + "/bb_hand.tif", hand);
+    if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+        bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
+        bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+      ReadRasterFile(bbopt->raster_folder + "/bb_hand_pourpoint_id.tif", handid);
+    }
+  } else {
+    for (auto d : dhand_depth_seq) {
+      std::stringstream stream;
+      stream << std::fixed << std::setprecision(4) << d;
+      dhand.push_back(nullptr);
+      ReadRasterFile(bbopt->raster_folder + "/bb_dhand_depth_" + stream.str() + "m.tif", dhand.back());
+      if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+          bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
+          bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+        dhandid.push_back(nullptr);
+        ReadRasterFile(bbopt->raster_folder + "/bb_dhand_pourpoint_id_depth_" + stream.str() + "m.tif", dhand.back());
+      }
+    }
+  }
+}
+
+void CModel::ReadRasterFile(std::string filename, double *&buf)
+{
+  GDALDataset *dataset = static_cast<GDALDataset *>(GDALOpen(filename.c_str(), GA_ReadOnly));
+  ExitGracefullyIf(dataset == nullptr, ("Raster.cpp: ReadRasterFile: couldn't open " + filename).c_str(), exitcode::FILE_OPEN_ERR);
+  buf = static_cast<double *>(CPLMalloc(sizeof(double) * raster_xsize * raster_ysize));
   GDALRasterBand *band = dataset->GetRasterBand(1);
-  band->RasterIO(GF_Read, 0, 0, raster_xsize, raster_ysize, hand, raster_xsize, raster_ysize, GDT_Float64, 0, 0);
+  band->RasterIO(GF_Read, 0, 0, raster_xsize, raster_ysize, buf, raster_xsize, raster_ysize, GDT_Float64, 0, 0);
   GDALClose(dataset);
+}
+
+void CModel::postprocess_floodresults()
+{
+  if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
+      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+    // do stuff 99
+  }
+  ExitGracefullyIf(!c_from_s,
+                   "Raster.cpp: postprocess_floodresults: catchments from "
+                   "streamnodes missing",
+                   exitcode::RUNTIME_ERR);
+  ExitGracefullyIf(
+      !hyd_result,
+      "Raster.cpp: postprocess_floodresults: hydraulic output missing",
+      exitcode::RUNTIME_ERR);
+  for (int i = 0; i < bbsn->front()->output_flows.size(); i++) {
+    if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND) {
+      double *result_buffer = static_cast<double *>(CPLMalloc(sizeof(double) * raster_xsize * raster_ysize));
+      std::fill(result_buffer, result_buffer + (raster_xsize * raster_ysize), 0.0);
+      for (int j = 0; j < raster_xsize * raster_ysize; j++) { //need to deal with nas?
+        result_buffer[j] = (*hyd_result)[get_hyd_res_index(i, c_from_s[j])]->depth - hand[j];
+      }
+      GDALDriver *driver = GetGDALDriverManager()->GetDriverByName("GTiff");
+      ExitGracefullyIf(
+          driver == nullptr,
+          "Raster.cpp: postprocess_floodresults: Failed to get GTiff driver.",
+          exitcode::RUNTIME_ERR);
+
+      std::string filename =
+          "bb_results_" + std::to_string(i) + "_" + toString(bbopt->modeltype) +
+          "_" + toString(bbopt->interpolation_postproc_method) + "_depth.tif";
+      GDALDataset *output_dataset = driver->Create(filename.c_str(), raster_xsize, raster_ysize, 1, GDT_Float64, nullptr);
+      ExitGracefullyIf(output_dataset == nullptr,
+                       "Raster.cpp: postprocess_floodresults: Failed to create "
+                       "output raster file.",
+                       exitcode::RUNTIME_ERR);
+      GDALRasterBand *output_band = output_dataset->GetRasterBand(1);
+      output_band->RasterIO(GF_Write, 0, 0, raster_xsize, raster_ysize, result_buffer, raster_xsize, raster_ysize, GDT_Float64, 0, 0);
 
 
-  return true;
+    }
+  }
 }

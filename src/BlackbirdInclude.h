@@ -328,6 +328,16 @@ inline bool StringIsLong(const char* s1)
   return !(*p);
 }
 
+///////////////////////////////////////////////////////////////////
+/// \brief returns true if character string is double
+/// \return true if character string is double
+//
+inline bool StringIsDouble(const char *s1) {
+  char *p;
+  strtod(s1, &p);
+  return !(*p);
+}
+
 inline std::valarray<double> ConvCalc(std::valarray<double> n,
                                       std::valarray<double> A,
                                       std::valarray<double> Rh) {
@@ -400,14 +410,108 @@ inline double interpolate(double new_wsl, double hydraulic_output::* f, std::vec
 }
 
 ///////////////////////////////////////////////////////////////////
-/// \brief returns true if character string is double
-/// \return true if character string is double
+/// \brief helper functions for printing enumerables
+/// \return string corresponding to enumerable option
 //
-inline bool StringIsDouble(const char* s1)
-{
-  char* p;
-  strtod(s1, &p);
-  return !(*p);
+std::string toString(enum_nodetype type) {
+  switch (type) {
+  case REACH: return "REACH";
+  case XSECTION: return "XSECTION";
+  default: return "UNKNOWN";
+  }
+}
+
+std::string toString(enum_mt_method method) {
+  switch (method) {
+  case HAND_MANNING: return "HAND_MANNING";
+  case STEADYFLOW: return "STEADYFLOW";
+  default: return "UNKNOWN";
+  }
+}
+
+std::string toString(enum_rt_method method) {
+  switch (method) {
+  case SUBCRITICAL: return "SUBCRITICAL";
+  case SUPERCRITICAL: return "SUPERCRITICAL";
+  case MIXED: return "MIXED";
+  default: return "UNKNOWN";
+  }
+}
+
+std::string toString(enum_fs_method method) {
+  switch (method) {
+  case AVERAGE_CONVEYANCE: return "AVERAGE_CONVEYANCE";
+  case AVERAGE_FRICTION: return "AVERAGE_FRICTION";
+  case GEOMETRIC_FRICTION: return "GEOMETRIC_FRICTION";
+  case HARMONIC_FRICTION: return "HARMONIC_FRICTION";
+  case REACH_FRICTION: return "REACH_FRICTION";
+  default: return "UNKNOWN";
+  }
+}
+
+std::string toString(enum_mc_method method) {
+  switch (method) {
+  case EQUAL_FORCE: return "EQUAL_FORCE";
+  case WEIGHTED_AVERAGE_AREA: return "WEIGHTED_AVERAGE_AREA";
+  case WEIGHTED_AVERAGE_WETPERIMETER: return "WEIGHTED_AVERAGE_WETPERIMETER";
+  case WEIGHTED_AVERAGE_CONVEYANCE: return "WEIGHTED_AVERAGE_CONVEYANCE";
+  case EQUAL_VELOCITY: return "EQUAL_VELOCITY";
+  case BLENDED_NC: return "BLENDED_NC";
+  default: return "UNKNOWN";
+  }
+}
+
+std::string toString(enum_xsc_method method) {
+  switch (method) {
+  case OVERBANK_CONVEYANCE: return "OVERBANK_CONVEYANCE";
+  case DEFAULT_CONVEYANCE: return "DEFAULT_CONVEYANCE";
+  case COORDINATE_CONVEYANCE: return "COORDINATE_CONVEYANCE";
+  case DISCRETIZED_CONVEYANCE_XS: return "DISCRETIZED_CONVEYANCE_XS";
+  case AREAWEIGHTED_CONVEYANCE_ONECALC_XS:
+    return "AREAWEIGHTED_CONVEYANCE_ONECALC_XS";
+  case AREAWEIGHTED_CONVEYANCE: return "AREAWEIGHTED_CONVEYANCE";
+  default: return "UNKNOWN";
+  }
+}
+
+std::string toString(enum_rc_method method) {
+  switch (method) {
+  case DISCRETIZED_CONVEYANCE_R: return "DISCRETIZED_CONVEYANCE_R";
+  case AREAWEIGHTED_CONVEYANCE_ONECALC_R:
+    return "AREAWEIGHTED_CONVEYANCE_ONECALC_R";
+  case ROUGHZONE_CONVEYANCE: return "ROUGHZONE_CONVEYANCE";
+  case BLENDED_CONVEYANCE: return "BLENDED_CONVEYANCE";
+  default: return "UNKNOWN";
+  }
+}
+
+std::string toString(enum_ri_method method) {
+  switch (method) {
+  case EFFECTIVE_LENGTH: return "EFFECTIVE_LENGTH";
+  case REACH_LENGTH: return "REACH_LENGTH";
+  default: return "UNKNOWN";
+  }
+}
+
+std::string toString(enum_ppi_method method) {
+  switch (method) {
+  case NONE: return "NONE";
+  case CATCHMENT_HAND: return "CATCHMENT_HAND";
+  case CATCHMENT_DHAND: return "CATCHMENT_DHAND";
+  case INTERP_HAND: return "INTERP_HAND";
+  case INTERP_DHAND: return "INTERP_DHAND";
+  case INTERP_DHAND_WSLCORR: return "INTERP_DHAND_WSLCORR";
+  default: return "UNKNOWN";
+  }
+}
+
+std::string toString(enum_bc_type type) {
+  switch (type) {
+  case NORMAL_DEPTH: return "NORMAL_DEPTH";
+  case SET_WSL: return "SET_WSL";
+  case SET_DEPTH: return "SET_DEPTH";
+  default: return "UNKNOWN";
+  }
 }
 
 //Parsing Functions-------------------------------------------

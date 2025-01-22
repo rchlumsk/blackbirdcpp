@@ -8,6 +8,11 @@ CModel::CModel()
   bbopt(new COptions),
   hand_depth_seq(),
   dhand_depth_seq(),
+  c_from_s(nullptr),
+  hand(nullptr),
+  handid(nullptr),
+  dhand(),
+  dhandid(),
   hyd_result(nullptr),
   streamnode_map(),
   stationname_map(),
@@ -46,10 +51,6 @@ std::vector<hydraulic_output *> *CModel::hyd_compute_profile() {
   flow = PLACEHOLDER;
   hyd_result = result;
   return result;
-}
-
-// Function to postprocess flood results
-void CModel::postprocess_floodresults() {
 }
 
 // Function to calculate output flows of all streamnodes
@@ -127,6 +128,11 @@ int CModel::get_index_by_id(int sid) {
   return streamnode_map.find(sid) != streamnode_map.end()
              ? streamnode_map[sid]
              : NULL;
+}
+
+// Returns index in hyd_result of streamnode with id 'sid' and a flow index of flow_ind
+int CModel::get_hyd_res_index(int flow_ind, int sid) {
+  return flow_ind * bbsn->size() + get_index_by_id(sid);
 }
 
 // Recursively computes hyd profile for the tree with downstream most streamnode "sn"
@@ -399,4 +405,30 @@ CModel::~CModel() {
   }
   delete hyd_result;
   hyd_result = nullptr;
+
+  
+  if (c_from_s) {
+    CPLFree(c_from_s);
+    c_from_s = nullptr;
+  }
+  if (hand) {
+    CPLFree(hand);
+    hand = nullptr;
+  }
+  if (handid) {
+    CPLFree(handid);
+    handid = nullptr;
+  }
+  for (auto p : dhand) {
+    if (p) {
+      CPLFree(p);
+      p = nullptr;
+    }
+  }
+  for (auto p : dhandid) {
+    if (p) {
+      CPLFree(p);
+      p = nullptr;
+    }
+  }
 }

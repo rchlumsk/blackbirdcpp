@@ -14,13 +14,15 @@ public:
   COptions *bbopt;                     // A single bb_options object
   std::vector<double> hand_depth_seq;  // sequence of depths for hand
   std::vector<double> dhand_depth_seq; // sequence of depths for dhand
+  double *c_from_s;                    // raster data for catchments from streamnodes
   double *hand;                        // raster data for hand
   double *handid;                      // raster data for hand pourpoints
   std::vector<double *> dhand;         // raster data for dhand
   std::vector<double *> dhandid;       // raster data for dhand pourpoints
-  double *c_from_s;                    // raster data for catchments from streamnodes
   int raster_xsize;                    // x dimension of raster files
   int raster_ysize;                    // y dimension of raster files
+  const char *raster_proj;
+  double raster_geotrans[6];
 
 
   // add bunch of variables to hold raster data
@@ -33,7 +35,6 @@ public:
 
   // Functions
   std::vector<hydraulic_output *> *hyd_compute_profile();
-  void postprocess_floodresults();
 
   void calc_output_flows(); // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
 
@@ -41,6 +42,7 @@ public:
   CStreamnode* get_streamnode_by_id(int sid);
   CStreamnode *get_streamnode_by_stationname(std::string name);
   int get_index_by_id(int id);
+  int get_hyd_res_index(int flow_ind, int sid);
 
   // I/O Functions defined in StandardOutput.cpp
   void WriteOutputFileHeaders(COptions*const& pOptions);
@@ -50,9 +52,9 @@ public:
   void hyd_result_pretty_print_csv() const;
 
   // Raster Functions defined in Raster.cpp
-  bool ReadRasterFiles();
-  bool ReadRasterFile();
-  bool ReadRasterBand();
+  void ReadRasterFiles();
+  void ReadRasterFile(std::string filename, double *&buf);
+  void postprocess_floodresults();
 
 protected:
   // Private variables
