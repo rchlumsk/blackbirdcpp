@@ -77,6 +77,7 @@ int main(int argc, char* argv[])
   t1 = clock();
   
   pModel->hyd_compute_profile();
+  pModel->postprocess_floodresults();
 
   //Finished Solving----------------------------------------------------
   //pModel->WriteMajorOutput("solution", true);
@@ -90,6 +91,7 @@ int main(int argc, char* argv[])
   //pModel->WriteTestOutput();
   //pModel->hyd_result_pretty_print();
   pModel->hyd_result_pretty_print_csv();
+  pModel->WriteRasterOutput();
 
   if (!pOptions->silent_run)
   {

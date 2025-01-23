@@ -24,10 +24,9 @@ public:
   const char *raster_proj;
   double raster_geotrans[6];
 
-
-  // add bunch of variables to hold raster data
-
-  std::vector<hydraulic_output *> *hyd_result; // hydraulic outputs here reference 
+  // Outputs
+  std::vector<hydraulic_output *> *hyd_result;  // hydraulic outputs here reference 
+  std::vector<double *> out_rasters;            // output depth raster data to be written to file
 
   // Constructor and destructor
   CModel();
@@ -47,6 +46,7 @@ public:
   // I/O Functions defined in StandardOutput.cpp
   void WriteOutputFileHeaders(COptions*const& pOptions);
   void WriteMajorOutput(std::string solfile, bool final) const;
+  void WriteRasterOutput();
   void WriteTestOutput() const;
   void hyd_result_pretty_print() const;
   void hyd_result_pretty_print_csv() const;

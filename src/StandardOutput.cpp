@@ -54,6 +54,36 @@ void CModel::WriteMajorOutput(std::string solfile, bool final) const
   // write some output
 }
 
+void CModel::WriteRasterOutput()
+{
+  for (int i = 0; i < out_rasters.size(); i++) {
+    GDALDriver *driver = GetGDALDriverManager()->GetDriverByName("GTiff");
+    ExitGracefullyIf(
+        driver == nullptr,
+        "Raster.cpp: postprocess_floodresults: Failed to get GTiff driver.",
+        exitcode::RUNTIME_ERR);
+
+    std::string filename =
+        bbopt->main_output_dir + "/bb_results_" + std::to_string(i) + "_" + toString(bbopt->modeltype) +
+        "_" + toString(bbopt->interpolation_postproc_method) + "_depth.tif";
+    GDALDataset *output_dataset = driver->Create(
+        filename.c_str(), raster_xsize, raster_ysize, 1, GDT_Float64, nullptr);
+    ExitGracefullyIf(output_dataset == nullptr,
+                     "Raster.cpp: postprocess_floodresults: Failed to create "
+                     "output raster file.",
+                     exitcode::RUNTIME_ERR);
+    GDALRasterBand *output_band = output_dataset->GetRasterBand(1);
+    output_band->RasterIO(GF_Write, 0, 0, raster_xsize, raster_ysize,
+                          out_rasters[i], raster_xsize, raster_ysize,
+                          GDT_Float64, 0, 0);
+
+    output_dataset->SetProjection(raster_proj);
+    output_dataset->SetGeoTransform(raster_geotrans);
+
+    GDALClose(output_dataset);
+  }
+}
+
 //////////////////////////////////////////////////////////////////
 /// \brief Writes test output with all the data in model
 //

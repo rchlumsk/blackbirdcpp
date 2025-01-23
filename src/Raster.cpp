@@ -39,6 +39,10 @@ void CModel::ReadRasterFiles()
       }
     }
   }
+  if (!bbopt->silent_run) {
+    std::cout << "...raster data successfully read" << std::endl;
+    std::cout << std::endl;
+  }
 }
 
 void CModel::ReadRasterFile(std::string filename, double *&buf)
@@ -67,30 +71,21 @@ void CModel::postprocess_floodresults()
       "Raster.cpp: postprocess_floodresults: hydraulic output missing",
       exitcode::RUNTIME_ERR);
   for (int i = 0; i < bbsn->front()->output_flows.size(); i++) {
+    if (!bbopt->silent_run) {
+      std::cout << "post processing flood results for flow " + std::to_string(i + 1) << std::endl;
+    }
     if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND) {
       double *result_buffer = static_cast<double *>(CPLMalloc(sizeof(double) * raster_xsize * raster_ysize));
       std::fill(result_buffer, result_buffer + (raster_xsize * raster_ysize), 0.0);
       for (int j = 0; j < raster_xsize * raster_ysize; j++) { //need to deal with nas?
         result_buffer[j] = (*hyd_result)[get_hyd_res_index(i, c_from_s[j])]->depth - hand[j];
       }
-      GDALDriver *driver = GetGDALDriverManager()->GetDriverByName("GTiff");
-      ExitGracefullyIf(
-          driver == nullptr,
-          "Raster.cpp: postprocess_floodresults: Failed to get GTiff driver.",
-          exitcode::RUNTIME_ERR);
-
-      std::string filename =
-          "bb_results_" + std::to_string(i) + "_" + toString(bbopt->modeltype) +
-          "_" + toString(bbopt->interpolation_postproc_method) + "_depth.tif";
-      GDALDataset *output_dataset = driver->Create(filename.c_str(), raster_xsize, raster_ysize, 1, GDT_Float64, nullptr);
-      ExitGracefullyIf(output_dataset == nullptr,
-                       "Raster.cpp: postprocess_floodresults: Failed to create "
-                       "output raster file.",
-                       exitcode::RUNTIME_ERR);
-      GDALRasterBand *output_band = output_dataset->GetRasterBand(1);
-      output_band->RasterIO(GF_Write, 0, 0, raster_xsize, raster_ysize, result_buffer, raster_xsize, raster_ysize, GDT_Float64, 0, 0);
-
-
+      out_rasters.push_back(result_buffer);
+    } else {
+      std::cout << "not yet available" << std::endl;
     }
+  }
+  if (!bbopt->silent_run) {
+    std::cout << "finished post processing flood results" << std::endl;
   }
 }

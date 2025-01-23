@@ -431,4 +431,10 @@ CModel::~CModel() {
       p = nullptr;
     }
   }
+  for (auto p : out_rasters) {
+    if (p) {
+      CPLFree(p);
+      p = nullptr;
+    }
+  }
 }

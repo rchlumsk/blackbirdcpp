@@ -413,7 +413,7 @@ inline double interpolate(double new_wsl, double hydraulic_output::* f, std::vec
 /// \brief helper functions for printing enumerables
 /// \return string corresponding to enumerable option
 //
-std::string toString(enum_nodetype type) {
+inline std::string toString(enum_nodetype type) {
   switch (type) {
   case REACH: return "REACH";
   case XSECTION: return "XSECTION";
@@ -421,7 +421,7 @@ std::string toString(enum_nodetype type) {
   }
 }
 
-std::string toString(enum_mt_method method) {
+inline std::string toString(enum_mt_method method) {
   switch (method) {
   case HAND_MANNING: return "HAND_MANNING";
   case STEADYFLOW: return "STEADYFLOW";
@@ -429,7 +429,7 @@ std::string toString(enum_mt_method method) {
   }
 }
 
-std::string toString(enum_rt_method method) {
+inline std::string toString(enum_rt_method method) {
   switch (method) {
   case SUBCRITICAL: return "SUBCRITICAL";
   case SUPERCRITICAL: return "SUPERCRITICAL";
@@ -438,7 +438,7 @@ std::string toString(enum_rt_method method) {
   }
 }
 
-std::string toString(enum_fs_method method) {
+inline std::string toString(enum_fs_method method) {
   switch (method) {
   case AVERAGE_CONVEYANCE: return "AVERAGE_CONVEYANCE";
   case AVERAGE_FRICTION: return "AVERAGE_FRICTION";
@@ -449,7 +449,7 @@ std::string toString(enum_fs_method method) {
   }
 }
 
-std::string toString(enum_mc_method method) {
+inline std::string toString(enum_mc_method method) {
   switch (method) {
   case EQUAL_FORCE: return "EQUAL_FORCE";
   case WEIGHTED_AVERAGE_AREA: return "WEIGHTED_AVERAGE_AREA";
@@ -461,7 +461,7 @@ std::string toString(enum_mc_method method) {
   }
 }
 
-std::string toString(enum_xsc_method method) {
+inline std::string toString(enum_xsc_method method) {
   switch (method) {
   case OVERBANK_CONVEYANCE: return "OVERBANK_CONVEYANCE";
   case DEFAULT_CONVEYANCE: return "DEFAULT_CONVEYANCE";
@@ -474,7 +474,7 @@ std::string toString(enum_xsc_method method) {
   }
 }
 
-std::string toString(enum_rc_method method) {
+inline std::string toString(enum_rc_method method) {
   switch (method) {
   case DISCRETIZED_CONVEYANCE_R: return "DISCRETIZED_CONVEYANCE_R";
   case AREAWEIGHTED_CONVEYANCE_ONECALC_R:
@@ -485,7 +485,7 @@ std::string toString(enum_rc_method method) {
   }
 }
 
-std::string toString(enum_ri_method method) {
+inline std::string toString(enum_ri_method method) {
   switch (method) {
   case EFFECTIVE_LENGTH: return "EFFECTIVE_LENGTH";
   case REACH_LENGTH: return "REACH_LENGTH";
@@ -493,7 +493,7 @@ std::string toString(enum_ri_method method) {
   }
 }
 
-std::string toString(enum_ppi_method method) {
+inline std::string toString(enum_ppi_method method) {
   switch (method) {
   case NONE: return "NONE";
   case CATCHMENT_HAND: return "CATCHMENT_HAND";
@@ -505,7 +505,7 @@ std::string toString(enum_ppi_method method) {
   }
 }
 
-std::string toString(enum_bc_type type) {
+inline std::string toString(enum_bc_type type) {
   switch (type) {
   case NORMAL_DEPTH: return "NORMAL_DEPTH";
   case SET_WSL: return "SET_WSL";
