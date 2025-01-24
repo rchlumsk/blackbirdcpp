@@ -8,12 +8,13 @@ CModel::CModel()
   bbopt(new COptions),
   hand_depth_seq(),
   dhand_depth_seq(),
-  c_from_s(nullptr),
-  hand(nullptr),
-  handid(nullptr),
+  c_from_s(),
+  hand(),
+  handid(),
   dhand(),
   dhandid(),
   hyd_result(nullptr),
+  out_rasters(),
   streamnode_map(),
   stationname_map(),
   flow(PLACEHOLDER) {
@@ -405,36 +406,4 @@ CModel::~CModel() {
   }
   delete hyd_result;
   hyd_result = nullptr;
-
-  
-  if (c_from_s) {
-    CPLFree(c_from_s);
-    c_from_s = nullptr;
-  }
-  if (hand) {
-    CPLFree(hand);
-    hand = nullptr;
-  }
-  if (handid) {
-    CPLFree(handid);
-    handid = nullptr;
-  }
-  for (auto p : dhand) {
-    if (p) {
-      CPLFree(p);
-      p = nullptr;
-    }
-  }
-  for (auto p : dhandid) {
-    if (p) {
-      CPLFree(p);
-      p = nullptr;
-    }
-  }
-  for (auto p : out_rasters) {
-    if (p) {
-      CPLFree(p);
-      p = nullptr;
-    }
-  }
 }

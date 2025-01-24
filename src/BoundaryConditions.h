@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include "BlackbirdInclude.h"
 
 class CBoundaryConditions {
 public:

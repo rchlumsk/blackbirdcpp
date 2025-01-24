@@ -5,6 +5,7 @@
 #include "Streamnode.h"
 #include "BoundaryConditions.h"
 #include "Options.h"
+#include "Raster.h"
 
 class CModel {
 public:
@@ -14,19 +15,15 @@ public:
   COptions *bbopt;                     // A single bb_options object
   std::vector<double> hand_depth_seq;  // sequence of depths for hand
   std::vector<double> dhand_depth_seq; // sequence of depths for dhand
-  double *c_from_s;                    // raster data for catchments from streamnodes
-  double *hand;                        // raster data for hand
-  double *handid;                      // raster data for hand pourpoints
-  std::vector<double *> dhand;         // raster data for dhand
-  std::vector<double *> dhandid;       // raster data for dhand pourpoints
-  int raster_xsize;                    // x dimension of raster files
-  int raster_ysize;                    // y dimension of raster files
-  const char *raster_proj;
-  double raster_geotrans[6];
+  CRaster c_from_s;                    // raster object for catchments from streamnodes
+  CRaster hand;                        // raster object for hand
+  CRaster handid;                      // raster object for hand pourpoints
+  std::vector<CRaster> dhand;          // raster object for dhand
+  std::vector<CRaster> dhandid;        // raster object for dhand pourpoints
 
   // Outputs
   std::vector<hydraulic_output *> *hyd_result;  // hydraulic outputs here reference 
-  std::vector<double *> out_rasters;            // output depth raster data to be written to file
+  std::vector<CRaster> out_rasters;             // output depth raster objects to be written to file
 
   // Constructor and destructor
   CModel();
@@ -53,7 +50,7 @@ public:
 
   // Raster Functions defined in Raster.cpp
   void ReadRasterFiles();
-  void ReadRasterFile(std::string filename, double *&buf);
+  void ReadRasterFile(std::string filename, CRaster &raster_obj);
   void postprocess_floodresults();
 
 protected:
