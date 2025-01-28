@@ -30,7 +30,7 @@ public:
   ~CModel();
 
   // Functions
-  std::vector<hydraulic_output *> *hyd_compute_profile();
+  void hyd_compute_profile();
 
   void calc_output_flows(); // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
 
@@ -44,7 +44,7 @@ public:
   void WriteOutputFileHeaders(COptions*const& pOptions);
   void WriteMajorOutput(std::string solfile, bool final) const;
   void WriteRasterOutput();
-  void WriteTestOutput() const;
+  void WriteFullModel() const;
   void hyd_result_pretty_print() const;
   void hyd_result_pretty_print_csv() const;
 

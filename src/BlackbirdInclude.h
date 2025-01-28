@@ -74,178 +74,103 @@ inline void ExitGracefullyIf(bool condition, const char* statement, exitcode cod
 //*****************************************************************
 //Structures
 //*****************************************************************
-//struct hydraulic_output {
-//  int nodeID                       = PLACEHOLDER;
-//  int reachID                      = PLACEHOLDER;
-//  int downnodeID                   = PLACEHOLDER;
-//  int upnodeID1                    = PLACEHOLDER;
-//  int upnodeID2                    = PLACEHOLDER;
-//  std::string stationname          = PLACEHOLDER_STR;
-//  double station                   = PLACEHOLDER;
-//  double reach_length_DS           = PLACEHOLDER;
-//  double reach_length_US1          = PLACEHOLDER;
-//  double reach_length_US2          = PLACEHOLDER;
-//  double flow                      = PLACEHOLDER;
-//  double flow_lob                  = PLACEHOLDER;
-//  double flow_main                 = PLACEHOLDER;
-//  double flow_rob                  = PLACEHOLDER;
-//  double min_elev                  = PLACEHOLDER;
-//  double wsl                       = PLACEHOLDER;
-//  double depth                     = PLACEHOLDER;
-//  double hyd_depth                 = PLACEHOLDER;
-//  double hyd_depth_lob             = PLACEHOLDER;
-//  double hyd_depth_main            = PLACEHOLDER;
-//  double hyd_depth_rob             = PLACEHOLDER;
-//  double top_width                 = PLACEHOLDER;
-//  double top_width_lob             = PLACEHOLDER;
-//  double top_width_main            = PLACEHOLDER;
-//  double top_width_rob             = PLACEHOLDER;
-//  double velocity                  = PLACEHOLDER;
-//  double velocity_lob              = PLACEHOLDER;
-//  double velocity_main             = PLACEHOLDER;
-//  double velocity_rob              = PLACEHOLDER;
-//  double k_total                   = PLACEHOLDER;
-//  double k_lob                     = PLACEHOLDER;
-//  double k_main                    = PLACEHOLDER;
-//  double k_rob                     = PLACEHOLDER;
-//  double alpha                     = PLACEHOLDER;
-//  double area                      = PLACEHOLDER;
-//  double area_lob                  = PLACEHOLDER;
-//  double area_main                 = PLACEHOLDER;
-//  double area_rob                  = PLACEHOLDER;
-//  double hradius                   = PLACEHOLDER;
-//  double hradius_lob               = PLACEHOLDER;
-//  double hradius_main              = PLACEHOLDER;
-//  double hradius_rob               = PLACEHOLDER;
-//  double wet_perimeter             = PLACEHOLDER;
-//  double wet_perimeter_lob         = PLACEHOLDER;
-//  double wet_perimeter_main        = PLACEHOLDER;
-//  double wet_perimeter_rob         = PLACEHOLDER;
-//  double energy_total              = PLACEHOLDER;
-//  double velocity_head             = PLACEHOLDER;
-//  double froude                    = PLACEHOLDER;
-//  double sf                        = PLACEHOLDER;
-//  double sf_avg                    = PLACEHOLDER;
-//  double sbed                      = PLACEHOLDER;
-//  double length_effective          = PLACEHOLDER;
-//  double head_loss                 = PLACEHOLDER;
-//  double manning_lob               = PLACEHOLDER;
-//  double manning_main              = PLACEHOLDER;
-//  double manning_rob               = PLACEHOLDER;
-//  double manning_composite         = PLACEHOLDER;
-//  double k_total_areaconv          = PLACEHOLDER;
-//  double k_total_roughconv         = PLACEHOLDER;
-//  double k_total_disconv           = PLACEHOLDER;
-//  double alpha_areaconv            = PLACEHOLDER;
-//  double alpha_roughconv           = PLACEHOLDER;
-//  double alpha_disconv             = PLACEHOLDER;
-//  double nc_equalforce             = PLACEHOLDER;
-//  double nc_equalvelocity          = PLACEHOLDER;
-//  double nc_wavgwp                 = PLACEHOLDER;
-//  double nc_wavgarea               = PLACEHOLDER;
-//  double nc_wavgconv               = PLACEHOLDER;
-//  double depth_critical            = PLACEHOLDER;
-//  int cp_iterations                = PLACEHOLDER;
-//  double k_err                     = PLACEHOLDER;
-//  double ws_err                    = PLACEHOLDER;
-//  double length_energyloss         = PLACEHOLDER;
-//  double length_effectiveadjusted  = PLACEHOLDER;
-//  double bed_slope = PLACEHOLDER; // is this needed?
-//};
 struct hydraulic_output {
-  int nodeID = 0;
-  int reachID = 0;
-  int downnodeID = 0;
-  int upnodeID1 = 0;
-  int upnodeID2 = 0;
-  std::string stationname = "";
-  double station = 0;
-  double reach_length_DS = 0;
-  double reach_length_US1 = 0;
-  double reach_length_US2 = 0;
-  double flow = 0;
-  double flow_lob = 0;
-  double flow_main = 0;
-  double flow_rob = 0;
-  double min_elev = 0;
-  double wsl = 0;
-  double depth = 0;
-  double hyd_depth = 0;
-  double hyd_depth_lob = 0;
-  double hyd_depth_main = 0;
-  double hyd_depth_rob = 0;
-  double top_width = 0;
-  double top_width_lob = 0;
-  double top_width_main = 0;
-  double top_width_rob = 0;
-  double velocity = 0;
-  double velocity_lob = 0;
-  double velocity_main = 0;
-  double velocity_rob = 0;
-  double k_total = 0;
-  double k_lob = 0;
-  double k_main = 0;
-  double k_rob = 0;
-  double alpha = 0;
-  double area = 0;
-  double area_lob = 0;
-  double area_main = 0;
-  double area_rob = 0;
-  double hradius = 0;
-  double hradius_lob = 0;
-  double hradius_main = 0;
-  double hradius_rob = 0;
-  double wet_perimeter = 0;
-  double wet_perimeter_lob = 0;
-  double wet_perimeter_main = 0;
-  double wet_perimeter_rob = 0;
-  double energy_total = 0;
-  double velocity_head = 0;
-  double froude = 0;
-  double sf = 0;
-  double sf_avg = 0;
-  double sbed = 0;
-  double length_effective = 0;
-  double head_loss = 0;
-  double manning_lob = 0;
-  double manning_main = 0;
-  double manning_rob = 0;
-  double manning_composite = 0;
-  double k_total_areaconv = 0;
-  double k_total_roughconv = 0;
-  double k_total_disconv = 0;
-  double alpha_areaconv = 0;
-  double alpha_roughconv = 0;
-  double alpha_disconv = 0;
-  double nc_equalforce = 0;
-  double nc_equalvelocity = 0;
-  double nc_wavgwp = 0;
-  double nc_wavgarea = 0;
-  double nc_wavgconv = 0;
-  double depth_critical = 0;
-  int cp_iterations = 0;
-  double k_err = 0;
-  double ws_err = 0;
-  double length_energyloss = 0;
-  double length_effectiveadjusted = 0;
-  double bed_slope = 0; // is this needed?
+  int nodeID                       = PLACEHOLDER;
+  int reachID                      = PLACEHOLDER;
+  int downnodeID                   = PLACEHOLDER;
+  int upnodeID1                    = PLACEHOLDER;
+  int upnodeID2                    = PLACEHOLDER;
+  std::string stationname          = PLACEHOLDER_STR;
+  double station                   = PLACEHOLDER;
+  double reach_length_DS           = PLACEHOLDER;
+  double reach_length_US1          = PLACEHOLDER;
+  double reach_length_US2          = PLACEHOLDER;
+  double flow                      = PLACEHOLDER;
+  double flow_lob                  = PLACEHOLDER;
+  double flow_main                 = PLACEHOLDER;
+  double flow_rob                  = PLACEHOLDER;
+  double min_elev                  = PLACEHOLDER;
+  double wsl                       = PLACEHOLDER;
+  double depth                     = PLACEHOLDER;
+  double hyd_depth                 = PLACEHOLDER;
+  double hyd_depth_lob             = PLACEHOLDER;
+  double hyd_depth_main            = PLACEHOLDER;
+  double hyd_depth_rob             = PLACEHOLDER;
+  double top_width                 = PLACEHOLDER;
+  double top_width_lob             = PLACEHOLDER;
+  double top_width_main            = PLACEHOLDER;
+  double top_width_rob             = PLACEHOLDER;
+  double velocity                  = PLACEHOLDER;
+  double velocity_lob              = PLACEHOLDER;
+  double velocity_main             = PLACEHOLDER;
+  double velocity_rob              = PLACEHOLDER;
+  double k_total                   = PLACEHOLDER;
+  double k_lob                     = PLACEHOLDER;
+  double k_main                    = PLACEHOLDER;
+  double k_rob                     = PLACEHOLDER;
+  double alpha                     = PLACEHOLDER;
+  double area                      = PLACEHOLDER;
+  double area_lob                  = PLACEHOLDER;
+  double area_main                 = PLACEHOLDER;
+  double area_rob                  = PLACEHOLDER;
+  double hradius                   = PLACEHOLDER;
+  double hradius_lob               = PLACEHOLDER;
+  double hradius_main              = PLACEHOLDER;
+  double hradius_rob               = PLACEHOLDER;
+  double wet_perimeter             = PLACEHOLDER;
+  double wet_perimeter_lob         = PLACEHOLDER;
+  double wet_perimeter_main        = PLACEHOLDER;
+  double wet_perimeter_rob         = PLACEHOLDER;
+  double energy_total              = PLACEHOLDER;
+  double velocity_head             = PLACEHOLDER;
+  double froude                    = PLACEHOLDER;
+  double sf                        = PLACEHOLDER;
+  double sf_avg                    = PLACEHOLDER;
+  double sbed                      = PLACEHOLDER;
+  double length_effective          = PLACEHOLDER;
+  double head_loss                 = PLACEHOLDER;
+  double manning_lob               = PLACEHOLDER;
+  double manning_main              = PLACEHOLDER;
+  double manning_rob               = PLACEHOLDER;
+  double manning_composite         = PLACEHOLDER;
+  double k_total_areaconv          = PLACEHOLDER;
+  double k_total_roughconv         = PLACEHOLDER;
+  double k_total_disconv           = PLACEHOLDER;
+  double alpha_areaconv            = PLACEHOLDER;
+  double alpha_roughconv           = PLACEHOLDER;
+  double alpha_disconv             = PLACEHOLDER;
+  double nc_equalforce             = PLACEHOLDER;
+  double nc_equalvelocity          = PLACEHOLDER;
+  double nc_wavgwp                 = PLACEHOLDER;
+  double nc_wavgarea               = PLACEHOLDER;
+  double nc_wavgconv               = PLACEHOLDER;
+  double depth_critical            = PLACEHOLDER;
+  int cp_iterations                = PLACEHOLDER;
+  double k_err                     = PLACEHOLDER;
+  double ws_err                    = PLACEHOLDER;
+  double length_energyloss         = PLACEHOLDER;
+  double length_effectiveadjusted  = PLACEHOLDER;
+  double bed_slope                 = PLACEHOLDER;
 };
 
 //*****************************************************************
 //Enumerables
 //*****************************************************************
+// Streamnode type
 enum enum_nodetype
 {
   REACH,
   XSECTION
 };
 
+// Model type
 enum enum_mt_method
 {
   HAND_MANNING,
   STEADYFLOW
 };
 
+// Regime type
 enum enum_rt_method
 {
   SUBCRITICAL,
@@ -253,6 +178,7 @@ enum enum_rt_method
   MIXED
 };
 
+// Friction slope method
 enum enum_fs_method
 {
   AVERAGE_CONVEYANCE,
@@ -262,6 +188,7 @@ enum enum_fs_method
   REACH_FRICTION
 };
 
+// Manning composite method
 enum enum_mc_method
 {
   EQUAL_FORCE,
@@ -272,6 +199,7 @@ enum enum_mc_method
   BLENDED_NC
 };
 
+// X-section conveyance method
 enum enum_xsc_method
 {
   OVERBANK_CONVEYANCE,
@@ -282,6 +210,7 @@ enum enum_xsc_method
   AREAWEIGHTED_CONVEYANCE
 };
 
+// Reach conveyance method
 enum enum_rc_method
 {
   DISCRETIZED_CONVEYANCE_R,
@@ -290,12 +219,14 @@ enum enum_rc_method
   BLENDED_CONVEYANCE
 };
 
+// Reach integraton method
 enum enum_ri_method
 {
   EFFECTIVE_LENGTH,
   REACH_LENGTH
 };
 
+// Post-processing interpolation method
 enum enum_ppi_method
 {
   NONE,
@@ -306,6 +237,7 @@ enum enum_ppi_method
   INTERP_DHAND_WSLCORR
 };
 
+// Boundary condition type
 enum enum_bc_type
 {
   NORMAL_DEPTH,
@@ -338,6 +270,10 @@ inline bool StringIsDouble(const char *s1) {
   return !(*p);
 }
 
+///////////////////////////////////////////////////////////////////
+/// \brief Conveyance calculation for valarrays
+/// \return conveyance
+//
 inline std::valarray<double> ConvCalc(std::valarray<double> n,
                                       std::valarray<double> A,
                                       std::valarray<double> Rh) {
@@ -345,6 +281,11 @@ inline std::valarray<double> ConvCalc(std::valarray<double> n,
   res[res < 0] = 0;
   return res;
 }
+
+///////////////////////////////////////////////////////////////////
+/// \brief Conveyance calculation for doubles
+/// \return conveyance
+//
 inline double ConvCalc(double n, double A, double Rh) {
   double res = (1. / n) * A * std::pow(Rh, 2. / 3.);
   res = res < 0 ? 0 : res;
@@ -353,7 +294,8 @@ inline double ConvCalc(double n, double A, double Rh) {
 
 ///////////////////////////////////////////////////////////////////
 /// \brief returns a vector of all values in the f column of a vector of hydraulic outputs.
-/// Example call with std::vector<hydraulic_output *> v as the vector: res = hyd_out_collect(&hydraulic_output::wsl, v)
+/// Example call with std::vector<hydraulic_output *> v as the vector, and collecting column wsl:
+/// res = hyd_out_collect(&hydraulic_output::wsl, v)
 /// \return a vector of all values in the f column of a vector of hydraulic outputs
 //
 template<typename T>
@@ -467,8 +409,7 @@ inline std::string toString(enum_xsc_method method) {
   case DEFAULT_CONVEYANCE: return "DEFAULT_CONVEYANCE";
   case COORDINATE_CONVEYANCE: return "COORDINATE_CONVEYANCE";
   case DISCRETIZED_CONVEYANCE_XS: return "DISCRETIZED_CONVEYANCE_XS";
-  case AREAWEIGHTED_CONVEYANCE_ONECALC_XS:
-    return "AREAWEIGHTED_CONVEYANCE_ONECALC_XS";
+  case AREAWEIGHTED_CONVEYANCE_ONECALC_XS: return "AREAWEIGHTED_CONVEYANCE_ONECALC_XS";
   case AREAWEIGHTED_CONVEYANCE: return "AREAWEIGHTED_CONVEYANCE";
   default: return "UNKNOWN";
   }
@@ -477,8 +418,7 @@ inline std::string toString(enum_xsc_method method) {
 inline std::string toString(enum_rc_method method) {
   switch (method) {
   case DISCRETIZED_CONVEYANCE_R: return "DISCRETIZED_CONVEYANCE_R";
-  case AREAWEIGHTED_CONVEYANCE_ONECALC_R:
-    return "AREAWEIGHTED_CONVEYANCE_ONECALC_R";
+  case AREAWEIGHTED_CONVEYANCE_ONECALC_R: return "AREAWEIGHTED_CONVEYANCE_ONECALC_R";
   case ROUGHZONE_CONVEYANCE: return "ROUGHZONE_CONVEYANCE";
   case BLENDED_CONVEYANCE: return "BLENDED_CONVEYANCE";
   default: return "UNKNOWN";

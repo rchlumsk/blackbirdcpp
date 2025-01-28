@@ -92,5 +92,8 @@
     <ClInclude Include="ParseLib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Raster.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

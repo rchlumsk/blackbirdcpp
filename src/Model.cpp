@@ -21,9 +21,11 @@ CModel::CModel()
   // Default constructor implementation
 }
 
-// Function to compute hydraulic profile
-std::vector<hydraulic_output *> *CModel::hyd_compute_profile() {
-  bbopt->froude_threshold = 0.94;
+//////////////////////////////////////////////////////////////////
+/// \brief Computes the hydraulic profile for the model
+//
+void CModel::hyd_compute_profile() {
+  bbopt->froude_threshold = 0.94; // hardcoded value
 
   ExitGracefullyIf(bbopt->regimetype != enum_rt_method::SUBCRITICAL,
                    "Model.cpp: hyd_compute_profile(): only subcritical mode "
@@ -34,6 +36,7 @@ std::vector<hydraulic_output *> *CModel::hyd_compute_profile() {
                    "Model.cpp: hyd_compute_profile(): dx must be greater than 0",
                    BAD_DATA);
 
+  // Get streamnode associated with the boundary condition
   CStreamnode *start_streamnode = get_streamnode_by_stationname(bbbc->stationname);
 
   ExitGracefullyIf(!start_streamnode,
@@ -41,20 +44,24 @@ std::vector<hydraulic_output *> *CModel::hyd_compute_profile() {
                    "station name not represented in streamnodes",
                    BAD_DATA);
 
-  std::vector<hydraulic_output *> *result = new std::vector<hydraulic_output *>(
+  // Initialize container for hydraulic result
+  hyd_result = new std::vector<hydraulic_output *>(
       start_streamnode->output_flows.size() * bbsn->size());
 
+  // Loop through each flow
+  // Compute the corresponding hydraulic profile starting at the boundary condition streamnode
   for (int f = 0; f < start_streamnode->output_flows.size(); f++) {
     flow = f;
-    compute_streamnode(start_streamnode, start_streamnode, result);
+    compute_streamnode(start_streamnode, start_streamnode, hyd_result);
   }
   std::cout << "Successfully completed all hydraulic calculations :-)" << std::endl;
   flow = PLACEHOLDER;
-  hyd_result = result;
-  return result;
+  return;
 }
 
-// Function to calculate output flows of all streamnodes
+//////////////////////////////////////////////////////////////////
+/// \brief Calculate output flows of all streamnodes
+//
 void CModel::calc_output_flows() {
   std::set<int> finished_nodes;             // sorted list of nodes where output_flows has been calculated
   std::unordered_map<int, int> id_to_ind;   // maps nodeID to index in bbsn
@@ -136,12 +143,19 @@ int CModel::get_hyd_res_index(int flow_ind, int sid) {
   return flow_ind * bbsn->size() + get_index_by_id(sid);
 }
 
-// Recursively computes hyd profile for the tree with downstream most streamnode "sn"
+//////////////////////////////////////////////////////////////////
+/// \brief Recursively computes hyd profile for the tree with downstream most streamnode "sn"
+/// \note if sn and down_sn are identical, it is assumed they are the boundary condition streamnode
+/// \param sn [in] streamnode for which to compute hydraulic profile
+/// \param down_sn [in] streamnode one node downstream of sn
+/// \param res [in/out] object to add output to when done computing
+//
 void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res) {
   if (!bbopt->silent_cp) {
     std::cout << "Computing profile for streamnode with node id " << sn->nodeID << std::endl;
   }
 
+  // Initialize values
   int ind = get_index_by_id(sn->nodeID);
   sn->mm->nodeID = sn->nodeID;
   sn->mm->reachID = sn->reachID;
@@ -157,11 +171,11 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   sn->mm->bed_slope = sn->bed_slope;
   sn->mm->flow = sn->output_flows[flow];
 
-  if (sn->nodeID == down_sn->nodeID) {
+  if (sn->nodeID == down_sn->nodeID) { // if so, assumes this is the boundary condition streamnode
     sn->mm->min_elev = sn->min_elev; // redundant?
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
       sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt);
-    } else {
+    } else { // bbopt->modeltype != enum_mt_method::HAND_MANNING
       switch (bbbc->bctype)
       {
       case (enum_bc_type::NORMAL_DEPTH): {
@@ -383,6 +397,133 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   temp_sn = get_streamnode_by_id(sn->upnodeID2);
   if (temp_sn) {
     compute_streamnode(temp_sn, sn, res);
+  }
+}
+
+
+//////////////////////////////////////////////////////////////////
+/// \brief Reads Raster files
+/// \return True if operation is successful
+//
+void CModel::ReadRasterFiles() {
+  GDALAllRegister();
+
+  ReadRasterFile(bbopt->raster_folder + "/bb_catchments_fromstreamnodes.tif",
+                 c_from_s);
+  if (!bbopt->use_dhand) {
+    ReadRasterFile(bbopt->raster_folder + "/bb_hand.tif", hand);
+    if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+        bbopt->interpolation_postproc_method ==
+            enum_ppi_method::INTERP_DHAND_WSLCORR ||
+        bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+      ReadRasterFile(bbopt->raster_folder + "/bb_hand_pourpoint_id.tif",
+                     handid);
+    }
+  } else {
+    for (auto d : dhand_depth_seq) {
+      std::stringstream stream;
+      stream << std::fixed << std::setprecision(4) << d;
+      dhand.push_back(CRaster());
+      ReadRasterFile(bbopt->raster_folder + "/bb_dhand_depth_" + stream.str() +
+                         "m.tif",
+                     dhand.back());
+      if (bbopt->interpolation_postproc_method ==
+              enum_ppi_method::INTERP_DHAND ||
+          bbopt->interpolation_postproc_method ==
+              enum_ppi_method::INTERP_DHAND_WSLCORR ||
+          bbopt->interpolation_postproc_method ==
+              enum_ppi_method::INTERP_HAND) {
+        dhandid.push_back(CRaster());
+        ReadRasterFile(bbopt->raster_folder + "/bb_dhand_pourpoint_id_depth_" +
+                           stream.str() + "m.tif",
+                       dhand.back());
+      }
+    }
+  }
+  if (!bbopt->silent_run) {
+    std::cout << "...raster data successfully read" << std::endl;
+    std::cout << std::endl;
+  }
+}
+
+void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
+  GDALDataset *dataset =
+      static_cast<GDALDataset *>(GDALOpen(filename.c_str(), GA_ReadOnly));
+  raster_obj.xsize = dataset->GetRasterXSize();
+  raster_obj.ysize = dataset->GetRasterYSize();
+  raster_obj.proj = dataset->GetProjectionRef();
+  dataset->GetGeoTransform(raster_obj.geotrans);
+  ExitGracefullyIf(
+      dataset == nullptr,
+      ("Raster.cpp: ReadRasterFile: couldn't open " + filename).c_str(),
+      exitcode::FILE_OPEN_ERR);
+  raster_obj.data = static_cast<double *>(
+      CPLMalloc(sizeof(double) * raster_obj.xsize * raster_obj.ysize));
+  GDALRasterBand *band = dataset->GetRasterBand(1);
+  raster_obj.datatype = band->GetRasterDataType();
+  raster_obj.na_val = band->GetNoDataValue();
+  band->RasterIO(GF_Read, 0, 0, raster_obj.xsize, raster_obj.ysize,
+                 raster_obj.data, raster_obj.xsize, raster_obj.ysize,
+                 GDT_Float64, 0, 0);
+  GDALClose(dataset);
+}
+
+void CModel::postprocess_floodresults() {
+  if (bbopt->interpolation_postproc_method == enum_ppi_method::NONE) {
+    return;
+  }
+  if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+      bbopt->interpolation_postproc_method ==
+          enum_ppi_method::INTERP_DHAND_WSLCORR ||
+      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+    // do stuff 99
+  }
+  ExitGracefullyIf(!c_from_s.data,
+                   "Raster.cpp: postprocess_floodresults: catchments from "
+                   "streamnodes missing",
+                   exitcode::RUNTIME_ERR);
+  ExitGracefullyIf(
+      !hyd_result,
+      "Raster.cpp: postprocess_floodresults: hydraulic output missing",
+      exitcode::RUNTIME_ERR);
+  for (int i = 0; i < bbsn->front()->output_flows.size(); i++) {
+    if (!bbopt->silent_run) {
+      std::cout << "post processing flood results for flow " +
+                       std::to_string(i + 1)
+                << std::endl;
+    }
+    if (bbopt->interpolation_postproc_method ==
+        enum_ppi_method::CATCHMENT_HAND) { // maybe make more checks on validity
+                                           // of data
+      CRaster result;
+      result.xsize = hand.xsize;
+      result.ysize = hand.ysize;
+      result.na_val = hand.na_val;
+      result.proj = hand.proj;
+      for (int j = 0; j < std::size(result.geotrans); j++) {
+        result.geotrans[j] = hand.geotrans[j];
+      }
+      result.datatype = hand.datatype;
+      result.data = static_cast<double *>(
+          CPLMalloc(sizeof(double) * result.xsize * result.ysize));
+      std::fill(result.data, result.data + (result.xsize * result.ysize), 0.0);
+      for (int j = 0; j < result.xsize * result.ysize; j++) {
+        if (c_from_s.data[j] != c_from_s.na_val &&
+            hand.data[j] != hand.na_val) {
+          result.data[j] =
+              (*hyd_result)[get_hyd_res_index(i, c_from_s.data[j])]->depth -
+              hand.data[j];
+        } else {
+          result.data[j] = result.na_val;
+        }
+      }
+      out_rasters.push_back(result);
+    } else {
+      std::cout << "not yet available" << std::endl;
+    }
+  }
+  if (!bbopt->silent_run) {
+    std::cout << "finished post processing flood results" << std::endl;
   }
 }
 

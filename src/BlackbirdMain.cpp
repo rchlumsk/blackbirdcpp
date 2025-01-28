@@ -16,11 +16,13 @@ static std::string BlackbirdBuildDate(__DATE__);
 int main(int argc, char* argv[])
 {
   clock_t     t0, t1;          //computational time markers
+  // Initialize model
   pModel = new CModel();
   COptions*& pOptions = pModel->bbopt;
 
   pOptions->version = __BLACKBIRD_VERSION__;
 
+  // Parse input arguments and set output directory
   ProcessExecutableArguments(argc, argv, pOptions);
   pOptions->PrepareOutputdirectory();
 
@@ -35,6 +37,7 @@ int main(int argc, char* argv[])
     std::cout << "============================================================" << std::endl;
   }
   
+  // Setup errors file for warnings to be logged
   std::ofstream WARNINGS;
   WARNINGS.open((pOptions->main_output_dir + "Blackbird_errors.txt").c_str());
   if (WARNINGS.fail()) {
@@ -44,11 +47,12 @@ int main(int argc, char* argv[])
 
   t0 = clock();
   
-  //Read input files, create model, set model options
+  // Read input files, create model, set model options
   if (!ParseInputFiles(pModel, pOptions)) {
     ExitGracefully("Main::Unable to read input file(s)", BAD_DATA);
   }
 
+  // Read input rasters if applicable
   if (pOptions->interpolation_postproc_method != enum_ppi_method::NONE) {
     if (!pOptions->silent_run) {
       std::cout << "======================================================" << std::endl;
@@ -63,11 +67,10 @@ int main(int argc, char* argv[])
     std::cout << "======================================================" << std::endl;
     std::cout << "Initializing Model..." << std::endl;
   }
+  // Calculate output flows for all streamnodes
   pModel->calc_output_flows();
 
   CheckForErrorWarnings(false, pModel);
-
-  pModel->WriteOutputFileHeaders(pOptions);
 
   if (!pOptions->silent_run) {
     std::cout << std::endl << "======================================================" << std::endl;
@@ -76,22 +79,23 @@ int main(int argc, char* argv[])
 
   t1 = clock();
   
+  // Compute hydraulic profile for all streamnodes
   pModel->hyd_compute_profile();
+  // Post-process flood results with method specified by input parameter
   pModel->postprocess_floodresults();
 
   //Finished Solving----------------------------------------------------
-  //pModel->WriteMajorOutput("solution", true);
-  //Test output
-  //std::ofstream TESTOUTPUT;
-  //TESTOUTPUT.open((pOptions->main_output_dir + "Blackbird_testoutput.txt").c_str());
-  //if (TESTOUTPUT.fail()) {
-  //  ExitGracefully("Main::Unable to open Blackbird_testoutput.txt. Bad output directory specified?", BLACKBIRD_OPEN_ERR);
-  //}
-  //TESTOUTPUT.close();
-  //pModel->WriteTestOutput();
-  //pModel->hyd_result_pretty_print();
-  pModel->hyd_result_pretty_print_csv();
-  pModel->WriteRasterOutput();
+  // Initialize test output file for writing to
+  std::ofstream TESTOUTPUT;
+  TESTOUTPUT.open((pOptions->main_output_dir + "Blackbird_testoutput.txt").c_str());
+  if (TESTOUTPUT.fail()) {
+    ExitGracefully("Main::Unable to open Blackbird_testoutput.txt. Bad output directory specified?", BLACKBIRD_OPEN_ERR);
+  }
+  TESTOUTPUT.close();
+  //pModel->WriteFullModel(); // writes full model to test output
+  pModel->hyd_result_pretty_print(); // writes hydraulic result to test output
+  pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
+  pModel->WriteRasterOutput(); // if applicable, writes raster output to raster files
 
   if (!pOptions->silent_run)
   {
@@ -111,17 +115,17 @@ int main(int argc, char* argv[])
 
 //////////////////////////////////////////////////////////////////
 /// \param argc [in] number of arguments to executable
-/// \param argv[] [in] executable arguments; Raven.exe [filebase] [-p rvp_file] [-h hru_file] [-t rvt_file] [-c rvc_file] [-o output_dir]
+/// \param argv[] [in] executable arguments; blackbird.exe [filebase] [-g bbg_file] [-p bbp_file] [-b bbb_file] [-o output_dir]
+/// \param pOptions [in] Global model options
 /// \details initializes input files and output directory
 /// \details filebase has no extension, all others require .rv* extension
-/// \param Options [in] Global model options
 //
 void ProcessExecutableArguments(int argc, char* argv[], COptions*& pOptions)
 {
   std::string word, argument;
   int mode = 0;
   argument = "";
-  //initialization:
+  //initialization for parameters:
   pOptions->run_name = "";
   pOptions->bbi_filename = "";
   pOptions->bbg_filename = "";
@@ -131,15 +135,14 @@ void ProcessExecutableArguments(int argc, char* argv[], COptions*& pOptions)
   pOptions->silent_run = false;
   pOptions->noisy_run = false;
 
-  //Parse argument list
+  //Parse argument list and assign to pOptions
   for (int i = 1; i <= argc; i++)
   {
     if (i != argc) {
       word = argv[i];
     }
-    if ((word == "-p") || (word == "-h") || (word == "-t") || (word == "-e") || (word == "-c") || (word == "-o") ||
-      (word == "-s") || (word == "-r") || (word == "-n") || (word == "-l") || (word == "-m") || (word == "-v") ||
-      (word == "-we") || (word == "-tt") || (i == argc))
+    if ((word == "-g") || (word == "-p") || (word == "-b") || (word == "-o") ||
+        (word == "-s") || (word == "-n") || (word == "-r") || (i == argc))
     {
       if (mode == 0) {
         pOptions->bbi_filename = argument + ".bbi";
@@ -227,6 +230,7 @@ void CheckForErrorWarnings(bool quiet, CModel* pModel)
     ExitGracefully("Errors found in input data. See Blackbird_errors.txt for details", BAD_DATA);
   }
 }
+
 /////////////////////////////////////////////////////////////////
 /// \brief Checks if stopfile exists in current working directory
 /// \note called during simulation to determine whether progress should be stopped

@@ -56,6 +56,9 @@ void CModel::WriteMajorOutput(std::string solfile, bool final) const
 
 void CModel::WriteRasterOutput()
 {
+  if (bbopt->interpolation_postproc_method == enum_ppi_method::NONE) {
+    return;
+  }
   for (int i = 0; i < out_rasters.size(); i++) {
     std::string filepath =
         bbopt->main_output_dir + "/bb_results_" + std::to_string(i) + "_" + toString(bbopt->modeltype) +
@@ -96,9 +99,9 @@ void CRaster::WriteToFile(std::string filepath)
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Writes test output with all the data in model
+/// \brief Writes model data to test output
 //
-void CModel::WriteTestOutput() const
+void CModel::WriteFullModel() const
 {
   if (bbopt->noisy_run) { std::cout << "  Writing Test Output File full model..." << std::endl; }
   std::ofstream TESTOUTPUT;

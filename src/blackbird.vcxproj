@@ -171,6 +171,7 @@
     <ClInclude Include="Model.h" />
     <ClInclude Include="Options.h" />
     <ClInclude Include="ParseLib.h" />
+    <ClInclude Include="Raster.h" />
     <ClInclude Include="Reach.h" />
     <ClInclude Include="Streamnode.h" />
     <ClInclude Include="XSection.h" />
