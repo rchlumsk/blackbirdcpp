@@ -9,8 +9,8 @@ void  ImproperFormatWarning(std::string command, CParser* p, bool noisy);
 /// \brief Parses Boundary Conditions file
 /// \details model.bbb: input file that defines boundary conditions \n
 ///
-/// \param *&pModel [out] Reference to model object
-/// \param *&pOptions [out] Global model options information
+/// \param *&pModel [in/out] Reference to model object
+/// \param *&pOptions [in] Global model options information
 /// \return True if operation is successful
 //
 bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)

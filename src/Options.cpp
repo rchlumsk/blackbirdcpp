@@ -11,6 +11,7 @@ COptions::COptions()
   main_output_dir(PLACEHOLDER_STR),
   working_dir(PLACEHOLDER_STR),
   modelname(PLACEHOLDER_STR),
+  raster_folder(PLACEHOLDER_STR),
   modeltype(enum_mt_method::HAND_MANNING),
   regimetype(enum_rt_method::SUBCRITICAL),
   dx(PLACEHOLDER),
@@ -40,15 +41,13 @@ COptions::COptions()
   roughness_multiplier(PLACEHOLDER),
   blended_conveyance_weights(PLACEHOLDER),
   blended_nc_weights(PLACEHOLDER),
+  froude_threshold(PLACEHOLDER),
   silent_run(false),
-  noisy_run(false),
-  froude_threshold(PLACEHOLDER) {
+  noisy_run(false) {
 }
 
 //////////////////////////////////////////////////////////////////
 /// \brief creates specified output directory, if needed
-///
-/// \param *&pOptions [in] global model options
 //
 void COptions::PrepareOutputdirectory()
 {

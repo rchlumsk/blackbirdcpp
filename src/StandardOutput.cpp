@@ -11,11 +11,10 @@
 #endif
 
 //////////////////////////////////////////////////////////////////
-/// \brief Adds output directory & prefix to base file name
+/// \brief Returns filebase prepended with output directory & prefix
 /// \param filebase [in] base filename, with extension, no directory information
-/// \param &Options [in] Global model options information
 //
-std::string FilenamePrepare(std::string filebase, const COptions *Options) {
+std::string FilenamePrepare(std::string filebase) {
   std::string fn;
   if (Options->run_name == "") {
     fn = Options->main_output_dir + filebase;
@@ -107,6 +106,19 @@ void CModel::WriteFullModel() const
   std::ofstream TESTOUTPUT;
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "===================== Full Model =====================" << std::endl;
+  TESTOUTPUT << "\n================== Model ==================" << std::endl;
+  TESTOUTPUT << std::left << std::setw(35) << "Hand Depth Sequence:";
+  for (auto d : hand_depth_seq) {
+    std::cout << d << " ";
+  }
+  std::cout << std::endl;
+  TESTOUTPUT << std::setw(35) << "DHand Depth Sequence:";
+  for (auto d : dhand_depth_seq) {
+    std::cout << d << " ";
+  }
+  std::cout << std::endl;
+  // add pretty_print for CRasters
+  TESTOUTPUT << "===========================================\n" << std::endl;
   TESTOUTPUT.close();
   this->bbopt->pretty_print();
   this->bbbc->pretty_print();
@@ -132,14 +144,15 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::setw(35) << "Main Output Directory:" << main_output_dir << std::endl;
   TESTOUTPUT << std::setw(35) << "Working Directory:" << working_dir << std::endl;
   TESTOUTPUT << std::setw(35) << "Model Name:" << modelname << std::endl;
-  TESTOUTPUT << std::setw(35) << "Model Type:" << modeltype << std::endl;
-  TESTOUTPUT << std::setw(35) << "Regime Type:" << regimetype << std::endl;
+  TESTOUTPUT << std::setw(35) << "Raster Folder:" << raster_folder << std::endl;
+  TESTOUTPUT << std::setw(35) << "Model Type:" << toString(modeltype) << std::endl;
+  TESTOUTPUT << std::setw(35) << "Regime Type:" << toString(regimetype) << std::endl;
   TESTOUTPUT << std::setw(35) << "DX:" << dx << std::endl;
   TESTOUTPUT << std::setw(35) << "Extrapolate Depth Table:" << (extrapolate_depth_table ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Num Extrapolation Points:" << num_extrapolation_points << std::endl;
-  TESTOUTPUT << std::setw(35) << "Friction Slope Method:" << friction_slope_method << std::endl;
-  TESTOUTPUT << std::setw(35) << "X-Section Conveyance Method:" << xsection_conveyance_method << std::endl;
-  TESTOUTPUT << std::setw(35) << "Reach Conveyance Method:" << reach_conveyance_method << std::endl;
+  TESTOUTPUT << std::setw(35) << "Friction Slope Method:" << toString(friction_slope_method) << std::endl;
+  TESTOUTPUT << std::setw(35) << "X-Section Conveyance Method:" << toString(xsection_conveyance_method) << std::endl;
+  TESTOUTPUT << std::setw(35) << "Reach Conveyance Method:" << toString(reach_conveyance_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "Enforce Delta Leff:" << (enforce_delta_Leff ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Delta Reach Length:" << delta_reachlength << std::endl;
   TESTOUTPUT << std::setw(35) << "Tolerance CP:" << tolerance_cp << std::endl;
@@ -153,14 +166,15 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::setw(35) << "Max RHSQ Ratio:" << max_RHSQ_ratio << std::endl;
   TESTOUTPUT << std::setw(35) << "Min RHSQ Ratio:" << min_RHSQ_ratio << std::endl;
   TESTOUTPUT << std::setw(35) << "Use DHand:" << (use_dhand ? "True" : "False") << std::endl;
-  TESTOUTPUT << std::setw(35) << "Manning Composite Method:" << manning_composite_method << std::endl;
+  TESTOUTPUT << std::setw(35) << "Manning Composite Method:" << toString(manning_composite_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "Manning Enforce Values:" << (manning_enforce_values ? "True" : "False") << std::endl;
-  TESTOUTPUT << std::setw(35) << "Reach Integration Method:" << reach_integration_method << std::endl;
-  TESTOUTPUT << std::setw(35) << "Interpolation Postproc Method:" << interpolation_postproc_method << std::endl;
+  TESTOUTPUT << std::setw(35) << "Reach Integration Method:" << toString(reach_integration_method) << std::endl;
+  TESTOUTPUT << std::setw(35) << "Interpolation Postproc Method:" << toString(interpolation_postproc_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "Postproc Elev Corr Threshold:" << postproc_elev_corr_threshold << std::endl;
   TESTOUTPUT << std::setw(35) << "Roughness Multiplier:" << roughness_multiplier << std::endl;
   TESTOUTPUT << std::setw(35) << "Blended Conveyance Weights:" << blended_conveyance_weights << std::endl;
   TESTOUTPUT << std::setw(35) << "Blended NC Weights:" << blended_nc_weights << std::endl;
+  TESTOUTPUT << std::setw(35) << "Froude Threshold:" << froude_threshold << std::endl;
   TESTOUTPUT << std::setw(35) << "Silent Run:" << (silent_run ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Noisy Run:" << (noisy_run ? "True" : "False") << std::endl;
   TESTOUTPUT << "===========================================\n" << std::endl;
@@ -179,7 +193,7 @@ void CBoundaryConditions::pretty_print() const
   TESTOUTPUT << std::setw(20) << "Station Number:" << station << std::endl;
   TESTOUTPUT << std::setw(20) << "Reach:" << reach << std::endl;
   TESTOUTPUT << std::setw(20) << "Location:" << location << std::endl;
-  TESTOUTPUT << std::setw(20) << "Boundary Type:" << bctype << std::endl;
+  TESTOUTPUT << std::setw(20) << "Boundary Type:" << toString(bctype) << std::endl;
   TESTOUTPUT << std::setw(20) << "Boundary Value:" << bcvalue << std::endl;
   TESTOUTPUT << std::setw(20) << "Initial WSL:" << init_WSL << std::endl;
   TESTOUTPUT << "===========================================\n" << std::endl;
@@ -195,7 +209,7 @@ void CStreamnode::pretty_print() const
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "\n=============== Streamnode ================" << std::endl;
   TESTOUTPUT << std::left << std::setw(25) << "Node ID:" << nodeID << std::endl;
-  TESTOUTPUT << std::setw(25) << "Node Type:" << nodetype << std::endl;
+  TESTOUTPUT << std::setw(25) << "Node Type:" << toString(nodetype) << std::endl;
   TESTOUTPUT << std::setw(25) << "Downstream Node ID:" << downnodeID << std::endl;
   TESTOUTPUT << std::setw(25) << "Upstream Node ID 1:" << upnodeID1 << std::endl;
   TESTOUTPUT << std::setw(25) << "Upstream Node ID 2:" << upnodeID2 << std::endl;
@@ -487,7 +501,7 @@ void CModel::hyd_result_pretty_print() const
       << std::setw(25) << "lengthEffectiveAdjusted"
       << std::endl;
 
-    // Iterate over all hydraulic_output objects in depthdf and print them
+    // Iterate over all hydraulic_output objects in hyd_result and print them
     for (const auto &ho : *(this->hyd_result)) {
       TESTOUTPUT << std::setw(10) << ho->nodeID
         << std::setw(10) << ho->reachID

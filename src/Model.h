@@ -30,28 +30,27 @@ public:
   ~CModel();
 
   // Functions
-  void hyd_compute_profile();
+  void hyd_compute_profile();                                     // computes hydraulic profile for all streamnodes
+  void calc_output_flows();                                       // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
 
-  void calc_output_flows(); // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
-
-  void add_streamnode(CStreamnode*& pSN);
-  CStreamnode* get_streamnode_by_id(int sid);
-  CStreamnode *get_streamnode_by_stationname(std::string name);
-  int get_index_by_id(int id);
-  int get_hyd_res_index(int flow_ind, int sid);
+  void add_streamnode(CStreamnode*& pSN);                         // adds streamnode to bbsn and maps
+  CStreamnode* get_streamnode_by_id(int sid);                     // returns streamnode using id map
+  CStreamnode *get_streamnode_by_stationname(std::string name);   // returns streamnode using stationname map
+  int get_index_by_id(int id);                                    // returns streamnode index usind id map
+  int get_hyd_res_index(int flow_ind, int sid);                   // returns hyd_result index
 
   // I/O Functions defined in StandardOutput.cpp
   void WriteOutputFileHeaders(COptions*const& pOptions);
   void WriteMajorOutput(std::string solfile, bool final) const;
-  void WriteRasterOutput();
-  void WriteFullModel() const;
-  void hyd_result_pretty_print() const;
-  void hyd_result_pretty_print_csv() const;
+  void WriteRasterOutput();                                       // writes raster output to files
+  void WriteFullModel() const;                                    // writes full model data to testoutput
+  void hyd_result_pretty_print() const;                           // writes hyd_result to testoutput
+  void hyd_result_pretty_print_csv() const;                       // writes hyd_result to csv file
 
   // Raster Functions defined in Raster.cpp
-  void ReadRasterFiles();
-  void ReadRasterFile(std::string filename, CRaster &raster_obj);
-  void postprocess_floodresults();
+  void ReadRasterFiles();                                         // reads necessary raster files
+  void ReadRasterFile(std::string filename, CRaster &raster_obj); //reads specified raster file
+  void postprocess_floodresults();                                // postprocesses flood results based on bbopt method
 
 protected:
   // Private variables
@@ -60,7 +59,7 @@ protected:
   int flow;
 
   // Private functions
-  void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res);
+  void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res); // helper function uses in hyd_compute_profile
 };
 
 #endif

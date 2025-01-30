@@ -9,8 +9,8 @@
 /// \brief Parses Geometry file
 /// \details model.bbg: input file that defines geometry \n
 ///
-/// \param *&pModel [out] Reference to model object
-/// \param *&pOptions [out] Global model options information
+/// \param *&pModel [in/out] Reference to model object
+/// \param *&pOptions [in] Global model options information
 /// \return True if operation is successful
 //
 bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
@@ -63,7 +63,6 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":RedirectToFile")) { code = -3; }//redirect to secondary file
     //--------------------MODEL OPTIONS ------------------------
     else if (!strcmp(s[0], ":Streamnodes")) { code = 1; }
-    else if (!strcmp(s[0], ":RasterPaths")) { code = 2; }
 
     switch (code)
     {
@@ -259,18 +258,6 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
         }
       }
       break;
-    }
-    case(2):  //----------------------------------------------
-    { /*:RasterPaths*/
-      if (pOptions->noisy_run) { std::cout << "RasterPaths table..." << std::endl; }
-      bool done = false;
-      int row = 0;
-      if (Len != 1) { pp->ImproperFormat(s); }
-      else {
-        // store raster paths
-      }
-      break;
-
     }
     default://------------------------------------------------
     {

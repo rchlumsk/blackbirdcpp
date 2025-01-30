@@ -9,7 +9,7 @@ public:
   CReach();
 
   // Functions
-  void compute_basic_flow_properties(double flow, COptions *&bbopt);
+  void compute_basic_flow_properties(double flow, COptions *&bbopt); // computes flow properties for reach type streamnode
 };
 
 #endif

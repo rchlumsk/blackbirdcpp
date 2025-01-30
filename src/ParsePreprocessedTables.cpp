@@ -7,8 +7,8 @@
 /// \brief Parses Preprocessed Tables file
 /// \details model.bbp: input file that defines preprocessed hydraulic tables \n
 ///
-/// \param *&pModel [out] Reference to model object
-/// \param *&pOptions [out] Global model options information
+/// \param *&pModel [in/out] Reference to model object
+/// \param *&pOptions [in] Global model options information
 /// \return True if operation is successful
 //
 bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*const& pOptions)

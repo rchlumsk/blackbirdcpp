@@ -18,8 +18,8 @@ void ImproperFormatWarning(std::string command, CParser* p, bool noisy);
 ///   - \b [modelname].bbb: boundary conditions
 ///   - \b [modelname].bbg: model geometry
 ///
-/// \param *&pModel [in] The input model object
-/// \param *&pOptions [in] Global model options object
+/// \param *&pModel [in/out] The input model object
+/// \param *&pOptions [in/out] Global model options object
 /// \return Boolean variable indicating success of parsing
 //
 bool ParseInputFiles(CModel*& pModel,
@@ -67,8 +67,8 @@ bool ParseInputFiles(CModel*& pModel,
 /// a new model with all options and processes created.
 ///
 /// \param *filename [in] The fully-qualified file name of .bbi input file
-/// \param *&pModel [in] Input object that determines general model settings
-/// \param *&Options [in] Global model options information
+/// \param *&pModel [in/out] Input object that determines general model settings
+/// \param *&pOptions [in/out] Global model options information
 /// \return Boolean   value indicating success of parsing
 //
 bool ParseMainInputFile(CModel*& pModel,
