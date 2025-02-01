@@ -29,30 +29,124 @@ CStreamnode::CStreamnode()
   mm(new hydraulic_output) {
 }
 
-// Compute preprocessed depthdf
+// Copy constructor
+CStreamnode::CStreamnode(const CStreamnode& other)
+  : nodeID(other.nodeID),
+  nodetype(other.nodetype),
+  downnodeID(other.downnodeID),
+  upnodeID1(other.upnodeID1),
+  upnodeID2(other.upnodeID2),
+  stationname(other.stationname),
+  station(other.station),
+  reachID(other.reachID),
+  ds_reach_length(other.ds_reach_length),
+  us_reach_length1(other.us_reach_length1),
+  us_reach_length2(other.us_reach_length2),
+  contraction_coeff(other.contraction_coeff),
+  expansion_coeff(other.expansion_coeff),
+  min_elev(other.min_elev),
+  bed_slope(other.bed_slope),
+  depthdf(new std::vector<hydraulic_output*>),
+  upstream_flows(),
+  flow_sources(),
+  flow_sinks(),
+  output_depth(PLACEHOLDER),
+  output_flows(),
+  mm(new hydraulic_output(*(other.mm))) {
+  std::cout << other.stationname << std::endl;
+  std::cout << stationname << std::endl;
+  if (other.depthdf) {
+    for (auto ptr : *other.depthdf) {
+      depthdf->push_back(new hydraulic_output(*ptr));
+    }
+  }
+}
+
+// Copy assignment operator
+CStreamnode &CStreamnode::operator=(const CStreamnode &other) {
+  if (this == &other) {
+    return *this; // Handle self-assignment
+  }
+
+  nodeID = other.nodeID;
+  nodetype = other.nodetype;
+  downnodeID = other.downnodeID;
+  upnodeID1 = other.upnodeID1;
+  upnodeID2 = other.upnodeID2;
+  stationname = other.stationname;
+  station = other.station;
+  reachID = other.reachID;
+  ds_reach_length = other.ds_reach_length;
+  us_reach_length1 = other.us_reach_length1;
+  us_reach_length2 = other.us_reach_length2;
+  contraction_coeff = other.contraction_coeff;
+  expansion_coeff = other.expansion_coeff;
+  min_elev = other.min_elev;
+  bed_slope = other.bed_slope;
+  upstream_flows = other.upstream_flows;
+  flow_sources = other.flow_sources;
+  flow_sinks = other.flow_sinks;
+  output_depth = other.output_depth;
+  output_flows = other.output_flows;
+  mm = other.mm;
+
+  // Delete existing depthdf contents
+  if (depthdf) {
+    for (auto ptr : *depthdf) {
+      delete ptr;
+    }
+    delete depthdf;
+  }
+
+  // Deep copy new depthdf contents
+  if (other.depthdf) {
+    depthdf = new std::vector<hydraulic_output *>();
+    for (auto ptr : *other.depthdf) {
+      depthdf->push_back(new hydraulic_output(*ptr));
+    }
+  } else {
+    depthdf = nullptr;
+  }
+
+  return *this;
+}
+
+
+//////////////////////////////////////////////////////////////////
+/// \brief Compute preprocessed depth object
+//
 void CStreamnode::compute_preprocessed_depthdf() {
   // Logic to compute preprocessed depthdf
 }
 
-// Compute normal depth
-void CStreamnode::compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt) {
+//////////////////////////////////////////////////////////////////
+/// \brief Compute wsl based on parameters and streamnode member variables
+///
+/// \param flow [in] flow to be used in computations
+/// \param slope [in] slope to be used in computations
+/// \param init_wsl [in] initial water surface level to be used in computations
+/// \param *&bbopt [in] Global model options information
+/// \return wsl value computed
+//
+double CStreamnode::compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt) {
+  CStreamnode dupe = *this;
   if (init_wsl == -99) {
-    if (nodetype == enum_nodetype::XSECTION) {
-      double area_req = flow / 3;
+    if (dupe.nodetype == enum_nodetype::XSECTION) {
+      double area_req = flow / 3.;
       // optimization placeholder
-      init_wsl = mm->min_elev + 1;
+      init_wsl = dupe.mm->min_elev + 1;
     } else {
-      init_wsl = mm->min_elev + 1;
+      init_wsl = dupe.mm->min_elev + 1;
     }
   }
-
-  compute_profile(flow, init_wsl, bbopt);
-  mm->sf = slope;
-  mm->sf_avg = slope;
+  
+  dupe.compute_profile(flow, init_wsl, bbopt);
+  dupe.mm->sf = slope;
+  dupe.mm->sf_avg = slope;
 
   double err_lag1 = PLACEHOLDER,
          err_lag2 = PLACEHOLDER,
-         prevWSL_lag1 = mm->wsl,
+         prevWSL_lag1 = dupe.mm->wsl,
          prevWSL_lag2 = PLACEHOLDER;
   for (int i = 0; i < bbopt->iteration_limit_nd; i++) {
     if (!bbopt->silent_cp && i % 10 == 0) {
@@ -64,21 +158,21 @@ void CStreamnode::compute_normal_depth(double flow, double slope, double init_ws
       max_depth_change = 50;
     } else {
       prevWSL_lag2 = prevWSL_lag1;
-      prevWSL_lag1 = mm->wsl;
-      max_depth_change = 0.5 * (0.5 * (prevWSL_lag2 + prevWSL_lag1 - 2 * mm->min_elev));
+      prevWSL_lag1 = dupe.mm->wsl;
+      max_depth_change = 0.5 * (0.5 * (prevWSL_lag2 + prevWSL_lag1 - 2. * dupe.mm->min_elev));
 
-      compute_profile(flow, mm->wsl, bbopt);
-      mm->sf = slope;
-      mm->sf_avg = slope;
+      dupe.compute_profile(flow, dupe.mm->wsl, bbopt);
+      dupe.mm->sf = slope;
+      dupe.mm->sf_avg = slope;
     }
 
-    double rhs = mm->k_total * std::sqrt(slope);
-    double comp_wsl = mm->min_elev + ((mm->depth * flow) / rhs);
+    double rhs = dupe.mm->k_total * std::sqrt(slope);
+    double comp_wsl = dupe.mm->min_elev + ((dupe.mm->depth * flow) / rhs);
 
-    if (comp_wsl <= mm->min_elev) {
-      comp_wsl = mm->flow == 0
-                    ? mm->min_elev
-                    : std::max(mm->min_elev + 0.1, comp_wsl);
+    if (comp_wsl <= dupe.mm->min_elev) {
+      comp_wsl = dupe.mm->flow == 0
+                    ? dupe.mm->min_elev
+                    : std::max(dupe.mm->min_elev + 0.1, comp_wsl);
     }
 
     err_lag2 = err_lag1;
@@ -96,34 +190,40 @@ void CStreamnode::compute_normal_depth(double flow, double slope, double init_ws
 
       double proposed_wsl = PLACEHOLDER;
       if (i == 0) {
-        proposed_wsl = mm->wsl + 0.7 * err_lag1;
-        mm->wsl = std::abs(proposed_wsl - mm->wsl) > max_depth_change
-                      ? mm->wsl + (proposed_wsl - mm->wsl) * (max_depth_change / std::abs(proposed_wsl - mm->wsl))
+        proposed_wsl = dupe.mm->wsl + 0.7 * err_lag1;
+        dupe.mm->wsl = std::abs(proposed_wsl - dupe.mm->wsl) > max_depth_change
+                      ? dupe.mm->wsl + (proposed_wsl - dupe.mm->wsl) * (max_depth_change / std::abs(proposed_wsl - dupe.mm->wsl))
                       : proposed_wsl;
       } else {
         if (std::abs(err_diff) < 0.003 || i >= ((double)bbopt->iteration_limit_nd) / 2 || i >= 20) {
           proposed_wsl = std::abs(comp_wsl - prevWSL_lag1) > max_depth_change
                             ? prevWSL_lag1 + std::copysign(0.5 * max_depth_change, comp_wsl - prevWSL_lag1)
                             : (comp_wsl + prevWSL_lag1) / 2;
-          mm->wsl = proposed_wsl;
+          dupe.mm->wsl = proposed_wsl;
         } else {
           proposed_wsl = prevWSL_lag2 - (err_lag2 * assum_diff) / err_diff;
-          mm->wsl = std::abs(proposed_wsl - mm->wsl) > max_depth_change
-                        ? mm->wsl + (proposed_wsl - mm->wsl) * (max_depth_change / std::abs(proposed_wsl - mm->wsl))
+          dupe.mm->wsl = std::abs(proposed_wsl - dupe.mm->wsl) > max_depth_change
+                        ? dupe.mm->wsl + (proposed_wsl - dupe.mm->wsl) * (max_depth_change / std::abs(proposed_wsl - dupe.mm->wsl))
                         : proposed_wsl;
         }
       }
-      mm->depth = mm->wsl - mm->min_elev;
+      dupe.mm->depth = dupe.mm->wsl - dupe.mm->min_elev;
     } else {
       if (!bbopt->silent_nd) {
         std::cout << "Normal depth estimated successfully." << std::endl;
       }
-      return;
+      return dupe.mm->wsl;
     }
   }
+  return dupe.mm->wsl;
 }
 
-// Compute basic depth properties with interpolation
+//////////////////////////////////////////////////////////////////
+/// \brief Compute basic depth properties with interpolation
+///
+/// \param wsl [in] wsl to be used in computations
+/// \param *&bbopt [in] Global model options information
+//
 void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COptions*& bbopt) {
   ExitGracefullyIf(
       depthdf->size() == 0,
@@ -203,7 +303,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
   mm->length_effectiveadjusted = mm->length_effective;
 
   if (bbopt->roughness_multiplier != 1) {
-    mm->k_total /= bbopt->roughness_multiplier;
+    mm->k_total /= bbopt->roughness_multiplier; // check for 0?
     mm->manning_composite *= bbopt->roughness_multiplier;
   }
 
@@ -218,7 +318,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     if (mm->length_effective < reach_length * (1 - bbopt->delta_reachlength)) {
       std::cout << "Enforcing Leff on node with nodeID " + std::to_string(nodeID) << std::endl;
       mm->length_effectiveadjusted = reach_length * (1 - bbopt->delta_reachlength);
-      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective;
+      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective; // check for 0?
 
       mm->area *= leff_ratio;
       mm->wet_perimeter *= leff_ratio;
@@ -228,7 +328,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     } else if (mm->length_effective > reach_length * (1 + bbopt->delta_reachlength)) {
       std::cout << "Enforcing Leff on node with nodeID " + std::to_string(nodeID) << std::endl;
       mm->length_effectiveadjusted = reach_length * (1 + bbopt->delta_reachlength);
-      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective;
+      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective; // check for 0?
 
       mm->area *= leff_ratio;
       mm->wet_perimeter *= leff_ratio;
@@ -243,7 +343,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
   } else {
     reach_length = mm->reach_length_US1;
   }
-  mm->area *= mm->length_effective / reach_length;
+  mm->area *= mm->length_effective / reach_length; // check for 0?
   mm->wet_perimeter *= mm->length_effective / reach_length;
   mm->k_total *= mm->length_effective / reach_length;
   mm->top_width *= mm->length_effective / reach_length;
@@ -252,7 +352,13 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
   return;
 }
 
-// Compute profile
+//////////////////////////////////////////////////////////////////
+/// \brief Compute profile for streamnode
+///
+/// \param flow [in] flow to be used in computations
+/// \param wsl [in] wsl to be used in computations
+/// \param *&bbopt [in] Global model options information
+//
 void CStreamnode::compute_profile(double flow, double wsl, COptions *bbopt) {
   mm->flow = flow;
   mm->wsl = wsl;
@@ -270,12 +376,18 @@ void CStreamnode::compute_profile(double flow, double wsl, COptions *bbopt) {
 
   mm->depth = mm->wsl - mm->min_elev;
 
-  // assuming always use_preproc ?
   compute_basic_depth_properties_interpolation(mm->wsl, bbopt);
   compute_basic_flow_properties(mm->flow, bbopt);
 }
 
-// Compute next profile
+//////////////////////////////////////////////////////////////////
+/// \brief Compute profile for next streamnode
+///
+/// \param flow [in] flow to be used in computations
+/// \param wsl [in] wsl to be used in computations
+/// \param down_mm [in] mm of downstream node
+/// \param *&bbopt [in] Global model options information
+//
 void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt) {
   compute_profile(flow, wsl, bbopt);
 
@@ -292,16 +404,16 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
   if (bbopt->friction_slope_method == enum_fs_method::AVERAGE_CONVEYANCE) {
     if (mm->flow == PLACEHOLDER || down_mm->flow == PLACEHOLDER ||
         mm->k_total == PLACEHOLDER || down_mm->k_total == PLACEHOLDER) {
-      mm->sf_avg = (mm->sf + down_mm->sf) / 2;
+      mm->sf_avg = (mm->sf + down_mm->sf) / 2.;
     } else {
       mm->sf_avg = std::pow((mm->flow + down_mm->flow) / (mm->k_total + down_mm->k_total), 2.0);
     }
   } else if (bbopt->friction_slope_method == enum_fs_method::AVERAGE_FRICTION) {
-    mm->sf_avg = (mm->sf + down_mm->sf) / 2;
+    mm->sf_avg = (mm->sf + down_mm->sf) / 2.;
   } else if (bbopt->friction_slope_method == enum_fs_method::GEOMETRIC_FRICTION) {
     mm->sf_avg = std::sqrt(mm->sf * down_mm->sf);
   } else if (bbopt->friction_slope_method == enum_fs_method::HARMONIC_FRICTION) {
-    mm->sf_avg = 2 * mm->sf * down_mm->sf / (mm->sf + down_mm->sf);
+    mm->sf_avg = 2. * mm->sf * down_mm->sf / (mm->sf + down_mm->sf);
   } else if (bbopt->friction_slope_method == enum_fs_method::REACH_FRICTION) {
     if (bbopt->regimetype == enum_rt_method::SUBCRITICAL) {
       mm->sf_avg = down_mm->sf;
@@ -323,35 +435,58 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
   mm->head_loss =
       mm->length_energyloss * mm->sf_avg +
       loss_coeff *
-          std::abs(((mm->alpha * std::pow(mm->velocity, 2) / 2) / GRAVITY) -
-                   ((down_mm->alpha * std::pow(down_mm->velocity, 2) / 2) / GRAVITY));
+          std::abs(((mm->alpha * std::pow(mm->velocity, 2.) / 2.) / GRAVITY) -
+                   ((down_mm->alpha * std::pow(down_mm->velocity, 2.) / 2.) / GRAVITY));
 }
 
-// Function to add row to depthdf
+//////////////////////////////////////////////////////////////////
+/// \brief Add row to depthdf
+///
+/// \param row [in] row to be added
+//
 void CStreamnode::add_depthdf_row(hydraulic_output*& row) {
   depthdf->push_back(row);
   depthdf_map[row->depth] = depthdf->size() - 1;
 }
 
-// Returns row of depthdf with depth 'depth'
+//////////////////////////////////////////////////////////////////
+/// \brief Returns row of depthdf with depth 'depth'
+///
+/// \param depth [in] depth of desired row
+/// \return row of depthdf with depth 'depth'
+//
 hydraulic_output* CStreamnode::get_depthdf_row_from_depth(double depth) {
   return depthdf_map.find(depth) != depthdf_map.end() ? depthdf->at(depthdf_map[depth]) : NULL;
 }
 
-// Function to add flowprofile
+//////////////////////////////////////////////////////////////////
+/// \brief Add flowprofile to CStreamnode
+///
+/// \param flow [in] flow associated with flowprofile
+//
 void CStreamnode::add_steadyflow(double flow) {
   output_flows.push_back(flow);
   upstream_flows.push_back(HEADWATER);
 }
 
-// Adds source and sink at index
+//////////////////////////////////////////////////////////////////
+/// \brief Adds source and sink at index
+///
+/// \param index [in] index at which to add source and sink
+/// \param source [in] value of flow at source
+/// \param sink [in] value of flow at sink
+//
 void CStreamnode::add_sourcesink(int index, double source, double sink) {
   allocate_flowprofiles(index + 1);
   flow_sources[index] = source;
   flow_sinks[index] = sink;
 }
 
-// Calculates the output flows of the node
+//////////////////////////////////////////////////////////////////
+/// \brief Calculates the output flows of the node based on upstream flows, sources, and sinks
+///
+/// \param upflows [in] flow value contributed by upstream nodes
+//
 void CStreamnode::calc_output_flows(std::vector<double> upflows) {
   allocate_flowprofiles(upflows.size());
   for (int k = 0; k < upflows.size(); k++) {
@@ -360,7 +495,11 @@ void CStreamnode::calc_output_flows(std::vector<double> upflows) {
   }
 }
 
-// If necessary, allocates enough space in corresponding variables for num_fp flow profiles
+//////////////////////////////////////////////////////////////////
+/// \brief If necessary, allocates enough space in corresponding variables for num_fp flow profiles
+///
+/// \param num_fp [in] number of flow profiles needed
+//
 void CStreamnode::allocate_flowprofiles(int num_fp) {
   ExitGracefullyIf(num_fp == PLACEHOLDER, "Streamnode.cpp: ERROR num_fp was not assigned or is PLACEHOLDER", RUNTIME_ERR);
   while (upstream_flows.size() < num_fp) {
@@ -384,8 +523,9 @@ CStreamnode::~CStreamnode() {
     delete (*i);
     *i = nullptr;
   }
-  depthdf->clear();
-  depthdf->shrink_to_fit();
+  for (auto ptr : *depthdf) {
+    delete ptr;
+  }
   delete depthdf;
   depthdf = nullptr;
   delete mm;

@@ -75,83 +75,147 @@ inline void ExitGracefullyIf(bool condition, const char* statement, exitcode cod
 //Structures
 //*****************************************************************
 struct hydraulic_output {
-  int nodeID                       = PLACEHOLDER;
-  int reachID                      = PLACEHOLDER;
-  int downnodeID                   = PLACEHOLDER;
-  int upnodeID1                    = PLACEHOLDER;
-  int upnodeID2                    = PLACEHOLDER;
-  std::string stationname          = PLACEHOLDER_STR;
-  double station                   = PLACEHOLDER;
-  double reach_length_DS           = PLACEHOLDER;
-  double reach_length_US1          = PLACEHOLDER;
-  double reach_length_US2          = PLACEHOLDER;
-  double flow                      = PLACEHOLDER;
-  double flow_lob                  = PLACEHOLDER;
-  double flow_main                 = PLACEHOLDER;
-  double flow_rob                  = PLACEHOLDER;
-  double min_elev                  = PLACEHOLDER;
-  double wsl                       = PLACEHOLDER;
-  double depth                     = PLACEHOLDER;
-  double hyd_depth                 = PLACEHOLDER;
-  double hyd_depth_lob             = PLACEHOLDER;
-  double hyd_depth_main            = PLACEHOLDER;
-  double hyd_depth_rob             = PLACEHOLDER;
-  double top_width                 = PLACEHOLDER;
-  double top_width_lob             = PLACEHOLDER;
-  double top_width_main            = PLACEHOLDER;
-  double top_width_rob             = PLACEHOLDER;
-  double velocity                  = PLACEHOLDER;
-  double velocity_lob              = PLACEHOLDER;
-  double velocity_main             = PLACEHOLDER;
-  double velocity_rob              = PLACEHOLDER;
-  double k_total                   = PLACEHOLDER;
-  double k_lob                     = PLACEHOLDER;
-  double k_main                    = PLACEHOLDER;
-  double k_rob                     = PLACEHOLDER;
-  double alpha                     = PLACEHOLDER;
-  double area                      = PLACEHOLDER;
-  double area_lob                  = PLACEHOLDER;
-  double area_main                 = PLACEHOLDER;
-  double area_rob                  = PLACEHOLDER;
-  double hradius                   = PLACEHOLDER;
-  double hradius_lob               = PLACEHOLDER;
-  double hradius_main              = PLACEHOLDER;
-  double hradius_rob               = PLACEHOLDER;
-  double wet_perimeter             = PLACEHOLDER;
-  double wet_perimeter_lob         = PLACEHOLDER;
-  double wet_perimeter_main        = PLACEHOLDER;
-  double wet_perimeter_rob         = PLACEHOLDER;
-  double energy_total              = PLACEHOLDER;
-  double velocity_head             = PLACEHOLDER;
-  double froude                    = PLACEHOLDER;
-  double sf                        = PLACEHOLDER;
-  double sf_avg                    = PLACEHOLDER;
-  double sbed                      = PLACEHOLDER;
-  double length_effective          = PLACEHOLDER;
-  double head_loss                 = PLACEHOLDER;
-  double manning_lob               = PLACEHOLDER;
-  double manning_main              = PLACEHOLDER;
-  double manning_rob               = PLACEHOLDER;
-  double manning_composite         = PLACEHOLDER;
-  double k_total_areaconv          = PLACEHOLDER;
-  double k_total_roughconv         = PLACEHOLDER;
-  double k_total_disconv           = PLACEHOLDER;
-  double alpha_areaconv            = PLACEHOLDER;
-  double alpha_roughconv           = PLACEHOLDER;
-  double alpha_disconv             = PLACEHOLDER;
-  double nc_equalforce             = PLACEHOLDER;
-  double nc_equalvelocity          = PLACEHOLDER;
-  double nc_wavgwp                 = PLACEHOLDER;
-  double nc_wavgarea               = PLACEHOLDER;
-  double nc_wavgconv               = PLACEHOLDER;
-  double depth_critical            = PLACEHOLDER;
-  int cp_iterations                = PLACEHOLDER;
-  double k_err                     = PLACEHOLDER;
-  double ws_err                    = PLACEHOLDER;
-  double length_energyloss         = PLACEHOLDER;
-  double length_effectiveadjusted  = PLACEHOLDER;
-  double bed_slope                 = PLACEHOLDER;
+  int nodeID;
+  int reachID;
+  int downnodeID;
+  int upnodeID1;
+  int upnodeID2;
+  std::string stationname;
+  double station;
+  double reach_length_DS;
+  double reach_length_US1;
+  double reach_length_US2;
+  double flow;
+  double flow_lob;
+  double flow_main;
+  double flow_rob;
+  double min_elev;
+  double wsl;
+  double depth;
+  double hyd_depth;
+  double hyd_depth_lob;
+  double hyd_depth_main;
+  double hyd_depth_rob;
+  double top_width;
+  double top_width_lob;
+  double top_width_main;
+  double top_width_rob;
+  double velocity;
+  double velocity_lob;
+  double velocity_main;
+  double velocity_rob;
+  double k_total;
+  double k_lob;
+  double k_main;
+  double k_rob;
+  double alpha;
+  double area;
+  double area_lob;
+  double area_main;
+  double area_rob;
+  double hradius;
+  double hradius_lob;
+  double hradius_main;
+  double hradius_rob;
+  double wet_perimeter;
+  double wet_perimeter_lob;
+  double wet_perimeter_main;
+  double wet_perimeter_rob;
+  double energy_total;
+  double velocity_head;
+  double froude;
+  double sf;
+  double sf_avg;
+  double sbed;
+  double length_effective;
+  double head_loss;
+  double manning_lob;
+  double manning_main;
+  double manning_rob;
+  double manning_composite;
+  double k_total_areaconv;
+  double k_total_roughconv;
+  double k_total_disconv;
+  double alpha_areaconv;
+  double alpha_roughconv;
+  double alpha_disconv;
+  double nc_equalforce;
+  double nc_equalvelocity;
+  double nc_wavgwp;
+  double nc_wavgarea;
+  double nc_wavgconv;
+  double depth_critical;
+  int cp_iterations;
+  double k_err;
+  double ws_err;
+  double length_energyloss;
+  double length_effectiveadjusted;
+  double bed_slope;
+
+  // Constructor PLACEHOLDER variant
+  //hydraulic_output()
+  //    : nodeID(PLACEHOLDER), reachID(PLACEHOLDER), downnodeID(PLACEHOLDER),
+  //      upnodeID1(PLACEHOLDER), upnodeID2(PLACEHOLDER),
+  //      stationname(PLACEHOLDER_STR), station(PLACEHOLDER),
+  //      reach_length_DS(PLACEHOLDER), reach_length_US1(PLACEHOLDER),
+  //      reach_length_US2(PLACEHOLDER), flow(PLACEHOLDER), flow_lob(PLACEHOLDER),
+  //      flow_main(PLACEHOLDER), flow_rob(PLACEHOLDER), min_elev(PLACEHOLDER),
+  //      wsl(PLACEHOLDER), depth(PLACEHOLDER), hyd_depth(PLACEHOLDER),
+  //      hyd_depth_lob(PLACEHOLDER), hyd_depth_main(PLACEHOLDER),
+  //      hyd_depth_rob(PLACEHOLDER), top_width(PLACEHOLDER),
+  //      top_width_lob(PLACEHOLDER), top_width_main(PLACEHOLDER),
+  //      top_width_rob(PLACEHOLDER), velocity(PLACEHOLDER),
+  //      velocity_lob(PLACEHOLDER), velocity_main(PLACEHOLDER),
+  //      velocity_rob(PLACEHOLDER), k_total(PLACEHOLDER), k_lob(PLACEHOLDER),
+  //      k_main(PLACEHOLDER), k_rob(PLACEHOLDER), alpha(PLACEHOLDER),
+  //      area(PLACEHOLDER), area_lob(PLACEHOLDER), area_main(PLACEHOLDER),
+  //      area_rob(PLACEHOLDER), hradius(PLACEHOLDER), hradius_lob(PLACEHOLDER),
+  //      hradius_main(PLACEHOLDER), hradius_rob(PLACEHOLDER),
+  //      wet_perimeter(PLACEHOLDER), wet_perimeter_lob(PLACEHOLDER),
+  //      wet_perimeter_main(PLACEHOLDER), wet_perimeter_rob(PLACEHOLDER),
+  //      energy_total(PLACEHOLDER), velocity_head(PLACEHOLDER),
+  //      froude(PLACEHOLDER), sf(PLACEHOLDER), sf_avg(PLACEHOLDER),
+  //      sbed(PLACEHOLDER), length_effective(PLACEHOLDER),
+  //      head_loss(PLACEHOLDER), manning_lob(PLACEHOLDER),
+  //      manning_main(PLACEHOLDER), manning_rob(PLACEHOLDER),
+  //      manning_composite(PLACEHOLDER), k_total_areaconv(PLACEHOLDER),
+  //      k_total_roughconv(PLACEHOLDER), k_total_disconv(PLACEHOLDER),
+  //      alpha_areaconv(PLACEHOLDER), alpha_roughconv(PLACEHOLDER),
+  //      alpha_disconv(PLACEHOLDER), nc_equalforce(PLACEHOLDER),
+  //      nc_equalvelocity(PLACEHOLDER), nc_wavgwp(PLACEHOLDER),
+  //      nc_wavgarea(PLACEHOLDER), nc_wavgconv(PLACEHOLDER),
+  //      depth_critical(PLACEHOLDER), cp_iterations(PLACEHOLDER),
+  //      k_err(PLACEHOLDER), ws_err(PLACEHOLDER), length_energyloss(PLACEHOLDER),
+  //      length_effectiveadjusted(PLACEHOLDER), bed_slope(PLACEHOLDER) {}
+
+  // Constructor 0 variant
+  hydraulic_output()
+      : nodeID(0), reachID(0), downnodeID(0), upnodeID1(0), upnodeID2(0),
+        stationname(""), station(0.0), reach_length_DS(0.0),
+        reach_length_US1(0.0), reach_length_US2(0.0), flow(0.0), flow_lob(0.0),
+        flow_main(0.0), flow_rob(0.0), min_elev(0.0), wsl(0.0), depth(0.0),
+        hyd_depth(0.0), hyd_depth_lob(0.0), hyd_depth_main(0.0),
+        hyd_depth_rob(0.0), top_width(0.0), top_width_lob(0.0),
+        top_width_main(0.0), top_width_rob(0.0), velocity(0.0),
+        velocity_lob(0.0), velocity_main(0.0), velocity_rob(0.0), k_total(0.0),
+        k_lob(0.0), k_main(0.0), k_rob(0.0), alpha(0.0), area(0.0),
+        area_lob(0.0), area_main(0.0), area_rob(0.0), hradius(0.0),
+        hradius_lob(0.0), hradius_main(0.0), hradius_rob(0.0),
+        wet_perimeter(0.0), wet_perimeter_lob(0.0), wet_perimeter_main(0.0),
+        wet_perimeter_rob(0.0), energy_total(0.0), velocity_head(0.0),
+        froude(0.0), sf(0.0), sf_avg(0.0), sbed(0.0), length_effective(0.0),
+        head_loss(0.0), manning_lob(0.0), manning_main(0.0), manning_rob(0.0),
+        manning_composite(0.0), k_total_areaconv(0.0), k_total_roughconv(0.0),
+        k_total_disconv(0.0), alpha_areaconv(0.0), alpha_roughconv(0.0),
+        alpha_disconv(0.0), nc_equalforce(0.0), nc_equalvelocity(0.0),
+        nc_wavgwp(0.0), nc_wavgarea(0.0), nc_wavgconv(0.0), depth_critical(0.0),
+        cp_iterations(0), k_err(0.0), ws_err(0.0), length_energyloss(0.0),
+        length_effectiveadjusted(0.0), bed_slope(0.0) {}
+
+  // Copy Constructor
+  hydraulic_output(const hydraulic_output &other) = default;
 };
+
 
 //*****************************************************************
 //Enumerables

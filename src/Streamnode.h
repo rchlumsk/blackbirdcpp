@@ -33,13 +33,17 @@ public:
   // For internal use
   hydraulic_output *mm;
 
-  // Constructor and destructor
+  // Constructors and destructor
   CStreamnode();
+  CStreamnode(const CStreamnode &other);
   ~CStreamnode();
+
+  // Copy assignment operator
+  CStreamnode &operator=(const CStreamnode &other);
 
   // Functions
   void compute_preprocessed_depthdf();
-  void compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt);
+  double compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt);
   void compute_basic_depth_properties_interpolation(double wsl, COptions*& bbopt);
   void compute_profile(double flow, double wsl, COptions *bbopt);
   void compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt);

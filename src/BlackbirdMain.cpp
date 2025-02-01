@@ -87,7 +87,7 @@ int main(int argc, char* argv[])
   //Finished Solving----------------------------------------------------
   // Initialize test output file for writing to
   std::ofstream TESTOUTPUT;
-  TESTOUTPUT.open((pOptions->main_output_dir + "Blackbird_testoutput.txt").c_str());
+  TESTOUTPUT.open(pModel->FilenamePrepare("Blackbird_testoutput.txt").c_str());
   if (TESTOUTPUT.fail()) {
     ExitGracefully("Main::Unable to open Blackbird_testoutput.txt. Bad output directory specified?", BLACKBIRD_OPEN_ERR);
   }

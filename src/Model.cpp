@@ -21,6 +21,99 @@ CModel::CModel()
   // Default constructor implementation
 }
 
+// Copy constructor
+CModel::CModel(const CModel &other)
+    : hand_depth_seq(other.hand_depth_seq),
+      dhand_depth_seq(other.dhand_depth_seq), c_from_s(other.c_from_s),
+      hand(other.hand), handid(other.handid), dhand(other.dhand),
+      dhandid(other.dhandid), out_rasters(other.out_rasters),
+      streamnode_map(other.streamnode_map),
+      stationname_map(other.stationname_map), flow(other.flow) {
+  if (other.bbsn) {
+    bbsn = new std::vector<CStreamnode *>();
+    for (const auto &node : *other.bbsn) {
+      bbsn->push_back(new CStreamnode(*node));
+    }
+  } else {
+    bbsn = nullptr;
+  }
+
+  bbbc = other.bbbc ? new CBoundaryConditions(*other.bbbc) : nullptr;
+  bbopt = other.bbopt ? new COptions(*other.bbopt) : nullptr;
+
+  if (other.hyd_result) {
+    hyd_result = new std::vector<hydraulic_output *>();
+    for (const auto &res : *other.hyd_result) {
+      hyd_result->push_back(
+          new hydraulic_output(*res));
+    }
+  } else {
+    hyd_result = nullptr;
+  }
+}
+
+// Copy assignment operator
+CModel &CModel::operator=(const CModel &other) {
+  if (this == &other) {
+    return *this; // Handle self-assignment
+  }
+
+  if (bbsn) {
+    for (auto ptr : *bbsn) {
+      delete ptr;
+    }
+    delete bbsn;
+    bbsn = nullptr;
+  }
+  delete bbbc;
+  bbbc = nullptr;
+  delete bbopt;
+  bbopt = nullptr;
+  if (hyd_result) {
+    for (auto ptr : *hyd_result) {
+      delete ptr;
+    }
+    delete hyd_result;
+    hyd_result = nullptr;
+  }
+
+  hand_depth_seq = other.hand_depth_seq;
+  dhand_depth_seq = other.dhand_depth_seq;
+  c_from_s = other.c_from_s;
+  hand = other.hand;
+  handid = other.handid;
+  dhand = other.dhand;
+  dhandid = other.dhandid;
+  out_rasters = other.out_rasters;
+  streamnode_map = other.streamnode_map;
+  stationname_map = other.stationname_map;
+  flow = other.flow;
+
+  if (other.bbsn) {
+    bbsn = new std::vector<CStreamnode *>();
+    for (const auto &node : *other.bbsn) {
+      bbsn->push_back(new CStreamnode(*node));
+    }
+  } else {
+    bbsn = nullptr;
+  }
+
+  bbbc = other.bbbc ? new CBoundaryConditions(*other.bbbc) : nullptr;
+  bbopt = other.bbopt ? new COptions(*other.bbopt) : nullptr;
+
+  if (other.hyd_result) {
+    hyd_result = new std::vector<hydraulic_output *>();
+    for (const auto &res : *other.hyd_result) {
+      hyd_result->push_back(
+          new hydraulic_output(*res));
+    }
+  } else {
+    hyd_result = nullptr;
+  }
+
+  return *this;
+}
+
 //////////////////////////////////////////////////////////////////
 /// \brief Computes the hydraulic profile for the model
 //
@@ -54,7 +147,9 @@ void CModel::hyd_compute_profile() {
     flow = f;
     compute_streamnode(start_streamnode, start_streamnode, hyd_result);
   }
-  std::cout << "Successfully completed all hydraulic calculations :-)" << std::endl;
+  if (!bbopt->silent_cp) {
+    std::cout << "Successfully completed all hydraulic calculations :-)" << std::endl;
+  }
   flow = PLACEHOLDER;
   return;
 }
@@ -187,7 +282,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
   if (sn->nodeID == down_sn->nodeID) { // if so, assumes this is the boundary condition streamnode
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
-      sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt); //wsl
+      sn->mm->wsl = sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt);
     } else { // bbopt->modeltype != enum_mt_method::HAND_MANNING
       // estimate first streamnode from supplied boundary conditions
       switch (bbbc->bctype)
@@ -198,7 +293,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                        "reasonable slope, please check!",
                        bbopt->noisy_run);
         }
-        sn->compute_normal_depth(sn->mm->flow, bbbc->bcvalue, bbbc->init_WSL, bbopt); //wsl
+        sn->mm->wsl = sn->compute_normal_depth(sn->mm->flow, bbbc->bcvalue, bbbc->init_WSL, bbopt);
         sn->mm->sf = bbbc->bcvalue; // override sf from preproc
         break;
       }
@@ -231,7 +326,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
     sn->compute_profile(sn->mm->flow, sn->mm->wsl, bbopt);
   } else { // not boundary condition node
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
-      sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt); //wsl
+      sn->mm->wsl = sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt);
       sn->compute_profile(sn->mm->flow, sn->mm->wsl, bbopt);
     } else { // bbopt->modeltype != enum_mt_method::HAND_MANNING
       sn->mm->wsl = down_sn->mm->depth + sn->mm->min_elev; // best guess at upstream WSL, same depth applied to bottom bed elevation
@@ -285,7 +380,9 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
             if (min_err < 0.03 && sn->mm->froude <= bbopt->froude_threshold) {
               // keeping the min err result
-              std::cout << "setting to min error result on streamnode " << sn->nodeID << std::endl;
+              if (!bbopt->silent_cp) {
+                std::cout << "setting to min error result on streamnode " << sn->nodeID << std::endl;
+              }
             } else {
               // optimization placeholder
               double depth_critical = std::max(0.5, down_sn->mm->depth);
@@ -295,10 +392,15 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                 sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
                 sn->mm->ws_err = PLACEHOLDER;
                 sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
-                std::cout << "setting to critical depth result on streamnode " << sn->nodeID << std::endl;
+                if (!bbopt->silent_cp) {
+                  std::cout << "setting to critical depth result on streamnode " << sn->nodeID << std::endl;
+                }
               } else {
-                std::cout << "Failed to get critical depth at streamnode "
-                          << sn->nodeID << ", keeping lowest err result" << std::endl;
+                if (!bbopt->silent_cp) {
+                  std::cout << "Failed to get critical depth at streamnode "
+                            << sn->nodeID << ", keeping lowest err result"
+                            << std::endl;
+                }
                 break;
               }
             }
@@ -340,7 +442,9 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
             }
             break;
           } else {
-            std::cout << "need to check crit depth" << std::endl;
+            if (!bbopt->silent_cp) {
+              std::cout << "need to check crit depth" << std::endl;
+            }
             // need to compute critical depth at streamnode
             // optimization placeholder
             double depth_critical = std::max(0.5, down_sn->mm->depth);
@@ -350,10 +454,14 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               if (sn->mm->depth < sn->mm->depth_critical) {
                 if (found_supercritical) {
                   sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
-                  std::cout << "setting to supercritical" << std::endl;
+                  if (!bbopt->silent_cp) {
+                    std::cout << "setting to supercritical" << std::endl;
+                  }
                   break;
                 } else {
-                  std::cout << "first time with supercritical, resetting" << std::endl;
+                  if (!bbopt->silent_cp) {
+                    std::cout << "first time with supercritical, resetting" << std::endl;
+                  }
                   sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical + 1, down_sn->mm, bbopt);
                   i = 0;
                   min_err = PLACEHOLDER;
@@ -416,8 +524,6 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   if (sn->mm->cp_iterations != PLACEHOLDER && sn->mm->cp_iterations > bbopt->iteration_limit_cp) {
     WriteWarning("Iteration limit hit at streamnode " + std::to_string(sn->nodeID) + ", consider increasing bbopt->iteration_limit_cp", bbopt->noisy_run);
   }
-
-  std::cout << "Successfully completed all hydraulic calculations :-)" << std::endl;
   
   // recursively call compute_streamnode for upstream streamnodes
   CStreamnode *temp_sn = get_streamnode_by_id(sn->upnodeID1);
@@ -563,22 +669,22 @@ void CModel::postprocess_floodresults() {
 
 // Destructor
 CModel::~CModel() {
-  for (std::vector<CStreamnode *>::iterator i = bbsn->begin(); i != bbsn->end(); i++) {
-    delete (*i);
-    *i = nullptr;
+  if (bbsn) {
+    for (auto ptr : *bbsn) {
+      delete ptr;
+    }
+    delete bbsn;
+    bbsn = nullptr;
   }
-  bbsn->clear();
-  bbsn->shrink_to_fit();
-  delete bbsn;
-  bbsn = nullptr;
   delete bbbc;
   bbbc = nullptr;
   delete bbopt;
   bbopt = nullptr;
-  for (std::vector<hydraulic_output*>::iterator i = hyd_result->begin(); i != hyd_result->end(); i++) {
-    delete (*i);
-    *i = nullptr;
+  if (hyd_result) {
+    for (auto ptr : *hyd_result) {
+      delete ptr;
+    }
+    delete hyd_result;
+    hyd_result = nullptr;
   }
-  delete hyd_result;
-  hyd_result = nullptr;
 }

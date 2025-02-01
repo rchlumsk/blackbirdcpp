@@ -6,7 +6,7 @@
 class CXSection : public CStreamnode {
 public:
   // Member variables specific to CXSection
-  std::valarray<double> xx;
+  std::valarray <double> xx;
   std::valarray <double> zz;
   std::valarray <double> manning;
   double manning_LOB;
@@ -18,8 +18,12 @@ public:
   double ds_length_main;
   double ds_length_ROB;
 
-  // Constructor
+  // Constructors
   CXSection();
+  CXSection(const CXSection &other);
+
+  // Copy assignment operator
+  CXSection &operator=(const CXSection &other);
 
   // Functions
   double calc_min_elev();

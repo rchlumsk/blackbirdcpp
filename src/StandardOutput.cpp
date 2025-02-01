@@ -14,12 +14,12 @@
 /// \brief Returns filebase prepended with output directory & prefix
 /// \param filebase [in] base filename, with extension, no directory information
 //
-std::string FilenamePrepare(std::string filebase) {
+std::string CModel::FilenamePrepare(std::string filebase) const {
   std::string fn;
-  if (Options->run_name == "") {
-    fn = Options->main_output_dir + filebase;
+  if (bbopt->run_name == PLACEHOLDER_STR || bbopt->run_name == "") {
+    fn = bbopt->main_output_dir + filebase;
   } else {
-    fn = Options->main_output_dir + Options->run_name + "_" + filebase;
+    fn = bbopt->main_output_dir + bbopt->run_name + "_" + filebase;
   }
   return fn;
 }
@@ -59,9 +59,9 @@ void CModel::WriteRasterOutput()
     return;
   }
   for (int i = 0; i < out_rasters.size(); i++) {
-    std::string filepath =
-        bbopt->main_output_dir + "/bb_results_" + std::to_string(i) + "_" + toString(bbopt->modeltype) +
-        "_" + toString(bbopt->interpolation_postproc_method) + "_depth.tif";
+    std::string filepath = FilenamePrepare(
+        "bb_results_" + std::to_string(i) + "_" + toString(bbopt->modeltype) +
+        "_" + toString(bbopt->interpolation_postproc_method) + "_depth.tif");
     out_rasters[i].WriteToFile(filepath);
   }
 }
@@ -104,7 +104,7 @@ void CModel::WriteFullModel() const
 {
   if (bbopt->noisy_run) { std::cout << "  Writing Test Output File full model..." << std::endl; }
   std::ofstream TESTOUTPUT;
-  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
+  TESTOUTPUT.open(FilenamePrepare("Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "===================== Full Model =====================" << std::endl;
   TESTOUTPUT << "\n================== Model ==================" << std::endl;
   TESTOUTPUT << std::left << std::setw(35) << "Hand Depth Sequence:";
@@ -419,8 +419,7 @@ void CModel::hyd_result_pretty_print() const
     std::cout << "  Writing Test Output File hyd_result..." << std::endl;
   }
   std::ofstream TESTOUTPUT;
-  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(),
-                  std::ios::app);
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "===================== Hydraulic Output =====================" << std::endl;
   if (this->hyd_result) {
     // Print headers for the hydraulic_output table
@@ -590,7 +589,7 @@ void CModel::hyd_result_pretty_print() const
 //
 void CModel::hyd_result_pretty_print_csv() const
 {
-  std::string tmpFilename = FilenamePrepare("HydraulicOutput.csv", bbopt);
+  std::string tmpFilename = FilenamePrepare("HydraulicOutput.csv");
   std::ofstream HYD_OUTPUT;
   HYD_OUTPUT.open(tmpFilename.c_str());
   if (HYD_OUTPUT.fail()) {

@@ -17,6 +17,9 @@ public:
   CRaster(const CRaster& other);
   ~CRaster();
 
+  // Copy assignment operator
+  CRaster &operator=(const CRaster &other);
+
   // Member functions
   void WriteToFile(std::string filepath); // defined in StandardOutput.cpp
 };

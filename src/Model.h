@@ -25,9 +25,13 @@ public:
   std::vector<hydraulic_output *> *hyd_result;  // hydraulic outputs here reference 
   std::vector<CRaster> out_rasters;             // output depth raster objects to be written to file
 
-  // Constructor and destructor
+  // Constructors and destructor
   CModel();
+  CModel(const CModel &other);
   ~CModel();
+
+  // Copy assignment operator
+  CModel &operator=(const CModel &other);
 
   // Functions
   void hyd_compute_profile();                                     // computes hydraulic profile for all streamnodes
@@ -40,6 +44,7 @@ public:
   int get_hyd_res_index(int flow_ind, int sid);                   // returns hyd_result index
 
   // I/O Functions defined in StandardOutput.cpp
+  std::string FilenamePrepare(std::string filebase) const;        // attaches main_output_dir folder and run_name to filebase
   void WriteOutputFileHeaders(COptions*const& pOptions);
   void WriteMajorOutput(std::string solfile, bool final) const;
   void WriteRasterOutput();                                       // writes raster output to files

@@ -16,12 +16,52 @@ CXSection::CXSection()
   ds_length_ROB(PLACEHOLDER) {
 }
 
-// Calculate minimum elevation
+// Copy constructor
+CXSection::CXSection(const CXSection &other)
+    : CStreamnode(other), xx(other.xx), zz(other.zz), manning(other.manning),
+      manning_LOB(other.manning_LOB), manning_main(other.manning_main),
+      manning_ROB(other.manning_ROB), lbs_xx(other.lbs_xx),
+      rbs_xx(other.rbs_xx), ds_length_LOB(other.ds_length_LOB),
+      ds_length_main(other.ds_length_main), ds_length_ROB(other.ds_length_ROB) {
+}
+
+// Copy assignment operator
+CXSection &CXSection::operator=(const CXSection &other) {
+  if (this == &other) {
+    return *this; // Handle self-assignment
+  }
+
+  CStreamnode::operator=(other); // Copy base class members
+  xx = other.xx;
+  zz = other.zz;
+  manning = other.manning;
+  manning_LOB = other.manning_LOB;
+  manning_main = other.manning_main;
+  manning_ROB = other.manning_ROB;
+  lbs_xx = other.lbs_xx;
+  rbs_xx = other.rbs_xx;
+  ds_length_LOB = other.ds_length_LOB;
+  ds_length_main = other.ds_length_main;
+  ds_length_ROB = other.ds_length_ROB;
+
+  return *this;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Compute minimum elevation
+///
+/// \return minimum elevation
+//
 double CXSection::calc_min_elev() {
   return min_elev;
 }
 
-// Compute basic depth properties
+//////////////////////////////////////////////////////////////////
+/// \brief Compute basic depth properties
+///
+/// \param wsl [in] water surface level to be used in computations
+/// \param *&bbopt [in] Global model options information
+//
 void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
   if (bbopt->manning_enforce_values && (manning_LOB == PLACEHOLDER || manning_main == PLACEHOLDER || manning_ROB == PLACEHOLDER)) {
     WriteWarning("XSection.cpp: compute_basic_depth_properties: "
@@ -105,8 +145,7 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
   }
 
   std::valarray<double> area;
-  if (bbopt->xsection_conveyance_method !=
-      enum_xsc_method::DISCRETIZED_CONVEYANCE_XS) {
+  if (bbopt->xsection_conveyance_method != enum_xsc_method::DISCRETIZED_CONVEYANCE_XS) {
     area.resize(t_xx.size());
     area[t_xx.size() - 1] = 0;
     for (int i = 0; i < t_xx.size() - 1; i++) {
@@ -149,8 +188,8 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
                        "top_width was negative",
                        bbopt->noisy_run);
         }
-        wet_per[i] = std::sqrt(std::pow(t_xx[i + 1] - t_xx[i], 2) +
-                               std::pow(t_zz[i + 1] - t_zz[i], 2));
+        wet_per[i] = std::sqrt(std::pow(t_xx[i + 1] - t_xx[i], 2.) +
+                               std::pow(t_zz[i + 1] - t_zz[i], 2.));
       } else {
         top_width[i] = std::abs(t_xx[i + 1] - t_xx[i]) *
                        (mm->wsl - std::min(t_zz[i], t_zz[i + 1]) /
@@ -161,8 +200,8 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
                        bbopt->noisy_run);
         }
         wet_per[i] =
-            std::sqrt(std::pow(top_width[i], 2) +
-                      std::pow(mm->wsl - std::min(t_zz[i], t_zz[i + 1]), 2));
+            std::sqrt(std::pow(top_width[i], 2.) +
+                      std::pow(mm->wsl - std::min(t_zz[i], t_zz[i + 1]), 2.));
       }
     }
     top_width[notind] = 0;
@@ -243,15 +282,15 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     mm->k_rob = (1. / manning_ROB) * mm->area_rob * std::pow(mm->hradius_rob, 2. / 3.);
     mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
     double fac1 = mm->area_lob != 0
-                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      ? std::pow(mm->k_lob, 3.) / std::pow(mm->area_lob, 2.)
                       : 0;
     double fac2 = mm->area_main != 0
-                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      ? std::pow(mm->k_main, 3.) / std::pow(mm->area_main, 2.)
                       : 0;
     double fac3 = mm->area_rob != 0
-                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      ? std::pow(mm->k_rob, 3.) / std::pow(mm->area_rob, 2.)
                       : 0;
-    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+    mm->alpha = (std::pow(mm->area, 2.) / std::pow(mm->k_total, 3.)) * (fac1 + fac2 + fac3);
   } else if (bbopt->xsection_conveyance_method == enum_xsc_method::DEFAULT_CONVEYANCE){
     std::valarray<int> roughness_zones(t_xx.size());
     roughness_zones[0] = 1;
@@ -313,15 +352,15 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     mm->k_rob = ((std::valarray<double>)conv[ind_rob]).sum();
     mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
     double fac1 = mm->area_lob != 0
-                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      ? std::pow(mm->k_lob, 3.) / std::pow(mm->area_lob, 2.)
                       : 0;
     double fac2 = mm->area_main != 0
-                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      ? std::pow(mm->k_main, 3.) / std::pow(mm->area_main, 2.)
                       : 0;
     double fac3 = mm->area_rob != 0
-                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      ? std::pow(mm->k_rob, 3.) / std::pow(mm->area_rob, 2.)
                       : 0;
-    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+    mm->alpha = (std::pow(mm->area, 2.) / std::pow(mm->k_total, 3.)) * (fac1 + fac2 + fac3);
   } else if (bbopt->xsection_conveyance_method == enum_xsc_method::COORDINATE_CONVEYANCE){
     std::valarray<double> conv(t_xx.size());
     temp_t_nn = t_nn;
@@ -335,41 +374,41 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     mm->k_rob = ((std::valarray<double>)conv[ind_rob]).sum();
     mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
     double fac1 = mm->area_lob != 0
-                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      ? std::pow(mm->k_lob, 3.) / std::pow(mm->area_lob, 2.)
                       : 0;
     double fac2 = mm->area_main != 0
-                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      ? std::pow(mm->k_main, 3.) / std::pow(mm->area_main, 2.)
                       : 0;
     double fac3 = mm->area_rob != 0
-                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      ? std::pow(mm->k_rob, 3.) / std::pow(mm->area_rob, 2.)
                       : 0;
-    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+    mm->alpha = (std::pow(mm->area, 2.) / std::pow(mm->k_total, 3.)) * (fac1 + fac2 + fac3);
   } else if (bbopt->xsection_conveyance_method == enum_xsc_method::AREAWEIGHTED_CONVEYANCE){
     std::valarray<double> sum = area / t_nn;
     temp_t_nn = t_nn;
     mm->k_lob = mm->wet_perimeter_lob != 0
                     ? ((std::valarray<double>)sum[ind_lob]).sum() *
-                          std::pow(mm->area_lob / mm->wet_perimeter_lob, 2 / 3)
+                          std::pow(mm->area_lob / mm->wet_perimeter_lob, 2. / 3.)
                     : 0;
     mm->k_main = mm->wet_perimeter_main != 0
                      ? ((std::valarray<double>)sum[ind_main]).sum() *
-                           std::pow(mm->area_main / mm->wet_perimeter_main, 2 / 3)
+                           std::pow(mm->area_main / mm->wet_perimeter_main, 2. / 3.)
                      : 0;
     mm->k_rob = mm->wet_perimeter_rob != 0
                     ? ((std::valarray<double>)sum[ind_rob]).sum() *
-                          std::pow(mm->area_rob / mm->wet_perimeter_rob, 2 / 3)
+                          std::pow(mm->area_rob / mm->wet_perimeter_rob, 2. / 3.)
                     : 0;
     mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
     double fac1 = mm->area_lob != 0
-                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      ? std::pow(mm->k_lob, 3.) / std::pow(mm->area_lob, 2.)
                       : 0;
     double fac2 = mm->area_main != 0
-                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      ? std::pow(mm->k_main, 3.) / std::pow(mm->area_main, 2.)
                       : 0;
     double fac3 = mm->area_rob != 0
-                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      ? std::pow(mm->k_rob, 3.) / std::pow(mm->area_rob, 2.)
                       : 0;
-    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+    mm->alpha = (std::pow(mm->area, 2.) / std::pow(mm->k_total, 3.)) * (fac1 + fac2 + fac3);
   } else if (bbopt->xsection_conveyance_method == enum_xsc_method::AREAWEIGHTED_CONVEYANCE_ONECALC_XS){
     std::valarray<double> sum = area / t_nn;
     temp_t_nn = t_nn;
@@ -388,15 +427,15 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     mm->k_total = mm->k_lob + mm->k_main + mm->k_rob;
     temp_t_nn = t_nn;
     double fac1 = mm->area_lob != 0
-                      ? std::pow(mm->k_lob, 3) / std::pow(mm->area_lob, 2)
+                      ? std::pow(mm->k_lob, 3.) / std::pow(mm->area_lob, 2.)
                       : 0;
     double fac2 = mm->area_main != 0
-                      ? std::pow(mm->k_main, 3) / std::pow(mm->area_main, 2)
+                      ? std::pow(mm->k_main, 3.) / std::pow(mm->area_main, 2.)
                       : 0;
     double fac3 = mm->area_rob != 0
-                      ? std::pow(mm->k_rob, 3) / std::pow(mm->area_rob, 2)
+                      ? std::pow(mm->k_rob, 3.) / std::pow(mm->area_rob, 2.)
                       : 0;
-    mm->alpha = (std::pow(mm->area, 2) / std::pow(mm->k_total, 3)) * (fac1 + fac2 + fac3);
+    mm->alpha = (std::pow(mm->area, 2.) / std::pow(mm->k_total, 3.)) * (fac1 + fac2 + fac3);
   }
 
   mm->length_effective = (ds_length_LOB * mm->k_lob + ds_length_main * mm->k_main + ds_length_ROB * mm->k_rob) / mm->k_total;
@@ -410,9 +449,9 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     if (bbopt->manning_composite_method == enum_mc_method::EQUAL_FORCE) {
       mm->manning_composite =
           std::sqrt((1. / mm->wet_perimeter) *
-                    (mm->wet_perimeter_lob * std::pow(mm->manning_lob, 2) +
-                     mm->wet_perimeter_main * std::pow(mm->manning_main, 2) +
-                     mm->wet_perimeter_rob * std::pow(mm->manning_rob, 2)));
+                    (mm->wet_perimeter_lob * std::pow(mm->manning_lob, 2.) +
+                     mm->wet_perimeter_main * std::pow(mm->manning_main, 2.) +
+                     mm->wet_perimeter_rob * std::pow(mm->manning_rob, 2.)));
     } else if (bbopt->manning_composite_method == enum_mc_method::WEIGHTED_AVERAGE_AREA) {
       mm->manning_composite = (mm->area_lob * mm->manning_lob +
                                mm->area_main * mm->manning_main +
@@ -438,7 +477,7 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     }
   } else {
     if (bbopt->manning_composite_method == enum_mc_method::EQUAL_FORCE) {
-      std::valarray<double> temp_coeff = wet_per * std::pow(temp_t_nn, 2);
+      std::valarray<double> temp_coeff = wet_per * std::pow(temp_t_nn, 2.);
       mm->manning_lob = std::sqrt((1. / mm->wet_perimeter_lob) * ((std::valarray<double>)temp_coeff[ind_lob]).sum());
       mm->manning_main = std::sqrt((1. / mm->wet_perimeter_main) * ((std::valarray<double>)temp_coeff[ind_main]).sum());
       mm->manning_rob = std::sqrt((1. / mm->wet_perimeter_rob) * ((std::valarray<double>)temp_coeff[ind_rob]).sum());
@@ -483,7 +522,12 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
   }
 }
 
-// Compute basic flow properties
+//////////////////////////////////////////////////////////////////
+/// \brief Compute basic flow properties
+///
+/// \param flow [in] flow to be used in computations
+/// \param *&bbopt [in] Global model options information
+//
 void CXSection::compute_basic_flow_properties(double flow, COptions *&bbopt) {
   mm->flow = flow;
   mm->flow_lob = mm->flow * mm->k_lob / mm->k_total;
@@ -501,13 +545,16 @@ void CXSection::compute_basic_flow_properties(double flow, COptions *&bbopt) {
                          ? mm->flow_rob / mm->area_rob
                          : 0;
 
-  mm->velocity_head = (mm->alpha * pow(mm->velocity, 2) / 2) / GRAVITY;
+  mm->velocity_head = (mm->alpha * pow(mm->velocity, 2.) / 2.) / GRAVITY;
   mm->energy_total = mm->velocity_head + mm->wsl;
   mm->froude = mm->velocity / std::sqrt(GRAVITY * mm->hyd_depth);
-  mm->sf = mm->k_total != 0 ? pow(mm->flow / mm->k_total, 2) : 0;
+  mm->sf = mm->k_total != 0 ? pow(mm->flow / mm->k_total, 2.) : 0;
 }
 
-// Calculate flow area
+//////////////////////////////////////////////////////////////////
+/// \brief Calculate flow area
+/// \return flow area
+//
 double CXSection::calculate_flow_area() {
   return 0;
 }
