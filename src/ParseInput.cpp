@@ -136,7 +136,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":RegimeType")) { code = 3; }
     else if (!strcmp(s[0], ":Tolerance")) { code = 4; }
     else if (!strcmp(s[0], ":IterationLimit")) { code = 5; }
-    else if (!strcmp(s[0], ":WSLSplitNormalDepth")) { code = 6; }
+    else if (!strcmp(s[0], ":WSLSplit")) { code = 6; }
     else if (!strcmp(s[0], ":ToleranceNormalDepth")) { code = 7; }
     else if (!strcmp(s[0], ":IterationLimitNormalDepth")) { code = 8; }
     else if (!strcmp(s[0], ":WSLSplitNormalDepth")) { code = 9; }
@@ -189,25 +189,25 @@ bool ParseMainInputFile(CModel*& pModel,
     }
     case(-4):  //----------------------------------------------
     {/*:RedirectToFile*/
-      //std::string filename = "";
-      //for (int i = 1;i < Len;i++) { filename += s[i]; if (i < Len - 1) { filename += ' '; } }
-      //if (pOptions->noisy_run) { std::cout << "Redirect to file: " << filename << std::endl; }
+      std::string filename = "";
+      for (int i = 1;i < Len;i++) { filename += s[i]; if (i < Len - 1) { filename += ' '; } }
+      if (pOptions->noisy_run) { std::cout << "Redirect to file: " << filename << std::endl; }
 
-      //filename = CorrectForRelativePath(filename, Options.rvt_filename);
+      filename = CorrectForRelativePath(filename, pOptions->bbi_filename);
 
-      //INPUT2.open(filename.c_str());
-      //if (INPUT2.fail()) {
-      //  std::string warn = ":RedirectToFile: Cannot find file " + filename;
-      //  ExitGracefully(warn.c_str(), BAD_DATA);
-      //}
-      //else {
-      //  if (pMainParser != NULL) {
-      //      ExitGracefully("ParseMainInputFile::nested :RedirectToFile commands (in already redirected files) are not allowed.", BAD_DATA);
-      //  }
-      //  pMainParser = p;    //save pointer to primary parser
-      //  p = new CParser(INPUT2, filename, line);//open new parser
-      //}
-      //break;
+      INPUT2.open(filename.c_str());
+      if (INPUT2.fail()) {
+        std::string warn = "ParseMainInputFile: :RedirectToFile: Cannot find file " + filename;
+        ExitGracefully(warn.c_str(), BAD_DATA);
+      }
+      else {
+        if (pMainParser != NULL) {
+            ExitGracefully("ParseMainInputFile::nested :RedirectToFile commands (in already redirected files) are not allowed.", BAD_DATA);
+        }
+        pMainParser = p;    //save pointer to primary parser
+        p = new CParser(INPUT2, filename, line);//open new parser
+      }
+      break;
     }
     case(1):
     {/*:ModelName [string name]*/

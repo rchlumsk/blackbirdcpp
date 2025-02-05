@@ -526,6 +526,11 @@ void          WriteWarning(const std::string warn, bool noisy);
 void          WriteAdvisory(const std::string warn, bool noisy);
 double        fast_s_to_d(const char* s);
 
+// I/O Functions-----------------------------------------------
+// defined in StandardOutput.cpp
+std::string GetDirectoryName(const std::string &fname);
+std::string CorrectForRelativePath(const std::string filename, const std::string relfile);
+
 #ifdef _WIN32
 #include <direct.h>
 #define GetCurrentDir _getcwd

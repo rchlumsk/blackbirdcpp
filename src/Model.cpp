@@ -546,14 +546,16 @@ void CModel::ReadRasterFiles() {
 
   ReadRasterFile(bbopt->raster_folder + "/bb_catchments_fromstreamnodes.tif",
                  c_from_s);
+  c_from_s.name = "Catchments from Streamnodes";
   if (!bbopt->use_dhand) {
     ReadRasterFile(bbopt->raster_folder + "/bb_hand.tif", hand);
+    hand.name = "HAND";
     if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
         bbopt->interpolation_postproc_method ==
             enum_ppi_method::INTERP_DHAND_WSLCORR ||
         bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-      ReadRasterFile(bbopt->raster_folder + "/bb_hand_pourpoint_id.tif",
-                     handid);
+      ReadRasterFile(bbopt->raster_folder + "/bb_hand_pourpoint_id.tif", handid);
+      handid.name = "HAND ID";
     }
   } else { // use dhand
     for (auto d : dhand_depth_seq) {
@@ -563,6 +565,7 @@ void CModel::ReadRasterFiles() {
       ReadRasterFile(bbopt->raster_folder + "/bb_dhand_depth_" + stream.str() +
                          "m.tif",
                      dhand.back());
+      dhand.back().name = "DHAND " + stream.str();
       if (bbopt->interpolation_postproc_method ==
               enum_ppi_method::INTERP_DHAND ||
           bbopt->interpolation_postproc_method ==
@@ -573,6 +576,7 @@ void CModel::ReadRasterFiles() {
         ReadRasterFile(bbopt->raster_folder + "/bb_dhand_pourpoint_id_depth_" +
                            stream.str() + "m.tif",
                        dhand.back());
+        dhandid.back().name = "DHAND ID " + stream.str();
       }
     }
   }
@@ -590,7 +594,15 @@ void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
       static_cast<GDALDataset *>(GDALOpen(filename.c_str(), GA_ReadOnly));
   raster_obj.xsize = dataset->GetRasterXSize();
   raster_obj.ysize = dataset->GetRasterYSize();
-  raster_obj.proj = dataset->GetProjectionRef();
+
+  if (dataset->GetProjectionRef() != nullptr) {
+    size_t len = strlen(dataset->GetProjectionRef()) + 1;
+    raster_obj.proj = new char[len];
+    memcpy(raster_obj.proj, dataset->GetProjectionRef(), len);
+  } else {
+    raster_obj.proj = nullptr;
+  }
+
   dataset->GetGeoTransform(raster_obj.geotrans);
   ExitGracefullyIf(
       dataset == nullptr,
@@ -639,20 +651,13 @@ void CModel::postprocess_floodresults() {
     if (bbopt->interpolation_postproc_method ==
         enum_ppi_method::CATCHMENT_HAND) { // maybe make more checks on validity
                                            // of data
-      CRaster result;
-      result.xsize = hand.xsize;
-      result.ysize = hand.ysize;
-      result.na_val = hand.na_val;
-      result.proj = hand.proj;
-      for (int j = 0; j < std::size(result.geotrans); j++) {
-        result.geotrans[j] = hand.geotrans[j];
-      }
-      result.datatype = hand.datatype;
-      result.data = static_cast<double *>(CPLMalloc(sizeof(double) * result.xsize * result.ysize));
+      CRaster result = hand;
+      result.name = "Result " + std::to_string(i + 1);
       std::fill(result.data, result.data + (result.xsize * result.ysize), 0.0);
       for (int j = 0; j < result.xsize * result.ysize; j++) {
-        if (c_from_s.data[j] != c_from_s.na_val && hand.data[j] != hand.na_val) {
-          result.data[j] = (*hyd_result)[get_hyd_res_index(i, c_from_s.data[j])]->depth - hand.data[j];
+        double curr_depth = (*hyd_result)[get_hyd_res_index(i, c_from_s.data[j])]->depth;
+        if (c_from_s.data[j] != c_from_s.na_val && hand.data[j] != hand.na_val && c_from_s.data[j] && curr_depth >= hand.data[j]) {
+          result.data[j] = curr_depth - hand.data[j];
         } else {
           result.data[j] = result.na_val;
         }

@@ -14,7 +14,8 @@
 /// \brief Returns filebase prepended with output directory & prefix
 /// \param filebase [in] base filename, with extension, no directory information
 //
-std::string CModel::FilenamePrepare(std::string filebase) const {
+std::string CModel::FilenamePrepare(std::string filebase) const
+{
   std::string fn;
   if (bbopt->run_name == PLACEHOLDER_STR || bbopt->run_name == "") {
     fn = bbopt->main_output_dir + filebase;
@@ -22,6 +23,60 @@ std::string CModel::FilenamePrepare(std::string filebase) const {
     fn = bbopt->main_output_dir + bbopt->run_name + "_" + filebase;
   }
   return fn;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief returns directory path given filename
+///
+/// \param fname [in] filename, e.g., C:\temp\thisfile.txt returns c:\temp
+//
+std::string GetDirectoryName(const std::string &fname)
+{
+  size_t pos = fname.find_last_of("\\/");
+  if (std::string::npos == pos) { return ""; }
+  else                          { return fname.substr(0, pos); }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief returns directory path given filename and relative path
+///
+/// \param filename [in] filename, e.g., C:/temp/thisfile.txt returns c:/temp
+/// \param relfile [in] filename of reference file
+/// e.g.,
+///       absolute path of reference file is adopted
+///       if filename = something.txt         and relfile= c:/temp/myfile.rvi,
+///       returns c:/temp/something.txt
+///
+///       relative path of reference file is adopted
+///       if filename = something.txt         and relfile= ../dir/myfile.rvi,
+///       returns ../dir/something.txt
+///
+///       if path of reference file is same as file, then nothing changes
+///       if filename = ../temp/something.txt and relfile= ../temp/myfile.rvi,
+///       returns ../temp/something.txt
+///
+///       if absolute paths of file is given, nothing changes
+///       if filename = c:/temp/something.txt and relfile= ../temp/myfile.rvi,
+///       returns c:/temp/something.txt
+//
+std::string CorrectForRelativePath(const std::string filename, const std::string relfile)
+{
+  std::string filedir = GetDirectoryName(relfile); // if a relative path name, e.g., "/path/model.rvt", only returns e.g., "/path"
+
+  if (StringToUppercase(filename).find(StringToUppercase(filedir)) == std::string::npos) // checks to see if absolute dir already included in redirect filename
+  {
+    std::string firstchar = filename.substr(0, 1); // if '/' --> absolute path on UNIX systems
+    std::string secondchar = filename.substr(1, 1); // if ':' --> absolute path on WINDOWS system
+
+    if ((firstchar.compare("/") != 0) && (secondchar.compare(":") != 0)) {
+      // std::cout << "This is not an absolute filename!  --> " << filename << std::endl;
+      //+"//"
+      // std::cout << "StandardOutput: corrected filename: " << filedir + "//" + filename << std::endl;
+      return filedir + "//" + filename;
+    }
+  }
+  // std::cout << "StandardOutput: corrected filename: " << filename << std::endl;
+  return filename;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -60,12 +115,15 @@ void CModel::WriteRasterOutput()
   }
   for (int i = 0; i < out_rasters.size(); i++) {
     std::string filepath = FilenamePrepare(
-        "bb_results_" + std::to_string(i) + "_" + toString(bbopt->modeltype) +
+        "bb_results_" + std::to_string(i + 1) + "_" + toString(bbopt->modeltype) +
         "_" + toString(bbopt->interpolation_postproc_method) + "_depth.tif");
     out_rasters[i].WriteToFile(filepath);
   }
 }
 
+//////////////////////////////////////////////////////////////////
+/// \brief Writes raster data to geotiff raster file
+//
 void CRaster::WriteToFile(std::string filepath)
 {
   GDALDriver *driver = GetGDALDriverManager()->GetDriverByName("GTiff");
@@ -89,8 +147,10 @@ void CRaster::WriteToFile(std::string filepath)
   GDALRasterBand *output_band = output_dataset->GetRasterBand(1);
   output_band->RasterIO(GF_Write, 0, 0, xsize, ysize, data, xsize, ysize,
                         GDT_Float64, 0, 0);
-
+  //std::cout << "in: " << proj << std::endl;
   output_dataset->SetProjection(proj);
+  //std::cout << "out: " << temp_p << std::endl;
+ ;
   output_dataset->SetGeoTransform(geotrans);
   output_band->SetNoDataValue(na_val);
 
@@ -109,22 +169,60 @@ void CModel::WriteFullModel() const
   TESTOUTPUT << "\n================== Model ==================" << std::endl;
   TESTOUTPUT << std::left << std::setw(35) << "Hand Depth Sequence:";
   for (auto d : hand_depth_seq) {
-    std::cout << d << " ";
+    TESTOUTPUT << d << " ";
   }
-  std::cout << std::endl;
+  TESTOUTPUT << std::endl;
   TESTOUTPUT << std::setw(35) << "DHand Depth Sequence:";
   for (auto d : dhand_depth_seq) {
-    std::cout << d << " ";
+    TESTOUTPUT << d << " ";
   }
-  std::cout << std::endl;
-  // add pretty_print for CRasters
+  TESTOUTPUT << std::endl;
   TESTOUTPUT << "===========================================\n" << std::endl;
   TESTOUTPUT.close();
+  if (c_from_s.name != PLACEHOLDER_STR) {
+    c_from_s.pretty_print();
+  }
+  if (hand.name != PLACEHOLDER_STR) {
+    hand.pretty_print();
+  }
+  if (handid.name != PLACEHOLDER_STR) {
+    handid.pretty_print();
+  }
+  for (auto r : dhand) {
+    r.pretty_print();
+  }
+  for (auto r : dhandid) {
+    r.pretty_print();
+  }
+  for (auto r : out_rasters) {
+    r.pretty_print();
+  }
   this->bbopt->pretty_print();
   this->bbbc->pretty_print();
   for (CStreamnode *sn : *bbsn) {
     sn->pretty_print();
   }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Cleanly prints CRaster class data to testoutput
+//
+void CRaster::pretty_print() const {
+  std::ofstream TESTOUTPUT;
+  // maybe add data at some point
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
+  TESTOUTPUT << "\n================== Raster =================" << std::endl;
+  TESTOUTPUT << std::left << std::setw(35) << "Name:" << name << std::endl;
+  TESTOUTPUT << std::setw(35) << "X Dimension:" << xsize << std::endl;
+  TESTOUTPUT << std::setw(35) << "Y Dimension:" << ysize << std::endl;
+  TESTOUTPUT << std::setw(35) << "Projection:" << proj << std::endl;
+  TESTOUTPUT << std::setw(35) << "Geo Transform:" << geotrans[0] << ", "
+             << geotrans[1] << ", " << geotrans[2] << ", " << geotrans[3]
+             << ", " << geotrans[4] << ", " << geotrans[5] << std::endl;
+  TESTOUTPUT << std::setw(35) << "NA Value:" << na_val << std::endl;
+  TESTOUTPUT << std::setw(35) << "GDAL Datatype:" << datatype << std::endl;
+  TESTOUTPUT << "===========================================\n" << std::endl;
+  TESTOUTPUT.close();
 }
 
 //////////////////////////////////////////////////////////////////

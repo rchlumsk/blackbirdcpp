@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
   }
   TESTOUTPUT.close();
   //pModel->WriteFullModel(); // writes full model to test output
-  pModel->hyd_result_pretty_print(); // writes hydraulic result to test output
+  //pModel->hyd_result_pretty_print(); // writes hydraulic result to test output
   pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
   pModel->WriteRasterOutput(); // if applicable, writes raster output to raster files
 
