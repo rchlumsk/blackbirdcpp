@@ -3,7 +3,7 @@
 #include "ParseLib.h"
 
 bool ParseMainInputFile(CModel*& pModel, COptions*& pOptions);
-bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*const& pOptions);
+//bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*const& pOptions);
 bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions);
 bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions);
 void ImproperFormatWarning(std::string command, CParser* p, bool noisy);
@@ -40,12 +40,6 @@ bool ParseInputFiles(CModel*& pModel,
   //--------------------------------------------------------------------------------
   if (!ParseGeometryFile(pModel, pOptions)) {
     ExitGracefully("Cannot find or read .bbg file", BAD_DATA);return false;
-  }
-
-  // Preprocessed Tables file (.bbp)
-  //--------------------------------------------------------------------------------
-  if (!ParsePreprocessedTablesFile(pModel, pOptions)) {
-    ExitGracefully("Cannot find or read .bbp file", BAD_DATA);return false;
   }
 
   // Boundary Conditions file (.bbb)

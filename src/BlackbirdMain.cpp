@@ -80,9 +80,9 @@ int main(int argc, char* argv[])
   t1 = clock();
   
   // Compute hydraulic profile for all streamnodes
-  pModel->hyd_compute_profile();
+  //pModel->hyd_compute_profile();
   // Post-process flood results with method specified by input parameter
-  pModel->postprocess_floodresults();
+  //pModel->postprocess_floodresults();
 
   //Finished Solving----------------------------------------------------
   // Initialize test output file for writing to
@@ -92,10 +92,10 @@ int main(int argc, char* argv[])
     ExitGracefully("Main::Unable to open Blackbird_testoutput.txt. Bad output directory specified?", BLACKBIRD_OPEN_ERR);
   }
   TESTOUTPUT.close();
-  //pModel->WriteFullModel(); // writes full model to test output
+  pModel->WriteFullModel(); // writes full model to test output
   //pModel->hyd_result_pretty_print(); // writes hydraulic result to test output
-  pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
-  pModel->WriteRasterOutput(); // if applicable, writes raster output to raster files
+  //pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
+  //pModel->WriteRasterOutput(); // if applicable, writes raster output to raster files
 
   if (!pOptions->silent_run)
   {

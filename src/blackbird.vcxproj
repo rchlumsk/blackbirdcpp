@@ -165,7 +165,7 @@
     <ClCompile Include="ParseGeometry.cpp" />
     <ClCompile Include="ParseInput.cpp" />
     <ClCompile Include="ParseLib.cpp" />
-    <ClCompile Include="ParsePreprocessedTables.cpp" />
+    <ClCompile Include="_ParsePreprocessedTables.cpp" />
     <ClCompile Include="Raster.cpp" />
     <ClCompile Include="Reach.cpp" />
     <ClCompile Include="StandardOutput.cpp" />
