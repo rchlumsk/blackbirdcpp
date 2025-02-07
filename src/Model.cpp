@@ -544,17 +544,17 @@ void CModel::ReadRasterFiles() {
   // mandatory setup
   GDALAllRegister();
 
-  ReadRasterFile(bbopt->raster_folder + "/bb_catchments_fromstreamnodes.tif",
+  ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif",
                  c_from_s);
   c_from_s.name = "Catchments from Streamnodes";
   if (!bbopt->use_dhand) {
-    ReadRasterFile(bbopt->raster_folder + "/bb_hand.tif", hand);
+    ReadRasterFile(bbopt->gis_path + "/bb_hand.tif", hand);
     hand.name = "HAND";
     if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
         bbopt->interpolation_postproc_method ==
             enum_ppi_method::INTERP_DHAND_WSLCORR ||
         bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-      ReadRasterFile(bbopt->raster_folder + "/bb_hand_pourpoint_id.tif", handid);
+      ReadRasterFile(bbopt->gis_path + "/bb_hand_pourpoint_id.tif", handid);
       handid.name = "HAND ID";
     }
   } else { // use dhand
@@ -562,7 +562,7 @@ void CModel::ReadRasterFiles() {
       std::stringstream stream;
       stream << std::fixed << std::setprecision(4) << d;
       dhand.push_back(CRaster());
-      ReadRasterFile(bbopt->raster_folder + "/bb_dhand_depth_" + stream.str() +
+      ReadRasterFile(bbopt->gis_path + "/bb_dhand_depth_" + stream.str() +
                          "m.tif",
                      dhand.back());
       dhand.back().name = "DHAND " + stream.str();
@@ -573,7 +573,7 @@ void CModel::ReadRasterFiles() {
           bbopt->interpolation_postproc_method ==
               enum_ppi_method::INTERP_HAND) {
         dhandid.push_back(CRaster());
-        ReadRasterFile(bbopt->raster_folder + "/bb_dhand_pourpoint_id_depth_" +
+        ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" +
                            stream.str() + "m.tif",
                        dhand.back());
         dhandid.back().name = "DHAND ID " + stream.str();
@@ -592,9 +592,13 @@ void CModel::ReadRasterFiles() {
 void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
   GDALDataset *dataset =
       static_cast<GDALDataset *>(GDALOpen(filename.c_str(), GA_ReadOnly));
+  ExitGracefullyIf(
+      dataset == nullptr,
+      ("Raster.cpp: ReadRasterFile: couldn't open " + filename).c_str(),
+      exitcode::FILE_OPEN_ERR);
+
   raster_obj.xsize = dataset->GetRasterXSize();
   raster_obj.ysize = dataset->GetRasterYSize();
-
   if (dataset->GetProjectionRef() != nullptr) {
     size_t len = strlen(dataset->GetProjectionRef()) + 1;
     raster_obj.proj = new char[len];
@@ -602,12 +606,8 @@ void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
   } else {
     raster_obj.proj = nullptr;
   }
-
   dataset->GetGeoTransform(raster_obj.geotrans);
-  ExitGracefullyIf(
-      dataset == nullptr,
-      ("Raster.cpp: ReadRasterFile: couldn't open " + filename).c_str(),
-      exitcode::FILE_OPEN_ERR);
+
   raster_obj.data = static_cast<double *>(
       CPLMalloc(sizeof(double) * raster_obj.xsize * raster_obj.ysize));
   GDALRasterBand *band = dataset->GetRasterBand(1);
@@ -648,9 +648,7 @@ void CModel::postprocess_floodresults() {
                        std::to_string(i + 1)
                 << std::endl;
     }
-    if (bbopt->interpolation_postproc_method ==
-        enum_ppi_method::CATCHMENT_HAND) { // maybe make more checks on validity
-                                           // of data
+    if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND) {
       CRaster result = hand;
       result.name = "Result " + std::to_string(i + 1);
       std::fill(result.data, result.data + (result.xsize * result.ysize), 0.0);
@@ -663,6 +661,10 @@ void CModel::postprocess_floodresults() {
         }
       }
       out_rasters.push_back(result);
+    } else if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+      for (int j = 0; j < c_from_s.xsize * c_from_s.ysize; j++) {
+        // LEFT OFF HERE
+      }
     } else {
       std::cout << "not yet available" << std::endl;
     }

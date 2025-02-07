@@ -11,7 +11,7 @@ COptions::COptions()
   main_output_dir(PLACEHOLDER_STR),
   working_dir(PLACEHOLDER_STR),
   modelname(PLACEHOLDER_STR),
-  raster_folder(PLACEHOLDER_STR),
+  gis_path(PLACEHOLDER_STR),
   modeltype(enum_mt_method::HAND_MANNING),
   regimetype(enum_rt_method::SUBCRITICAL),
   dx(PLACEHOLDER),

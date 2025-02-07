@@ -6,6 +6,8 @@
 #include "BoundaryConditions.h"
 #include "Options.h"
 #include "Raster.h"
+#include "XSection.h"
+#include "Reach.h"
 
 class CModel {
 public:

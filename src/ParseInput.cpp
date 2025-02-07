@@ -165,7 +165,7 @@ bool ParseMainInputFile(CModel*& pModel,
 
     //-------------------- POSTPROCESSING OPTIONS ------------------------
     else if (!strcmp(s[0], ":PostprocessingInterpolationMethod")) { code = 400; }
-    else if (!strcmp(s[0], ":RasterFolder")) { code = 401; }
+    else if (!strcmp(s[0], ":GISPath")) { code = 401; }
 
     switch (code)
     {
@@ -490,10 +490,10 @@ bool ParseMainInputFile(CModel*& pModel,
       break;
     }
     case(401):
-    {/*:RasterFolder [string path_to_folder]*/
-      if (pOptions->noisy_run) { std::cout << "RasterFolder" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":RasterFolder", p, pOptions->noisy_run); break; }
-      pOptions->raster_folder = s[1];
+    {/*:GISPath [string path_to_folder]*/
+      if (pOptions->noisy_run) { std::cout << "GISPath" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":GISPath", p, pOptions->noisy_run); break; }
+      pOptions->gis_path = s[1];
       break;
     }
     default://----------------------------------------------

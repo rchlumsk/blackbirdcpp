@@ -10,6 +10,8 @@ public:
 
   // Functions
   void compute_basic_flow_properties(double flow, COptions *&bbopt); // computes flow properties for reach type streamnode
+
+  void pretty_print() const; // defined in StandardOutput.cpp
 };
 
 #endif

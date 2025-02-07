@@ -169,12 +169,12 @@ void CModel::WriteFullModel() const
   TESTOUTPUT << "\n================== Model ==================" << std::endl;
   TESTOUTPUT << std::left << std::setw(35) << "Hand Depth Sequence:";
   for (auto d : hand_depth_seq) {
-    TESTOUTPUT << d << " ";
+    TESTOUTPUT << d << "  ";
   }
   TESTOUTPUT << std::endl;
   TESTOUTPUT << std::setw(35) << "DHand Depth Sequence:";
   for (auto d : dhand_depth_seq) {
-    TESTOUTPUT << d << " ";
+    TESTOUTPUT << d << "  ";
   }
   TESTOUTPUT << std::endl;
   TESTOUTPUT << "===========================================\n" << std::endl;
@@ -199,8 +199,12 @@ void CModel::WriteFullModel() const
   }
   this->bbopt->pretty_print();
   this->bbbc->pretty_print();
-  for (CStreamnode *sn : *bbsn) {
-    sn->pretty_print();
+  for (auto sn : *bbsn) {
+    if (sn->nodetype == enum_nodetype::REACH) {
+      ((CReach *)sn)->pretty_print();
+    } else { // XSECTION
+      ((CXSection *)sn)->pretty_print();
+    }
   }
 }
 
@@ -242,7 +246,7 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::setw(35) << "Main Output Directory:" << main_output_dir << std::endl;
   TESTOUTPUT << std::setw(35) << "Working Directory:" << working_dir << std::endl;
   TESTOUTPUT << std::setw(35) << "Model Name:" << modelname << std::endl;
-  TESTOUTPUT << std::setw(35) << "Raster Folder:" << raster_folder << std::endl;
+  TESTOUTPUT << std::setw(35) << "GIS Path:" << gis_path << std::endl;
   TESTOUTPUT << std::setw(35) << "Model Type:" << toString(modeltype) << std::endl;
   TESTOUTPUT << std::setw(35) << "Regime Type:" << toString(regimetype) << std::endl;
   TESTOUTPUT << std::setw(35) << "DX:" << dx << std::endl;
@@ -299,13 +303,66 @@ void CBoundaryConditions::pretty_print() const
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Cleanly prints CReach class data to testoutput
+//
+void CReach::pretty_print() const
+{
+  std::ofstream TESTOUTPUT;
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
+  TESTOUTPUT << "\n=================== Reach ===================" << std::endl;
+  TESTOUTPUT.close();
+  this->CStreamnode::pretty_print();
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
+  TESTOUTPUT << "=============================================\n" << std::endl;
+  TESTOUTPUT.close();
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Cleanly prints CXSection class data to testoutput
+//
+void CXSection::pretty_print() const
+{
+  std::ofstream TESTOUTPUT;
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
+  TESTOUTPUT << "\n================= XSection ==================" << std::endl;
+  TESTOUTPUT.close();
+  this->CStreamnode::pretty_print();
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
+  TESTOUTPUT << std::left << std::setw(35) << "xx Sequence:";
+  for (auto d : xx) {
+    TESTOUTPUT << d << "  ";
+  }
+  TESTOUTPUT << std::endl;
+  TESTOUTPUT << std::left << std::setw(35) << "zz Sequence:";
+  for (auto d : zz) {
+    TESTOUTPUT << d << "  ";
+  }
+  TESTOUTPUT << std::endl;
+  TESTOUTPUT << std::left << std::setw(35) << "manning Sequence:";
+  for (auto d : manning) {
+    TESTOUTPUT << d << "  ";
+  }
+  TESTOUTPUT << std::endl;
+  TESTOUTPUT << std::left << std::setw(25) << "Node ID:" << nodeID << std::endl;
+  TESTOUTPUT << std::setw(25) << "Manning LOB:" << manning_LOB << std::endl;
+  TESTOUTPUT << std::setw(25) << "Manning Main:" << manning_main << std::endl;
+  TESTOUTPUT << std::setw(25) << "Manning ROB:" << manning_ROB << std::endl;
+  TESTOUTPUT << std::setw(25) << "LBS xx:" << lbs_xx << std::endl;
+  TESTOUTPUT << std::setw(25) << "RBS xx:" << rbs_xx << std::endl;
+  TESTOUTPUT << std::setw(25) << "DS Length LOB:" << ds_length_LOB << std::endl;
+  TESTOUTPUT << std::setw(25) << "DS Length Main" << ds_length_main << std::endl;
+  TESTOUTPUT << std::setw(25) << "DS Length ROB:" << ds_length_ROB << std::endl;
+  TESTOUTPUT << "=============================================\n" << std::endl;
+  TESTOUTPUT.close();
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Cleanly prints CStreamnode class data to testoutput
 //
 void CStreamnode::pretty_print() const
 {
   std::ofstream TESTOUTPUT;
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
-  TESTOUTPUT << "\n=============== Streamnode ================" << std::endl;
   TESTOUTPUT << std::left << std::setw(25) << "Node ID:" << nodeID << std::endl;
   TESTOUTPUT << std::setw(25) << "Node Type:" << toString(nodetype) << std::endl;
   TESTOUTPUT << std::setw(25) << "Downstream Node ID:" << downnodeID << std::endl;
@@ -504,7 +561,6 @@ void CStreamnode::pretty_print() const
     }
     TESTOUTPUT << "=================================" << std::endl;
   }
-  TESTOUTPUT << "===========================================\n" << std::endl;
   TESTOUTPUT.close();
 }
 

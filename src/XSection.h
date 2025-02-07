@@ -30,6 +30,8 @@ public:
   void compute_basic_depth_properties(double wsl, COptions *&bbopt);
   void compute_basic_flow_properties(double flow, COptions *&bbopt);
   double calculate_flow_area();
+
+  void pretty_print() const; // defined in StandardOutput.cpp
 };
 
 #endif
