@@ -147,10 +147,7 @@ void CRaster::WriteToFile(std::string filepath)
   GDALRasterBand *output_band = output_dataset->GetRasterBand(1);
   output_band->RasterIO(GF_Write, 0, 0, xsize, ysize, data, xsize, ysize,
                         GDT_Float64, 0, 0);
-  //std::cout << "in: " << proj << std::endl;
   output_dataset->SetProjection(proj);
-  //std::cout << "out: " << temp_p << std::endl;
- ;
   output_dataset->SetGeoTransform(geotrans);
   output_band->SetNoDataValue(na_val);
 
@@ -182,6 +179,9 @@ void CModel::WriteFullModel() const
   if (c_from_s.name != PLACEHOLDER_STR) {
     c_from_s.pretty_print();
   }
+  if (spp.name != PLACEHOLDER_STR) {
+    spp.pretty_print();
+  }
   if (hand.name != PLACEHOLDER_STR) {
     hand.pretty_print();
   }
@@ -209,11 +209,10 @@ void CModel::WriteFullModel() const
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Cleanly prints CRaster class data to testoutput
+/// \brief Cleanly prints CRaster class data to testoutput (except data)
 //
 void CRaster::pretty_print() const {
   std::ofstream TESTOUTPUT;
-  // maybe add data at some point
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "\n================== Raster =================" << std::endl;
   TESTOUTPUT << std::left << std::setw(35) << "Name:" << name << std::endl;
@@ -225,6 +224,36 @@ void CRaster::pretty_print() const {
              << ", " << geotrans[4] << ", " << geotrans[5] << std::endl;
   TESTOUTPUT << std::setw(35) << "NA Value:" << na_val << std::endl;
   TESTOUTPUT << std::setw(35) << "GDAL Datatype:" << datatype << std::endl;
+  TESTOUTPUT << "===========================================\n" << std::endl;
+  TESTOUTPUT.close();
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Cleanly prints CVector class data to testoutput (except features)
+//
+void CVector::pretty_print() const {
+  std::ofstream TESTOUTPUT;
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
+  TESTOUTPUT << "\n================== Vector =================" << std::endl;
+  TESTOUTPUT << std::left << std::setw(35) << "Name:" << name << std::endl;
+  TESTOUTPUT << std::setw(35) << "Geometry Type:" << OGRGeometryTypeToName(geom_type) << std::endl;
+
+  char *wkt = nullptr;
+  if (spat_ref) {
+    spat_ref->exportToPrettyWkt(&wkt, FALSE);
+    TESTOUTPUT << std::setw(35) << "Spatial Reference:\n" << wkt << std::endl;
+    CPLFree(wkt);
+  } else {
+    TESTOUTPUT << std::setw(35) << "Spatial Reference:" << "NULL" << std::endl;
+  }
+
+  TESTOUTPUT << std::setw(35) << "Number of Fields:" << field_defs.size() << std::endl;
+  TESTOUTPUT << std::setw(35) << "Field Names:";
+  for (const auto &field : field_defs) {
+    TESTOUTPUT << field->GetNameRef() << " (" << OGRFieldDefn::GetFieldTypeName(field->GetType()) << "), ";
+  }
+  TESTOUTPUT << std::endl;
+  TESTOUTPUT << std::setw(35) << "Number of Features:" << features.size() << std::endl;
   TESTOUTPUT << "===========================================\n" << std::endl;
   TESTOUTPUT.close();
 }

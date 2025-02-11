@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
       std::cout << "======================================================" << std::endl;
       std::cout << "Reading Raster Data..." << std::endl;
     }
-    pModel->ReadRasterFiles();
+    pModel->ReadGISFiles();
   }
 
   CheckForErrorWarnings(true, pModel);

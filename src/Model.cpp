@@ -538,21 +538,26 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
 
 //////////////////////////////////////////////////////////////////
-/// \brief Reads Raster files
+/// \brief Reads GIS files required for model
 //
-void CModel::ReadRasterFiles() {
+void CModel::ReadGISFiles() {
   // mandatory setup
   GDALAllRegister();
 
   ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif",
                  c_from_s);
   c_from_s.name = "Catchments from Streamnodes";
+  if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
+      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+    ReadVectorFile(bbopt->gis_path + "/bb_snapped_pourpoints_hand.shp", spp);
+    spp.name = "Snapped Pourpoints";
+  }
   if (!bbopt->use_dhand) {
     ReadRasterFile(bbopt->gis_path + "/bb_hand.tif", hand);
     hand.name = "HAND";
     if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
-        bbopt->interpolation_postproc_method ==
-            enum_ppi_method::INTERP_DHAND_WSLCORR ||
+        bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
         bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
       ReadRasterFile(bbopt->gis_path + "/bb_hand_pourpoint_id.tif", handid);
       handid.name = "HAND ID";
@@ -562,19 +567,14 @@ void CModel::ReadRasterFiles() {
       std::stringstream stream;
       stream << std::fixed << std::setprecision(4) << d;
       dhand.push_back(CRaster());
-      ReadRasterFile(bbopt->gis_path + "/bb_dhand_depth_" + stream.str() +
-                         "m.tif",
+      ReadRasterFile(bbopt->gis_path + "/bb_dhand_depth_" + stream.str() + "m.tif",
                      dhand.back());
       dhand.back().name = "DHAND " + stream.str();
-      if (bbopt->interpolation_postproc_method ==
-              enum_ppi_method::INTERP_DHAND ||
-          bbopt->interpolation_postproc_method ==
-              enum_ppi_method::INTERP_DHAND_WSLCORR ||
-          bbopt->interpolation_postproc_method ==
-              enum_ppi_method::INTERP_HAND) {
+      if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+          bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
+          bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
         dhandid.push_back(CRaster());
-        ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" +
-                           stream.str() + "m.tif",
+        ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" + stream.str() + "m.tif",
                        dhand.back());
         dhandid.back().name = "DHAND ID " + stream.str();
       }
@@ -594,7 +594,7 @@ void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
       static_cast<GDALDataset *>(GDALOpen(filename.c_str(), GA_ReadOnly));
   ExitGracefullyIf(
       dataset == nullptr,
-      ("Raster.cpp: ReadRasterFile: couldn't open " + filename).c_str(),
+      ("Model.cpp: ReadRasterFile: couldn't open " + filename).c_str(),
       exitcode::FILE_OPEN_ERR);
 
   raster_obj.xsize = dataset->GetRasterXSize();
@@ -616,6 +616,47 @@ void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
   band->RasterIO(GF_Read, 0, 0, raster_obj.xsize, raster_obj.ysize,
                  raster_obj.data, raster_obj.xsize, raster_obj.ysize,
                  GDT_Float64, 0, 0);
+  GDALClose(dataset);
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Reads specified Vector file
+//
+void CModel::ReadVectorFile(std::string filename, CVector &vector_obj) {
+  GDALDataset *dataset = static_cast<GDALDataset *>(
+      GDALOpenEx(filename.c_str(), GDAL_OF_VECTOR, nullptr, nullptr, nullptr));
+  ExitGracefullyIf(
+      dataset == nullptr,
+      ("Model.cpp: ReadVectorFile: couldn't open " + filename).c_str(),
+      exitcode::FILE_OPEN_ERR);
+
+  OGRLayer *layer = dataset->GetLayer(0);
+  if (layer == nullptr) {
+    GDALClose(dataset);
+    ExitGracefully(
+        ("Model.cpp: ReadVectorFile: couldn't get layer in " + filename) .c_str(),
+        exitcode::BAD_DATA);
+  }
+  
+  vector_obj.spat_ref = layer->GetSpatialRef() ? layer->GetSpatialRef()->Clone() : nullptr;
+  vector_obj.geom_type = layer->GetGeomType();
+
+  OGRFeatureDefn *feature_defn = layer->GetLayerDefn();
+  for (int i = 0; i < feature_defn->GetFieldCount(); i++) {
+    vector_obj.field_defs.push_back(new OGRFieldDefn(feature_defn->GetFieldDefn(i)));
+    vector_obj.add_to_field_def_map(vector_obj.field_defs.back()->GetNameRef(), i);
+  }
+
+  layer->ResetReading();
+  OGRFeature *feature;
+  while ((feature = layer->GetNextFeature()) != nullptr) {
+    OGRFeature *feature_copy = OGRFeature::CreateFeature(feature_defn);
+    feature_copy->SetGeometry(feature->GetGeometryRef());
+    feature_copy->SetFrom(feature);
+    vector_obj.features.push_back(feature_copy);
+    OGRFeature::DestroyFeature(feature);
+  }
+
   GDALClose(dataset);
 }
 
@@ -662,11 +703,16 @@ void CModel::postprocess_floodresults() {
       }
       out_rasters.push_back(result);
     } else if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+      break; // temporary. remove when done interp hand
       for (int j = 0; j < c_from_s.xsize * c_from_s.ysize; j++) {
-        // LEFT OFF HERE
+        CStreamnode *pSN = get_streamnode_by_id(c_from_s.data[j]);
+        if (pSN->upnodeID1 == -1) {
+          // spp stuff
+        }
       }
     } else {
       std::cout << "not yet available" << std::endl;
+      break;
     }
   }
   if (!bbopt->silent_run) {

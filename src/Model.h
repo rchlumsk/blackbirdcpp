@@ -6,6 +6,7 @@
 #include "BoundaryConditions.h"
 #include "Options.h"
 #include "Raster.h"
+#include "Vector.h"
 #include "XSection.h"
 #include "Reach.h"
 
@@ -18,6 +19,7 @@ public:
   std::vector<double> hand_depth_seq;  // sequence of depths for hand
   std::vector<double> dhand_depth_seq; // sequence of depths for dhand
   CRaster c_from_s;                    // raster object for catchments from streamnodes
+  CVector spp;                         // vector object for snapped pourpoints
   CRaster hand;                        // raster object for hand
   CRaster handid;                      // raster object for hand pourpoints
   std::vector<CRaster> dhand;          // raster object for dhand
@@ -54,9 +56,10 @@ public:
   void hyd_result_pretty_print() const;                           // writes hyd_result to testoutput
   void hyd_result_pretty_print_csv() const;                       // writes hyd_result to csv file
 
-  // Raster Functions defined in Raster.cpp
-  void ReadRasterFiles();                                         // reads necessary raster files
+  // GIS Functions
+  void ReadGISFiles();                                         // reads necessary raster files
   void ReadRasterFile(std::string filename, CRaster &raster_obj); //reads specified raster file
+  void ReadVectorFile(std::string filename, CVector &vector_obj); //reads specified vector file
   void postprocess_floodresults();                                // postprocesses flood results based on bbopt method
 
 protected:

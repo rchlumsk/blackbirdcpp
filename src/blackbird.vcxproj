@@ -165,6 +165,7 @@
     <ClCompile Include="ParseGeometry.cpp" />
     <ClCompile Include="ParseInput.cpp" />
     <ClCompile Include="ParseLib.cpp" />
+    <ClCompile Include="Vector.cpp" />
     <ClCompile Include="_ParsePreprocessedTables.cpp" />
     <ClCompile Include="Raster.cpp" />
     <ClCompile Include="Reach.cpp" />
@@ -182,6 +183,7 @@
     <ClInclude Include="Raster.h" />
     <ClInclude Include="Reach.h" />
     <ClInclude Include="Streamnode.h" />
+    <ClInclude Include="Vector.h" />
     <ClInclude Include="XSection.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

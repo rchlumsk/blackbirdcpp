@@ -12,6 +12,7 @@
 #include <limits>
 #include <map>
 #include <math.h>
+#include <ogrsf_frmts.h>
 #include <set>
 #include <stdlib.h>
 #include <string>

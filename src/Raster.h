@@ -22,6 +22,7 @@ public:
   CRaster &operator=(const CRaster &other);
 
   // Member functions
+  // I/O Functions
   void WriteToFile(std::string filepath); // defined in StandardOutput.cpp
   void pretty_print() const;              // defined in StandardOutput.cpp
 };

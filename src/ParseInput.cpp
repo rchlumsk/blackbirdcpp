@@ -14,9 +14,8 @@ void ImproperFormatWarning(std::string command, CParser* p, bool noisy);
 /// \details This method provides an interface by which the main method can parse input files\n
 ///   Files used include:\n
 ///   - \b [modelname].bbi: input file that determines general model settings
-///   - \b [modelname].bbp: preprocessed hydraulic tables
-///   - \b [modelname].bbb: boundary conditions
 ///   - \b [modelname].bbg: model geometry
+///   - \b [modelname].bbb: boundary conditions
 ///
 /// \param *&pModel [in/out] The input model object
 /// \param *&pOptions [in/out] Global model options object
