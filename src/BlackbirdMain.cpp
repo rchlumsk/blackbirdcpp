@@ -129,7 +129,6 @@ void ProcessExecutableArguments(int argc, char* argv[], COptions*& pOptions)
   pOptions->run_name = "";
   pOptions->bbi_filename = "";
   pOptions->bbg_filename = "";
-  pOptions->bbp_filename = "";
   pOptions->bbb_filename = "";
   pOptions->main_output_dir = "";
   pOptions->silent_run = false;
@@ -147,24 +146,21 @@ void ProcessExecutableArguments(int argc, char* argv[], COptions*& pOptions)
       if (mode == 0) {
         pOptions->bbi_filename = argument + ".bbi";
         pOptions->bbg_filename = argument + ".bbg";
-        pOptions->bbp_filename = argument + ".bbp";
         pOptions->bbb_filename = argument + ".bbb";
         argument = "";
         mode = 10;
       }
       else if (mode == 1) { pOptions->bbg_filename = argument; argument = ""; }
-      else if (mode == 2) { pOptions->bbp_filename = argument; argument = ""; }
-      else if (mode == 3) { pOptions->bbb_filename = argument; argument = ""; }
-      else if (mode == 5) { pOptions->main_output_dir = argument; argument = ""; }
-      else if (mode == 6) { pOptions->run_name = argument; argument = ""; }
+      else if (mode == 2) { pOptions->bbb_filename = argument; argument = ""; }
+      else if (mode == 3) { pOptions->main_output_dir = argument; argument = ""; }
+      else if (mode == 4) { pOptions->run_name = argument; argument = ""; }
 
       if (word == "-g") { mode = 1; }
-      else if (word == "-p") { mode = 2; }
-      else if (word == "-b") { mode = 3; }
-      else if (word == "-o") { mode = 5; }
+      else if (word == "-b") { mode = 2; }
+      else if (word == "-o") { mode = 3; }
       else if (word == "-s") { pOptions->silent_run = true; mode = 10; }
       else if (word == "-n") { pOptions->noisy_run = true;  mode = 10; }
-      else if (word == "-r") { mode = 6; }
+      else if (word == "-r") { mode = 4; }
     }
     else {
       if (argument == "") { argument += word; }
@@ -174,7 +170,6 @@ void ProcessExecutableArguments(int argc, char* argv[], COptions*& pOptions)
   if (argc == 1) {//no arguments
     pOptions->bbi_filename = "nomodel.bbi";
     pOptions->bbg_filename = "nomodel.bbg";
-    pOptions->bbp_filename = "nomodel.bbp";
     pOptions->bbb_filename = "nomodel.bbb";
   }
 

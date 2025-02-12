@@ -45,9 +45,6 @@
     <ClCompile Include="ParseLib.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="_ParsePreprocessedTables.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="CommonFunctions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

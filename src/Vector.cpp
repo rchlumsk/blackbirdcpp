@@ -46,6 +46,16 @@ CVector& CVector::operator=(const CVector& other) {
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Returns index of field with field name 'fieldname'
+/// \return index of field with field name 'fieldname'
+//
+int CVector::get_index_by_fieldname(const char* fieldname) {
+  return field_def_map.find(fieldname) != field_def_map.end()
+    ? field_def_map[fieldname]
+    : NULL;
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Adds name and ind pair to field_def_map
 //
 void CVector::add_to_field_def_map(const char* name, int ind) {

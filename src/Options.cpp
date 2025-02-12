@@ -5,7 +5,6 @@ COptions::COptions()
   : version(PLACEHOLDER_STR),
   run_name(PLACEHOLDER_STR),
   bbi_filename(PLACEHOLDER_STR),
-  bbp_filename(PLACEHOLDER_STR),
   bbb_filename(PLACEHOLDER_STR),
   bbg_filename(PLACEHOLDER_STR),
   main_output_dir(PLACEHOLDER_STR),

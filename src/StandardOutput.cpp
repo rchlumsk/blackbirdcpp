@@ -114,9 +114,7 @@ void CModel::WriteRasterOutput()
     return;
   }
   for (int i = 0; i < out_rasters.size(); i++) {
-    std::string filepath = FilenamePrepare(
-        "bb_results_" + std::to_string(i + 1) + "_" + toString(bbopt->modeltype) +
-        "_" + toString(bbopt->interpolation_postproc_method) + "_depth.tif");
+    std::string filepath = FilenamePrepare("bb_results_depth_" + std::to_string(i + 1) + "_depth.tif");
     out_rasters[i].WriteToFile(filepath);
   }
 }
@@ -269,9 +267,8 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::left << std::setw(35) << "Version:" << version << std::endl;
   TESTOUTPUT << std::setw(35) << "Run Name:" << run_name << std::endl;
   TESTOUTPUT << std::setw(35) << "BBI Filename:" << bbi_filename << std::endl;
-  TESTOUTPUT << std::setw(35) << "BBP Filename:" << bbp_filename << std::endl;
-  TESTOUTPUT << std::setw(35) << "BBB Filename:" << bbb_filename << std::endl;
   TESTOUTPUT << std::setw(35) << "BBG Filename:" << bbg_filename << std::endl;
+  TESTOUTPUT << std::setw(35) << "BBB Filename:" << bbb_filename << std::endl;
   TESTOUTPUT << std::setw(35) << "Main Output Directory:" << main_output_dir << std::endl;
   TESTOUTPUT << std::setw(35) << "Working Directory:" << working_dir << std::endl;
   TESTOUTPUT << std::setw(35) << "Model Name:" << modelname << std::endl;

@@ -22,6 +22,7 @@ public:
 
   // Member functions
   void add_to_field_def_map(const char* name, int ind); // adds pair to field_def_map
+  int get_index_by_fieldname(const char* fieldname);    // returns index of field with field name "fieldname"
 
   // I/O Functions
   void WriteToFile(std::string filepath); // defined in StandardOutput.cpp - not yet implemented

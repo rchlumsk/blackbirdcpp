@@ -358,6 +358,14 @@ inline double ConvCalc(double n, double A, double Rh) {
 }
 
 ///////////////////////////////////////////////////////////////////
+/// \brief Correction term calculation for post-processing elevation correction
+/// \return correction term
+//
+inline double CalcCt(double x, double tt) {
+  return tt == 0  || tt == PLACEHOLDER ? 0 : (1 - std::min(std::max(x - tt, 0.)/tt, 1.));
+}
+
+///////////////////////////////////////////////////////////////////
 /// \brief returns a vector of all values in the f column of a vector of hydraulic outputs.
 /// Example call with std::vector<hydraulic_output *> v as the vector, and collecting column wsl:
 /// res = hyd_out_collect(&hydraulic_output::wsl, v)

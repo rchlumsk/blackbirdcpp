@@ -9,7 +9,6 @@ public:
   std::string version;
   std::string run_name;
   std::string bbi_filename;
-  std::string bbp_filename;
   std::string bbb_filename;
   std::string bbg_filename;
 
