@@ -114,7 +114,7 @@ void CModel::WriteRasterOutput()
     return;
   }
   for (int i = 0; i < out_rasters.size(); i++) {
-    std::string filepath = FilenamePrepare("bb_results_depth_" + std::to_string(i + 1) + "_depth.tif");
+    std::string filepath = FilenamePrepare("bb_results_depth_" + std::to_string(i + 1) + ".tif");
     out_rasters[i].WriteToFile(filepath);
   }
 }
@@ -162,7 +162,7 @@ void CModel::WriteFullModel() const
   TESTOUTPUT.open(FilenamePrepare("Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "===================== Full Model =====================" << std::endl;
   TESTOUTPUT << "\n================== Model ==================" << std::endl;
-  TESTOUTPUT << std::setw(35) << "DHand Depth Sequence:";
+  TESTOUTPUT << std::left << std::setw(35) << "DHand Depth Sequence:";
   for (auto d : dhand_depth_seq) {
     TESTOUTPUT << d << "  ";
   }

@@ -752,6 +752,7 @@ void CModel::postprocess_floodresults() {
             L1 = PLACEHOLDER;
             L2 = PLACEHOLDER;
             L3 = PLACEHOLDER;
+
           } else if(pSN->upnodeID2 != -1) { // junction
             seqelev_divs = PLACEHOLDER;
             head_ind = PLACEHOLDER;
@@ -762,6 +763,7 @@ void CModel::postprocess_floodresults() {
             L1 = pSN->us_reach_length1;
             L2 = get_streamnode_by_id(pSN->upnodeID1)->ds_reach_length;
             L3 = get_streamnode_by_id(pSN->upnodeID2)->ds_reach_length;
+
           } else { // neither headwater nor junction
             chainage_map.clear();
             head_ind = j;
@@ -799,6 +801,7 @@ void CModel::postprocess_floodresults() {
             L3 = PLACEHOLDER;
           }
         }
+
         if (pSN->upnodeID1 == -1) { // headwater node
           double temp_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
           ExitGracefullyIf(seqelev_divs == 0,
@@ -810,14 +813,14 @@ void CModel::postprocess_floodresults() {
           double max_change = std::abs((seqelev_j - temp_elev) / ho_depth);
 
           if (max_change > 0.5) {
-            WriteWarning("CModel.cpp: postprocess_floodresults: max change "
-                         ">0.5 detected at streamnode nodeID=" + sid,
-                         bbopt->noisy_run);
+            std::string warn = "CModel.cpp: postprocess_floodresults: max change >0.5 detected at streamnode nodeID=" + std::to_string(sid);
+            WriteWarning(warn, bbopt->noisy_run);
           }
 
           double ct = CalcCt(max_change, bbopt->postproc_elev_corr_threshold);
 
           spp_depths.push_back(ho_depth + (seqelev_j - temp_elev) * ct);
+
         } else if (pSN->upnodeID2 != -1) { // junction node
           double depth2 = (*hyd_result)[get_hyd_res_index(i, pSN->upnodeID1)]->depth;
           double depth3 = (*hyd_result)[get_hyd_res_index(i, pSN->upnodeID2)]->depth;
@@ -835,6 +838,7 @@ void CModel::postprocess_floodresults() {
           } else {
             spp_depths.push_back(PLACEHOLDER);
           }
+
         } else { // neither headwater nor junction node
           double temp_depth = PLACEHOLDER;
           double temp_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
@@ -853,10 +857,8 @@ void CModel::postprocess_floodresults() {
           double max_change = std::abs((seqelev_j - temp_elev) / temp_depth);
 
           if (max_change > 0.5) {
-            WriteWarning("CModel.cpp: postprocess_floodresults: max change "
-                         ">0.5 detected at streamnode nodeID=" +
-                             sid,
-                         bbopt->noisy_run);
+            std::string warn = "CModel.cpp: postprocess_floodresults: max change >0.5 detected at streamnode nodeID=" + std::to_string(sid);
+            WriteWarning(warn, bbopt->noisy_run);
           }
           
           double ct = CalcCt(max_change, bbopt->postproc_elev_corr_threshold);
@@ -864,9 +866,9 @@ void CModel::postprocess_floodresults() {
           spp_depths.push_back(temp_depth + (seqelev_j - temp_elev) * ct);
         }
       }
-      
+      // 2255 stuff is a temporary bypass
       for (int j = 0; j < result.xsize * result.ysize; j++) {
-        if ((handid.data[j] != handid.na_val &&
+        if (/*handid.data[j] < 2255 &&*/ (handid.data[j] != handid.na_val &&
              (handid.data[j] - 1 >= spp_depths.size() ||
               handid.data[j] - 1 < 0))) {
           ExitGracefully(
@@ -877,7 +879,7 @@ void CModel::postprocess_floodresults() {
                   .c_str(),
               exitcode::BAD_DATA);
         }
-        double curr_depth = handid.data[j] == handid.na_val
+        double curr_depth = handid.data[j] == handid.na_val// || handid.data[j] >= 2255
                                 ? PLACEHOLDER
                                 : spp_depths[handid.data[j] - 1];
         if (handid.data[j] != handid.na_val && curr_depth != PLACEHOLDER &&
@@ -889,7 +891,12 @@ void CModel::postprocess_floodresults() {
       }
       out_rasters.push_back(result);
     } else {
-      std::cout << "not yet available" << std::endl;
+      ExitGracefully(
+          ("Model.cpp: postprocess_floodresults: postprocessing method " +
+           toString(bbopt->interpolation_postproc_method) +
+           " is not yet available")
+              .c_str(),
+          exitcode::BAD_DATA);
       break;
     }
   }
