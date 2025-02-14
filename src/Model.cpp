@@ -6,7 +6,6 @@ CModel::CModel()
   : bbsn(new std::vector<CStreamnode*>),
   bbbc(new CBoundaryConditions),
   bbopt(new COptions),
-  hand_depth_seq(),
   dhand_depth_seq(),
   c_from_s(),
   hand(),
@@ -23,11 +22,9 @@ CModel::CModel()
 
 // Copy constructor
 CModel::CModel(const CModel &other)
-    : hand_depth_seq(other.hand_depth_seq),
-      dhand_depth_seq(other.dhand_depth_seq), c_from_s(other.c_from_s),
-      hand(other.hand), handid(other.handid), dhand(other.dhand),
-      dhandid(other.dhandid), out_rasters(other.out_rasters),
-      streamnode_map(other.streamnode_map),
+    : c_from_s(other.c_from_s), hand(other.hand), handid(other.handid),
+      dhand(other.dhand), dhandid(other.dhandid),
+      out_rasters(other.out_rasters), streamnode_map(other.streamnode_map),
       stationname_map(other.stationname_map), flow(other.flow) {
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
@@ -44,8 +41,7 @@ CModel::CModel(const CModel &other)
   if (other.hyd_result) {
     hyd_result = new std::vector<hydraulic_output *>();
     for (const auto &res : *other.hyd_result) {
-      hyd_result->push_back(
-          new hydraulic_output(*res));
+      hyd_result->push_back(new hydraulic_output(*res));
     }
   } else {
     hyd_result = nullptr;
@@ -77,7 +73,6 @@ CModel &CModel::operator=(const CModel &other) {
     hyd_result = nullptr;
   }
 
-  hand_depth_seq = other.hand_depth_seq;
   dhand_depth_seq = other.dhand_depth_seq;
   c_from_s = other.c_from_s;
   hand = other.hand;
@@ -147,7 +142,7 @@ void CModel::hyd_compute_profile() {
     flow = f;
     compute_streamnode(start_streamnode, start_streamnode, hyd_result);
   }
-  if (!bbopt->silent_cp) {
+  if (!bbopt->silent_run) {
     std::cout << "Successfully completed all hydraulic calculations :-)" << std::endl;
   }
   flow = PLACEHOLDER;
@@ -260,7 +255,7 @@ int CModel::get_hyd_res_index(int flow_ind, int sid) {
 /// \param res [in/out] object to add output to when done computing
 //
 void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res) {
-  if (!bbopt->silent_cp) {
+  if (!bbopt->silent_run) {
     std::cout << "Computing profile for streamnode with node id " << sn->nodeID << std::endl;
   }
 
@@ -380,7 +375,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
             if (min_err < 0.03 && sn->mm->froude <= bbopt->froude_threshold) {
               // keeping the min err result
-              if (!bbopt->silent_cp) {
+              if (!bbopt->silent_run) {
                 std::cout << "setting to min error result on streamnode " << sn->nodeID << std::endl;
               }
             } else {
@@ -392,11 +387,11 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                 sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
                 sn->mm->ws_err = PLACEHOLDER;
                 sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
-                if (!bbopt->silent_cp) {
+                if (!bbopt->silent_run) {
                   std::cout << "setting to critical depth result on streamnode " << sn->nodeID << std::endl;
                 }
               } else {
-                if (!bbopt->silent_cp) {
+                if (!bbopt->silent_run) {
                   std::cout << "Failed to get critical depth at streamnode "
                             << sn->nodeID << ", keeping lowest err result"
                             << std::endl;
@@ -436,13 +431,13 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
           }
         } else {
           if (sn->mm->froude <= bbopt->froude_threshold) {
-            if (!bbopt->silent_cp) {
+            if (!bbopt->silent_run) {
               std::cout << "Iterated on WSL at streamnode " << sn->nodeID
                         << " within tolerance on iteration " << i << std::endl;
             }
             break;
           } else {
-            if (!bbopt->silent_cp) {
+            if (!bbopt->silent_run) {
               std::cout << "need to check crit depth" << std::endl;
             }
             // need to compute critical depth at streamnode
@@ -454,12 +449,12 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               if (sn->mm->depth < sn->mm->depth_critical) {
                 if (found_supercritical) {
                   sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
-                  if (!bbopt->silent_cp) {
+                  if (!bbopt->silent_run) {
                     std::cout << "setting to supercritical" << std::endl;
                   }
                   break;
                 } else {
-                  if (!bbopt->silent_cp) {
+                  if (!bbopt->silent_run) {
                     std::cout << "first time with supercritical, resetting" << std::endl;
                   }
                   sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical + 1, down_sn->mm, bbopt);
@@ -553,12 +548,11 @@ void CModel::ReadGISFiles() {
     ReadVectorFile(bbopt->gis_path + "/bb_snapped_pourpoints_hand.shp", spp);
     spp.name = "Snapped Pourpoints";
   }
-  if (!bbopt->use_dhand) {
+  if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
+      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
     ReadRasterFile(bbopt->gis_path + "/bb_hand.tif", hand);
     hand.name = "HAND";
-    if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
-        bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
-        bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+    if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
       ReadRasterFile(bbopt->gis_path + "/bb_hand_pourpoint_id.tif", handid);
       handid.name = "HAND ID";
     }
@@ -571,8 +565,7 @@ void CModel::ReadGISFiles() {
                      dhand.back());
       dhand.back().name = "DHAND " + stream.str();
       if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
-          bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
-          bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+          bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
         dhandid.push_back(CRaster());
         ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" + stream.str() + "m.tif",
                        dhand.back());
@@ -704,25 +697,33 @@ void CModel::postprocess_floodresults() {
       }
       out_rasters.push_back(result);
     } else if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-      break; // temporary. remove when done interp hand
-      ExitGracefullyIf(spp.get_index_by_fieldname("cpointid") == NULL,
+      ExitGracefullyIf(spp.get_index_by_fieldname("cpointid") == PLACEHOLDER,
                        "CModel.cpp: postprocess_floodresults: spp does not "
                        "contain field cpointid",
                        exitcode::BAD_DATA);
-      ExitGracefullyIf(spp.get_index_by_fieldname("elev") == NULL,
+      ExitGracefullyIf(spp.get_index_by_fieldname("elev") == PLACEHOLDER,
                        "CModel.cpp: postprocess_floodresults: spp does not "
                        "contain field elev",
                        exitcode::BAD_DATA);
+      ExitGracefullyIf(spp.get_index_by_fieldname("hpointid") == PLACEHOLDER,
+                       "CModel.cpp: postprocess_floodresults: spp does not "
+                       "contain field hpointid",
+                       exitcode::BAD_DATA);
       std::vector<double> spp_depths;
       CStreamnode *pSN = nullptr;
-      int sid = PLACEHOLDER;
-      double seqelev_divs = PLACEHOLDER;
-      int head_ind = PLACEHOLDER;
-      int tail_ind = PLACEHOLDER;
-      double head_elev = PLACEHOLDER;
-      double tail_elev = PLACEHOLDER;
+      int sid = PLACEHOLDER; // streamnode id of catchment
+      std::unordered_map<int, int> chainage_map; // for non headwater, non junction. maps hpointid to descending placement within catchment
+      double seqelev_divs = PLACEHOLDER; // number of subdivisions created by spps in catchment (i.e. # of spp in catchment - 1)
+      int head_ind = PLACEHOLDER; // index of first spp in catchment
+      int tail_ind = PLACEHOLDER; // index of last spp in catchment
+      double head_elev = PLACEHOLDER; // elevation of first spp in catchment
+      double tail_elev = PLACEHOLDER; // elevation of last spp in catchment
+      double L1 = PLACEHOLDER; // length for junction nodes
+      double L2 = PLACEHOLDER; // length for junction nodes
+      double L3 = PLACEHOLDER; // length for junction nodes
       for (int j = 0; j < spp.features.size(); j++) {
         auto feat = spp.features[j];
+        double ho_depth = (*hyd_result)[get_hyd_res_index(i, sid)]->depth;
         if (sid != feat->GetFieldAsInteger(spp.get_index_by_fieldname("cpointid"))) { // new streamnode
           sid = feat->GetFieldAsInteger(spp.get_index_by_fieldname("cpointid"));
           pSN = get_streamnode_by_id(sid);
@@ -731,7 +732,7 @@ void CModel::postprocess_floodresults() {
               "CModel.cpp: postprocess_floodresults: spp references "
               "non-existant streamnode with id of " + sid,
               exitcode::BAD_DATA);
-          if (pSN->upnodeID1 == -1 || pSN->upnodeID2 != -1) { // headwater OR not junction
+          if (pSN->upnodeID1 == -1) { // headwater
             head_ind = j;
             head_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
             seqelev_divs = 0.0;
@@ -739,28 +740,71 @@ void CModel::postprocess_floodresults() {
                 spp.features[j + seqelev_divs + 1]->GetFieldAsInteger(
                     spp.get_index_by_fieldname("cpointid"));
             while (temp_sid == sid) {
-              seqelev_divs++;
+              seqelev_divs++; // add a division
+              // get next feature's sid
               temp_sid = spp.features[j + seqelev_divs + 1]->GetFieldAsInteger(
                   spp.get_index_by_fieldname("cpointid"));
             }
-            ExitGracefullyIf(seqelev_divs == 0,
-                             "CModel.cpp: postprocess_floodresults: only 1 "
-                             "snapped pourpoint in streamnode " + sid,
-                             exitcode::BAD_DATA);
             tail_ind = j + seqelev_divs;
             tail_elev = spp.features[tail_ind]->GetFieldAsInteger(
                 spp.get_index_by_fieldname("elev"));
-          } else { // not headwater AND junction
+
+            L1 = PLACEHOLDER;
+            L2 = PLACEHOLDER;
+            L3 = PLACEHOLDER;
+          } else if(pSN->upnodeID2 != -1) { // junction
             seqelev_divs = PLACEHOLDER;
             head_ind = PLACEHOLDER;
             tail_ind = PLACEHOLDER;
             head_elev = PLACEHOLDER;
             tail_elev = PLACEHOLDER;
+
+            L1 = pSN->us_reach_length1;
+            L2 = get_streamnode_by_id(pSN->upnodeID1)->ds_reach_length;
+            L3 = get_streamnode_by_id(pSN->upnodeID2)->ds_reach_length;
+          } else { // neither headwater nor junction
+            chainage_map.clear();
+            head_ind = j;
+            head_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
+            seqelev_divs = 0.0;
+            std::vector<int> hids;
+            hids.push_back(feat->GetFieldAsInteger(spp.get_index_by_fieldname("hpointid")));
+            int temp_sid =
+                spp.features[j + seqelev_divs + 1]->GetFieldAsInteger(
+                    spp.get_index_by_fieldname("cpointid"));
+            while (temp_sid == sid) {
+              seqelev_divs++; // add a division
+              // get current feature's hid
+              hids.push_back(spp.features[j + seqelev_divs]->GetFieldAsInteger(
+                  spp.get_index_by_fieldname("hpointid")));
+              // get next feature's sid
+              if (j + seqelev_divs + 1 >= spp.features.size()) {
+                break;
+              }
+              temp_sid = spp.features[j + seqelev_divs + 1]->GetFieldAsInteger(
+                  spp.get_index_by_fieldname("cpointid"));
+            }
+            tail_ind = j + seqelev_divs;
+            tail_elev = spp.features[tail_ind]->GetFieldAsInteger(
+                spp.get_index_by_fieldname("elev"));
+
+            // get descending order placement for each hid in the catchment
+            std::sort(hids.begin(), hids.end(), std::greater<int>());
+            for (int k = 0; k < hids.size(); k++) {
+              chainage_map[hids[i]] = i;
+            }
+
+            L1 = PLACEHOLDER;
+            L2 = pSN->us_reach_length1;
+            L3 = PLACEHOLDER;
           }
         }
         if (pSN->upnodeID1 == -1) { // headwater node
           double temp_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
-          double ho_depth = (*hyd_result)[get_hyd_res_index(i, sid)]->depth;
+          ExitGracefullyIf(seqelev_divs == 0,
+                            "CModel.cpp: postprocess_floodresults: only 1 "
+                            "snapped pourpoint in headwater streamnode " + sid,
+                            exitcode::BAD_DATA);
           double seqelev_j = head_elev +
             ((double)j - (double)head_ind) * (tail_elev - head_elev) / seqelev_divs;
           double max_change = std::abs((seqelev_j - temp_elev) / ho_depth);
@@ -773,13 +817,77 @@ void CModel::postprocess_floodresults() {
 
           double ct = CalcCt(max_change, bbopt->postproc_elev_corr_threshold);
 
-          spp_depths.push_back(ho_depth + (seqelev_j - ho_depth) * ct);
+          spp_depths.push_back(ho_depth + (seqelev_j - temp_elev) * ct);
         } else if (pSN->upnodeID2 != -1) { // junction node
-          
+          double depth2 = (*hyd_result)[get_hyd_res_index(i, pSN->upnodeID1)]->depth;
+          double depth3 = (*hyd_result)[get_hyd_res_index(i, pSN->upnodeID2)]->depth;
+          double depth_junction =
+              L1 + L2 + L3 == 0
+                  ? PLACEHOLDER
+                  : (ho_depth * L1 + depth2 * L2 + depth3 * L3) / (L1 + L2 + L3);
+          if (depth_junction != PLACEHOLDER) { // check with rob on this stuff
+            spp_depths.push_back(depth_junction); // for now. rob to look at R logic
+            //if (feat->GetFieldAsInteger(spp.get_index_by_fieldname("reachID")) != pSN->reachID) {
+            //  spp_depths.push_back(depth_junction);
+            //} else {
+            //  spp_depths.push_back(PLACEHOLDER);
+            //}
+          } else {
+            spp_depths.push_back(PLACEHOLDER);
+          }
         } else { // neither headwater nor junction node
+          double temp_depth = PLACEHOLDER;
+          double temp_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
+          double depth3 = (*hyd_result)[get_hyd_res_index(i, pSN->upnodeID1)]->depth;
+
+          if (seqelev_divs == 1) {
+            temp_depth = ho_depth;
+          } else {
+            int hid = feat->GetFieldAsInteger(spp.get_index_by_fieldname("hpointid"));
+            double chainage = L2 + (chainage_map[hid]) * (0 - L2) / seqelev_divs;
+            temp_depth = ho_depth + (depth3 - ho_depth) / L2 * chainage;
+          }
           
+          double seqelev_j = head_elev +
+            ((double)j - (double)head_ind) * (tail_elev - head_elev) / seqelev_divs;
+          double max_change = std::abs((seqelev_j - temp_elev) / temp_depth);
+
+          if (max_change > 0.5) {
+            WriteWarning("CModel.cpp: postprocess_floodresults: max change "
+                         ">0.5 detected at streamnode nodeID=" +
+                             sid,
+                         bbopt->noisy_run);
+          }
+          
+          double ct = CalcCt(max_change, bbopt->postproc_elev_corr_threshold);
+
+          spp_depths.push_back(temp_depth + (seqelev_j - temp_elev) * ct);
         }
       }
+      
+      for (int j = 0; j < result.xsize * result.ysize; j++) {
+        if ((handid.data[j] != handid.na_val &&
+             (handid.data[j] - 1 >= spp_depths.size() ||
+              handid.data[j] - 1 < 0))) {
+          ExitGracefully(
+              ("Model.cpp: postprocess_floodresults: handid specifies a "
+               "pourpoint id of " +
+               std::to_string(handid.data[j]) +
+               " which does not exist in snapped pourpoints")
+                  .c_str(),
+              exitcode::BAD_DATA);
+        }
+        double curr_depth = handid.data[j] == handid.na_val
+                                ? PLACEHOLDER
+                                : spp_depths[handid.data[j] - 1];
+        if (handid.data[j] != handid.na_val && curr_depth != PLACEHOLDER &&
+            hand.data[j] != hand.na_val && curr_depth >= hand.data[j]) {
+          result.data[j] = curr_depth - hand.data[j];
+        } else {
+          result.data[j] = result.na_val;
+        }
+      }
+      out_rasters.push_back(result);
     } else {
       std::cout << "not yet available" << std::endl;
       break;

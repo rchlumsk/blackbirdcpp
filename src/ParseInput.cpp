@@ -77,8 +77,6 @@ bool ParseMainInputFile(CModel*& pModel,
   char* s[MAXINPUTITEMS];
 
   //temp vars for handling depth sequences
-  double hand_max_depth(PLACEHOLDER);
-  double hand_depth_step(PLACEHOLDER);
   double dhand_max_depth(PLACEHOLDER);
   double dhand_depth_step(PLACEHOLDER);
 
@@ -124,7 +122,6 @@ bool ParseMainInputFile(CModel*& pModel,
     //else if (!strcmp(s[0], ":RedirectToFile")) { code = -4; }//redirect to secondary file
 
     //-------------------- GENERAL MODEL SETUP OPTIONS ------------------------
-    else if (!strcmp(s[0], ":ModelName")) { code = 1; }
     else if (!strcmp(s[0], ":ModelType")) { code = 2; }
     else if (!strcmp(s[0], ":RegimeType")) { code = 3; }
     else if (!strcmp(s[0], ":Tolerance")) { code = 4; }
@@ -137,15 +134,11 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":MinRHRatio")) { code = 11; }
     else if (!strcmp(s[0], ":ExtrapolateDepthTable")) { code = 12; }
     else if (!strcmp(s[0], ":NumExtrapolationPoints")) { code = 13; }
-    else if (!strcmp(s[0], ":DynamicHAND")) { code = 14; }
     else if (!strcmp(s[0], ":FrictionSlopeMethod")) { code = 15; }
     else if (!strcmp(s[0], ":EnforceDeltaLeff")) { code = 16; }
     else if (!strcmp(s[0], ":ReachLengthDelta")) { code = 17; }
     else if (!strcmp(s[0], ":ManningCompositeMethod")) { code = 18; }
     else if (!strcmp(s[0], ":SilentRun")) { code = 19; }
-    else if (!strcmp(s[0], ":HANDDepthSeq")) { code = 20; }
-    else if (!strcmp(s[0], ":HANDMaxDepth")) { code = 21; }
-    else if (!strcmp(s[0], ":HANDDepthStep")) { code = 22; }
     else if (!strcmp(s[0], ":DHANDDepthSeq")) { code = 23; }
     else if (!strcmp(s[0], ":DHANDMaxDepth")) { code = 24; }
     else if (!strcmp(s[0], ":DHANDDepthStep")) { code = 25; }
@@ -200,13 +193,6 @@ bool ParseMainInputFile(CModel*& pModel,
         pMainParser = p;    //save pointer to primary parser
         p = new CParser(INPUT2, filename, line);//open new parser
       }
-      break;
-    }
-    case(1):
-    {/*:ModelName [string name]*/
-      if (pOptions->noisy_run) { std::cout << "ModelName" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":ModelName", p, pOptions->noisy_run); break; }
-      pOptions->modelname = s[1];
       break;
     }
     case(2):
@@ -296,13 +282,6 @@ bool ParseMainInputFile(CModel*& pModel,
       pOptions->num_extrapolation_points = std::atoi(s[1]);
       break;
     }
-    case(14):
-    {/*:DynamicHAND [bool dhand]*/
-      if (pOptions->noisy_run) { std::cout << "DynamicHAND" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":DynamicHAND", p, pOptions->noisy_run); break; }
-      std::istringstream(s[1]) >> pOptions->use_dhand;
-      break;
-    }
     case(15):
     {/*:FrictionSlopeMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "FrictionSlopeMethod" << std::endl; }
@@ -345,45 +324,6 @@ bool ParseMainInputFile(CModel*& pModel,
       if (pOptions->noisy_run) { std::cout << "SilentRun" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":SilentRun", p, pOptions->noisy_run); break; }
       std::istringstream(s[1]) >> pOptions->silent_run;
-      break;
-    }
-    case(20):
-    {/*:HANDDepthSeq [std::vector<double> sequence]*/
-      if (pOptions->noisy_run) { std::cout << "HANDDepthSeq" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":HANDDepthSeq", p, pOptions->noisy_run); break; }
-      if (hand_max_depth != PLACEHOLDER && hand_depth_step != PLACEHOLDER) {
-        WriteWarning(":HANDDepthSeq hand_depth_seq has already been defined. ignoring command", pOptions->noisy_run);
-      } else {
-        for (int i = 1; i < Len; i++) {
-          pModel->hand_depth_seq.push_back(std::atof(s[i]));
-        }
-      }
-      break;
-    }
-    case(21):
-    {/*:HANDMaxDepth [double max_depth]*/
-      if (pOptions->noisy_run) { std::cout << "HANDMaxDepth" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":HANDMaxDepth", p, pOptions->noisy_run); break; }
-      if (pModel->hand_depth_seq.size() > 0) {
-        WriteWarning(":HANDMaxDepth hand_depth_seq has already been defined. ignoring command", pOptions->noisy_run);
-      } else if (hand_max_depth != PLACEHOLDER) {
-        WriteWarning(":HANDMaxDepth hand_max_depth has already been defined. ignoring command", pOptions->noisy_run);
-      } else {
-        hand_max_depth = std::atof(s[1]);
-      }
-      break;
-    }
-    case(22):
-    {/*:HANDDepthStep [double depth_step]*/
-      if (pOptions->noisy_run) { std::cout << "HANDDepthStep" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":HANDDepthStep", p, pOptions->noisy_run); break; }
-      if (pModel->hand_depth_seq.size() > 0) {
-        WriteWarning(":HANDDepthStep hand_depth_seq has already been defined. ignoring command", pOptions->noisy_run);
-      } else if (hand_depth_step != PLACEHOLDER) {
-        WriteWarning(":HANDDepthStep hand_depth_step has already been defined. ignoring command", pOptions->noisy_run);
-      } else {
-        hand_depth_step = std::atof(s[1]);
-      }
       break;
     }
     case(23):
@@ -537,22 +477,7 @@ bool ParseMainInputFile(CModel*& pModel,
   } //end while (!end_of_file)
   INPUT.close();
 
-  // Clean up (d)hand_depth_seq logic
-  if (hand_max_depth != PLACEHOLDER || hand_depth_step != PLACEHOLDER) {
-    if (hand_max_depth == PLACEHOLDER) {
-      WriteWarning("ParseInput.cpp: hand_depth_step provided without "
-                   "hand_max_depth. hand_depth_seq cannot be determined",
-                   pOptions->noisy_run);
-    } else if (hand_depth_step == PLACEHOLDER || hand_depth_step == 0) {
-      WriteWarning("ParseInput.cpp: hand_max_depth provided without "
-                   "hand_depth_step. hand_depth_seq cannot be determined",
-                   pOptions->noisy_run);
-    } else {
-      for (double i = 0; i < hand_max_depth; i += hand_depth_step) {
-        pModel->hand_depth_seq.push_back(i);
-      }
-    }
-  }
+  // Clean up dhand_depth_seq logic
   if (dhand_max_depth != PLACEHOLDER || dhand_depth_step != PLACEHOLDER) {
     if (dhand_max_depth == PLACEHOLDER) {
       WriteWarning("ParseInput.cpp: dhand_depth_step provided without "

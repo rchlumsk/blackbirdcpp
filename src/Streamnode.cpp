@@ -149,7 +149,7 @@ double CStreamnode::compute_normal_depth(double flow, double slope, double init_
          prevWSL_lag1 = dupe.mm->wsl,
          prevWSL_lag2 = PLACEHOLDER;
   for (int i = 0; i < bbopt->iteration_limit_nd; i++) {
-    if (!bbopt->silent_cp && i % 10 == 0) {
+    if (!bbopt->silent_run && i % 10 == 0) {
       std::cout << "normal depth: iteration " << i + 1 << ": ----" << std::endl;
     }
 
@@ -209,7 +209,7 @@ double CStreamnode::compute_normal_depth(double flow, double slope, double init_
       }
       dupe.mm->depth = dupe.mm->wsl - dupe.mm->min_elev;
     } else {
-      if (!bbopt->silent_nd) {
+      if (!bbopt->silent_run) {
         std::cout << "Normal depth estimated successfully." << std::endl;
       }
       return dupe.mm->wsl;

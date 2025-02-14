@@ -52,7 +52,7 @@ CVector& CVector::operator=(const CVector& other) {
 int CVector::get_index_by_fieldname(const char* fieldname) {
   return field_def_map.find(fieldname) != field_def_map.end()
     ? field_def_map[fieldname]
-    : NULL;
+    : PLACEHOLDER;
 }
 
 //////////////////////////////////////////////////////////////////

@@ -16,7 +16,6 @@ public:
   std::vector<CStreamnode*> *bbsn;     // A vector of Streamnode objects
   CBoundaryConditions *bbbc;           // A single bb_boundarycondition object
   COptions *bbopt;                     // A single bb_options object
-  std::vector<double> hand_depth_seq;  // sequence of depths for hand
   std::vector<double> dhand_depth_seq; // sequence of depths for dhand
   CRaster c_from_s;                    // raster object for catchments from streamnodes
   CVector spp;                         // vector object for snapped pourpoints

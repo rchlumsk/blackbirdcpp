@@ -30,7 +30,7 @@ public:
 
 protected:
   // Private variables
-  std::unordered_map<const char*, int> field_def_map;   // maps field name to field_defs index
+  std::unordered_map<std::string, int> field_def_map;   // maps field name to field_defs index
 
 };
 

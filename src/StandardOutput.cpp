@@ -162,11 +162,6 @@ void CModel::WriteFullModel() const
   TESTOUTPUT.open(FilenamePrepare("Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "===================== Full Model =====================" << std::endl;
   TESTOUTPUT << "\n================== Model ==================" << std::endl;
-  TESTOUTPUT << std::left << std::setw(35) << "Hand Depth Sequence:";
-  for (auto d : hand_depth_seq) {
-    TESTOUTPUT << d << "  ";
-  }
-  TESTOUTPUT << std::endl;
   TESTOUTPUT << std::setw(35) << "DHand Depth Sequence:";
   for (auto d : dhand_depth_seq) {
     TESTOUTPUT << d << "  ";
@@ -271,7 +266,6 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::setw(35) << "BBB Filename:" << bbb_filename << std::endl;
   TESTOUTPUT << std::setw(35) << "Main Output Directory:" << main_output_dir << std::endl;
   TESTOUTPUT << std::setw(35) << "Working Directory:" << working_dir << std::endl;
-  TESTOUTPUT << std::setw(35) << "Model Name:" << modelname << std::endl;
   TESTOUTPUT << std::setw(35) << "GIS Path:" << gis_path << std::endl;
   TESTOUTPUT << std::setw(35) << "Model Type:" << toString(modeltype) << std::endl;
   TESTOUTPUT << std::setw(35) << "Regime Type:" << toString(regimetype) << std::endl;
@@ -289,11 +283,8 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::setw(35) << "Tolerance ND:" << tolerance_nd << std::endl;
   TESTOUTPUT << std::setw(35) << "Iteration Limit ND:" << iteration_limit_nd << std::endl;
   TESTOUTPUT << std::setw(35) << "Next WSL Split ND:" << next_WSL_split_nd << std::endl;
-  TESTOUTPUT << std::setw(35) << "Silent CP:" << (silent_cp ? "True" : "False") << std::endl;
-  TESTOUTPUT << std::setw(35) << "Silent ND:" << (silent_nd ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Max RHSQ Ratio:" << max_RHSQ_ratio << std::endl;
   TESTOUTPUT << std::setw(35) << "Min RHSQ Ratio:" << min_RHSQ_ratio << std::endl;
-  TESTOUTPUT << std::setw(35) << "Use DHand:" << (use_dhand ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Manning Composite Method:" << toString(manning_composite_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "Manning Enforce Values:" << (manning_enforce_values ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Reach Integration Method:" << toString(reach_integration_method) << std::endl;

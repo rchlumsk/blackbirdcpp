@@ -14,7 +14,6 @@ public:
 
   std::string main_output_dir;
   std::string working_dir;
-  std::string modelname;
   std::string gis_path; // path to gis files (rasters or netcdf)
 
   enum_mt_method modeltype;
@@ -33,11 +32,8 @@ public:
   double tolerance_nd;
   double iteration_limit_nd;
   double next_WSL_split_nd;
-  bool silent_cp;
-  bool silent_nd;
   double max_RHSQ_ratio;
   double min_RHSQ_ratio;
-  bool use_dhand;
   enum_mc_method manning_composite_method;
   bool manning_enforce_values;
   enum_ri_method reach_integration_method;
