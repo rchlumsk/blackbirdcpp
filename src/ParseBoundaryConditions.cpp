@@ -66,10 +66,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
     //--------------------MODEL OPTIONS ------------------------
     else if (!strcmp(s[0], ":BoundaryConditions")) { code = 1; }
     else if (!strcmp(s[0], ":EndBoundaryConditions")) { code = 2; }
-    else if (!strcmp(s[0], ":StationName")) { code = 3; }
-    else if (!strcmp(s[0], ":Station")) { code = 4; }
-    else if (!strcmp(s[0], ":Reach")) { code = 5; }
-    else if (!strcmp(s[0], ":Location")) { code = 6; }
+    else if (!strcmp(s[0], ":nodeID")) { code = 3; }
     else if (!strcmp(s[0], ":BCType")) { code = 7; }
     else if (!strcmp(s[0], ":BCValue")) { code = 8; }
     else if (!strcmp(s[0], ":InitialWSL")) { code = 9; }
@@ -139,47 +136,13 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
       break;
     }
     case(3):
-    {/*:StationName [string name]*/
-      if (pOptions->noisy_run) { std::cout << "StationName" << std::endl; }
+    {/*:nodeID [int id]*/
+      if (pOptions->noisy_run) { std::cout << "nodeID" << std::endl; }
       ExitGracefullyIf(pBC == NULL,
-        "ParseBoundaryConditions File: :StationName specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":StationName", pp, pOptions->noisy_run); break; }
-      pBC->stationname = s[1];
-      break;
-    }
-    case(4):
-    {/*:Station [double station]*/
-      if (pOptions->noisy_run) { std::cout << "Station" << std::endl; }
-      ExitGracefullyIf(pBC == NULL,
-        "ParseBoundaryConditions File: :Station specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":Station", pp, pOptions->noisy_run); break; }
-      if (strcmp(s[1], "NA")) {
-        if (StringIsDouble(s[1])) {
-          pBC->station = std::stod(s[1]);
-        }
-        else {
-          std::string error = "ParsePreprocessedTables File: Station \"" + std::string(s[1]) + "\" in :BoundaryConditions must be a double";
-          ExitGracefully(error.c_str(), BAD_DATA_WARN);
-        }
-      }
-      break;
-    }
-    case(5):
-    {/*:Reach [string reach]*/
-      if (pOptions->noisy_run) { std::cout << "Reach" << std::endl; }
-      ExitGracefullyIf(pBC == NULL,
-        "ParseBoundaryConditions File: :Reach specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":Reach", pp, pOptions->noisy_run); break; }
-      pBC->reach = s[1];
-      break;
-    }
-    case(6):
-    {/*:Location [string loc]*/
-      if (pOptions->noisy_run) { std::cout << "Location" << std::endl; }
-      ExitGracefullyIf(pBC == NULL,
-        "ParseBoundaryConditions File: :Location specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
-      if (Len < 2) { ImproperFormatWarning(":Location", pp, pOptions->noisy_run); break; }
-      pBC->location = s[1];
+        "ParseBoundaryConditions File: :nodeID specified outside of a :BoundaryConditions-:EndBoundaryConditions statement", BAD_DATA);
+      if (Len < 2) { ImproperFormatWarning(":nodeID", pp, pOptions->noisy_run); break; }
+      pBC->nodeID = std::atoi(s[1]);
+      pOptions->iteration_limit_cp = std::atoi(s[1]);
       break;
     }
     case(7):

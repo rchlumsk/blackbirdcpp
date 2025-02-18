@@ -6,10 +6,7 @@
 class CBoundaryConditions {
 public:
   // Member variables
-  std::string stationname;
-  double station;
-  std::string reach;
-  std::string location;
+  int nodeID;
   enum_bc_type bctype; // boundary condition type
   double bcvalue; // boundary condition value
   double init_WSL; // initial water surface level

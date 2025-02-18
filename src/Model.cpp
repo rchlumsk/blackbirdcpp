@@ -15,7 +15,6 @@ CModel::CModel()
   hyd_result(nullptr),
   out_rasters(),
   streamnode_map(),
-  stationname_map(),
   flow(PLACEHOLDER) {
   // Default constructor implementation
 }
@@ -25,7 +24,7 @@ CModel::CModel(const CModel &other)
     : c_from_s(other.c_from_s), hand(other.hand), handid(other.handid),
       dhand(other.dhand), dhandid(other.dhandid),
       out_rasters(other.out_rasters), streamnode_map(other.streamnode_map),
-      stationname_map(other.stationname_map), flow(other.flow) {
+      flow(other.flow) {
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
     for (const auto &node : *other.bbsn) {
@@ -81,7 +80,6 @@ CModel &CModel::operator=(const CModel &other) {
   dhandid = other.dhandid;
   out_rasters = other.out_rasters;
   streamnode_map = other.streamnode_map;
-  stationname_map = other.stationname_map;
   flow = other.flow;
 
   if (other.bbsn) {
@@ -125,7 +123,7 @@ void CModel::hyd_compute_profile() {
                    BAD_DATA);
 
   // Get streamnode associated with the boundary condition
-  CStreamnode *start_streamnode = get_streamnode_by_stationname(bbbc->stationname);
+  CStreamnode *start_streamnode = get_streamnode_by_id(bbbc->nodeID);
 
   ExitGracefullyIf(!start_streamnode,
                    "Model.cpp: hyd_compute_profile(): boundary condition "
@@ -202,7 +200,6 @@ void CModel::calc_output_flows() {
 void CModel::add_streamnode(CStreamnode*& pSN) {
   bbsn->push_back(pSN);
   streamnode_map[pSN->nodeID] = bbsn->size() - 1;
-  stationname_map[pSN->stationname] = bbsn->size() - 1;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -213,18 +210,6 @@ CStreamnode* CModel::get_streamnode_by_id(int sid) {
   //std::cout << "bbsn size: " << bbsn->size() << std::endl;
   //std::cout << "sid: " << sid << std::endl;
   return streamnode_map.find(sid) != streamnode_map.end() ? bbsn->at(streamnode_map[sid]) : NULL;
-}
-
-//////////////////////////////////////////////////////////////////
-/// \brief Returns streamnode with stationname 'name'
-/// \return streamnode with stationname 'name'
-//
-CStreamnode *CModel::get_streamnode_by_stationname(std::string name) {
-  // std::cout << "bbsn size: " << bbsn->size() << std::endl;
-  // std::cout << "stationname: " << name << std::endl;
-  return stationname_map.find(name) != stationname_map.end()
-             ? bbsn->at(stationname_map[name])
-             : NULL;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -585,9 +570,12 @@ void CModel::ReadGISFiles() {
 void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
   GDALDataset *dataset =
       static_cast<GDALDataset *>(GDALOpen(filename.c_str(), GA_ReadOnly));
+  if (dataset == nullptr) {
+    dataset = static_cast<GDALDataset *>(GDALOpen((filename + "f").c_str(), GA_ReadOnly));
+  }
   ExitGracefullyIf(
       dataset == nullptr,
-      ("Model.cpp: ReadRasterFile: couldn't open " + filename).c_str(),
+      ("Model.cpp: ReadRasterFile: couldn't open " + filename + " or " + filename + "f").c_str(),
       exitcode::FILE_OPEN_ERR);
 
   raster_obj.xsize = dataset->GetRasterXSize();

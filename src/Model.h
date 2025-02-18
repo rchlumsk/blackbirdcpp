@@ -42,7 +42,6 @@ public:
 
   void add_streamnode(CStreamnode*& pSN);                         // adds streamnode to bbsn and maps
   CStreamnode* get_streamnode_by_id(int sid);                     // returns streamnode using id map
-  CStreamnode *get_streamnode_by_stationname(std::string name);   // returns streamnode using stationname map
   int get_index_by_id(int id);                                    // returns streamnode index usind id map
   int get_hyd_res_index(int flow_ind, int sid);                   // returns hyd_result index
 
@@ -64,7 +63,6 @@ public:
 protected:
   // Private variables
   std::unordered_map<int, int> streamnode_map;            // maps streamnode id to index
-  std::unordered_map<std::string, int> stationname_map;   // maps stationname to index
   int flow;
 
   // Private functions

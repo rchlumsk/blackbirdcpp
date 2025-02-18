@@ -308,10 +308,7 @@ void CBoundaryConditions::pretty_print() const
   std::ofstream TESTOUTPUT;
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "\n=========== Boundary Conditions ===========" << std::endl;
-  TESTOUTPUT << std::left << std::setw(20) << "Station Name:" << stationname << std::endl;
-  TESTOUTPUT << std::setw(20) << "Station Number:" << station << std::endl;
-  TESTOUTPUT << std::setw(20) << "Reach:" << reach << std::endl;
-  TESTOUTPUT << std::setw(20) << "Location:" << location << std::endl;
+  TESTOUTPUT << std::left << std::setw(20) << "Node ID:" << nodeID << std::endl;
   TESTOUTPUT << std::setw(20) << "Boundary Type:" << toString(bctype) << std::endl;
   TESTOUTPUT << std::setw(20) << "Boundary Value:" << bcvalue << std::endl;
   TESTOUTPUT << std::setw(20) << "Initial WSL:" << init_WSL << std::endl;

@@ -1002,12 +1002,26 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
           error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" after :StreamnodeCrossSection must be unique integer or long integer";
           ExitGracefully(error.c_str(), BAD_DATA_WARN);
         }
+        CXSection *xs_pSN = (CXSection *)pSN;
         while ((!done) && (!end_of_file))
         {
           end_of_file = pp->Tokenize(s, Len);
           if (IsComment(s[0], Len)) {}//comment line
           else if (!strcmp(s[0], ":Attributes")) {}//ignored by Blackbird - needed for GUIs
           else if (!strcmp(s[0], ":EndStreamnodeCrossSection")) { done = true; }
+          else if (!strcmp(s[0], ":BankStations"))
+          {
+            if (Len < 3) { pp->ImproperFormat(s); }
+            xs_pSN->lbs_xx = std::atof(s[1]);
+            xs_pSN->rbs_xx = std::atof(s[2]);
+          }
+          else if (!strcmp(s[0], ":RoughnessZoneValues"))
+          {
+            if (Len < 4) { pp->ImproperFormat(s); }
+            xs_pSN->manning_LOB = std::atof(s[1]);
+            xs_pSN->manning_main = std::atof(s[2]);
+            xs_pSN->manning_ROB = std::atof(s[3]);
+          }
           else
           {
             row++;
@@ -1052,7 +1066,6 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
             }
           }
         }
-        CXSection *xs_pSN = (CXSection *)pSN;
         xs_pSN->xx = std::valarray<double>(xx_vec.data(), xx_vec.size());
         xs_pSN->zz = std::valarray<double>(zz_vec.data(), zz_vec.size());
         xs_pSN->manning = std::valarray<double>(nn_vec.data(), nn_vec.size());

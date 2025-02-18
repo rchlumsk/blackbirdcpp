@@ -86,12 +86,12 @@ int main(int argc, char* argv[])
 
   //Finished Solving----------------------------------------------------
   // Initialize test output file for writing to
-  std::ofstream TESTOUTPUT;
-  TESTOUTPUT.open(pModel->FilenamePrepare("Blackbird_testoutput.txt").c_str());
-  if (TESTOUTPUT.fail()) {
-    ExitGracefully("Main::Unable to open Blackbird_testoutput.txt. Bad output directory specified?", BLACKBIRD_OPEN_ERR);
-  }
-  TESTOUTPUT.close();
+  //std::ofstream TESTOUTPUT;
+  //TESTOUTPUT.open(pModel->FilenamePrepare("Blackbird_testoutput.txt").c_str());
+  //if (TESTOUTPUT.fail()) {
+  //  ExitGracefully("Main::Unable to open Blackbird_testoutput.txt. Bad output directory specified?", BLACKBIRD_OPEN_ERR);
+  //}
+  //TESTOUTPUT.close();
   //pModel->WriteFullModel(); // writes full model to test output
   //pModel->hyd_result_pretty_print(); // writes hydraulic result to test output
   pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
