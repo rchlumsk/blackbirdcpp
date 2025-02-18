@@ -854,9 +854,9 @@ void CModel::postprocess_floodresults() {
           spp_depths.push_back(temp_depth + (seqelev_j - temp_elev) * ct);
         }
       }
-      // 2255 stuff is a temporary bypass
+      
       for (int j = 0; j < result.xsize * result.ysize; j++) {
-        if (/*handid.data[j] < 2255 &&*/ (handid.data[j] != handid.na_val &&
+        if ( (handid.data[j] != handid.na_val &&
              (handid.data[j] - 1 >= spp_depths.size() ||
               handid.data[j] - 1 < 0))) {
           ExitGracefully(
@@ -867,7 +867,7 @@ void CModel::postprocess_floodresults() {
                   .c_str(),
               exitcode::BAD_DATA);
         }
-        double curr_depth = handid.data[j] == handid.na_val// || handid.data[j] >= 2255
+        double curr_depth = handid.data[j] == handid.na_val
                                 ? PLACEHOLDER
                                 : spp_depths[handid.data[j] - 1];
         if (handid.data[j] != handid.na_val && curr_depth != PLACEHOLDER &&
