@@ -53,8 +53,6 @@ CStreamnode::CStreamnode(const CStreamnode& other)
   output_depth(PLACEHOLDER),
   output_flows(),
   mm(new hydraulic_output(*(other.mm))) {
-  std::cout << other.stationname << std::endl;
-  std::cout << stationname << std::endl;
   if (other.depthdf) {
     for (auto ptr : *other.depthdf) {
       depthdf->push_back(new hydraulic_output(*ptr));

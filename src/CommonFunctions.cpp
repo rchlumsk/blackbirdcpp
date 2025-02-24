@@ -147,3 +147,8 @@ void WriteAdvisory(const std::string warn, bool noisy)
     WARNINGS.close();
   }
 }
+
+/////////////////////////////////////////////////////////////////
+/// \brief custom cpl error handler that does nothing
+//
+void SilentErrorHandler(CPLErr eErrClass, int err_no, const char *msg) {}

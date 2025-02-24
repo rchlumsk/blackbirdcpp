@@ -152,6 +152,7 @@ struct hydraulic_output {
   double length_energyloss;
   double length_effectiveadjusted;
   double bed_slope;
+  double peak_hrs_required;
 
   // Constructor PLACEHOLDER variant
   //hydraulic_output()
@@ -187,7 +188,7 @@ struct hydraulic_output {
   //      nc_wavgarea(PLACEHOLDER), nc_wavgconv(PLACEHOLDER),
   //      depth_critical(PLACEHOLDER), cp_iterations(PLACEHOLDER),
   //      k_err(PLACEHOLDER), ws_err(PLACEHOLDER), length_energyloss(PLACEHOLDER),
-  //      length_effectiveadjusted(PLACEHOLDER), bed_slope(PLACEHOLDER) {}
+  //      length_effectiveadjusted(PLACEHOLDER), bed_slope(PLACEHOLDER), peak_hrs_required(PLACEHOLDER) {}
 
   // Constructor 0 variant
   hydraulic_output()
@@ -211,7 +212,7 @@ struct hydraulic_output {
         alpha_disconv(0.0), nc_equalforce(0.0), nc_equalvelocity(0.0),
         nc_wavgwp(0.0), nc_wavgarea(0.0), nc_wavgconv(0.0), depth_critical(0.0),
         cp_iterations(0), k_err(0.0), ws_err(0.0), length_energyloss(0.0),
-        length_effectiveadjusted(0.0), bed_slope(0.0) {}
+        length_effectiveadjusted(0.0), bed_slope(0.0), peak_hrs_required(0.0) {}
 
   // Copy Constructor
   hydraulic_output(const hydraulic_output &other) = default;
@@ -534,6 +535,7 @@ bool          IsComment(const char* s, const int Len);
 void          WriteWarning(const std::string warn, bool noisy);
 void          WriteAdvisory(const std::string warn, bool noisy);
 double        fast_s_to_d(const char* s);
+void          SilentErrorHandler(CPLErr eErrClass, int err_no, const char *msg);
 
 // I/O Functions-----------------------------------------------
 // defined in StandardOutput.cpp

@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
 
 //////////////////////////////////////////////////////////////////
 /// \param argc [in] number of arguments to executable
-/// \param argv[] [in] executable arguments; blackbird.exe [filebase] [-g bbg_file] [-p bbp_file] [-b bbb_file] [-o output_dir]
+/// \param argv[] [in] executable arguments; blackbird.exe [filebase] [-g bbg_file] [-b bbb_file] [-o output_dir]
 /// \param pOptions [in] Global model options
 /// \details initializes input files and output directory
 /// \details filebase has no extension, all others require .rv* extension

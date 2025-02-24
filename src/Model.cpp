@@ -15,7 +15,9 @@ CModel::CModel()
   hyd_result(nullptr),
   out_rasters(),
   streamnode_map(),
-  flow(PLACEHOLDER) {
+  flow(PLACEHOLDER),
+  peak_hrs_min(PLACEHOLDER),
+  peak_hrs_max(PLACEHOLDER) {
   // Default constructor implementation
 }
 
@@ -24,7 +26,7 @@ CModel::CModel(const CModel &other)
     : c_from_s(other.c_from_s), hand(other.hand), handid(other.handid),
       dhand(other.dhand), dhandid(other.dhandid),
       out_rasters(other.out_rasters), streamnode_map(other.streamnode_map),
-      flow(other.flow) {
+      flow(other.flow), peak_hrs_min(other.peak_hrs_min), peak_hrs_max(other.peak_hrs_max) {
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
     for (const auto &node : *other.bbsn) {
@@ -81,6 +83,8 @@ CModel &CModel::operator=(const CModel &other) {
   out_rasters = other.out_rasters;
   streamnode_map = other.streamnode_map;
   flow = other.flow;
+  peak_hrs_min = other.peak_hrs_min;
+  peak_hrs_max = other.peak_hrs_max;
 
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
@@ -127,7 +131,7 @@ void CModel::hyd_compute_profile() {
 
   ExitGracefullyIf(!start_streamnode,
                    "Model.cpp: hyd_compute_profile(): boundary condition "
-                   "station name not represented in streamnodes",
+                   "streamnode id not represented in streamnodes",
                    BAD_DATA);
 
   // Initialize container for hydraulic result
@@ -139,6 +143,14 @@ void CModel::hyd_compute_profile() {
   for (int f = 0; f < start_streamnode->output_flows.size(); f++) {
     flow = f;
     compute_streamnode(start_streamnode, start_streamnode, hyd_result);
+    WriteAdvisory("The range of required peak flood times ranges from " +
+                      std::to_string(peak_hrs_min) + " to " +
+                      std::to_string(peak_hrs_max) + " hours for flow " +
+                      std::to_string(flow) +
+                      " within the computed streamnodes",
+                  bbopt->noisy_run);
+    peak_hrs_min = PLACEHOLDER;
+    peak_hrs_max = PLACEHOLDER;
   }
   if (!bbopt->silent_run) {
     std::cout << "Successfully completed all hydraulic calculations :-)" << std::endl;
@@ -488,6 +500,15 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
     }
   }
 
+  // compute peak hours required and update min and max accordingly
+  sn->mm->peak_hrs_required = (sn->mm->area * sn->mm->length_effectiveadjusted / sn->mm->flow) / 3600; // TODO check with rob
+  if (peak_hrs_min == PLACEHOLDER || sn->mm->peak_hrs_required < peak_hrs_min) {
+    peak_hrs_min = sn->mm->peak_hrs_required;
+  }
+  if (peak_hrs_max == PLACEHOLDER || sn->mm->peak_hrs_required > peak_hrs_max) {
+    peak_hrs_max = sn->mm->peak_hrs_required;
+  }
+
   // assign output to its designated location
   (*res)[flow * bbsn->size() + ind] = new hydraulic_output(*(sn->mm));
 
@@ -568,11 +589,13 @@ void CModel::ReadGISFiles() {
 /// \brief Reads specified Raster file
 //
 void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
+  CPLPushErrorHandler(SilentErrorHandler);
   GDALDataset *dataset =
       static_cast<GDALDataset *>(GDALOpen(filename.c_str(), GA_ReadOnly));
   if (dataset == nullptr) {
     dataset = static_cast<GDALDataset *>(GDALOpen((filename + "f").c_str(), GA_ReadOnly));
   }
+  CPLPopErrorHandler();
   ExitGracefullyIf(
       dataset == nullptr,
       ("Model.cpp: ReadRasterFile: couldn't open " + filename + " or " + filename + "f").c_str(),
@@ -604,8 +627,10 @@ void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
 /// \brief Reads specified Vector file
 //
 void CModel::ReadVectorFile(std::string filename, CVector &vector_obj) {
+  CPLPushErrorHandler(SilentErrorHandler);
   GDALDataset *dataset = static_cast<GDALDataset *>(
       GDALOpenEx(filename.c_str(), GDAL_OF_VECTOR, nullptr, nullptr, nullptr));
+  CPLPopErrorHandler();
   ExitGracefullyIf(
       dataset == nullptr,
       ("Model.cpp: ReadVectorFile: couldn't open " + filename).c_str(),

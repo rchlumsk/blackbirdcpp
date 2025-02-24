@@ -55,18 +55,20 @@ public:
   void hyd_result_pretty_print_csv() const;                       // writes hyd_result to csv file
 
   // GIS Functions
-  void ReadGISFiles();                                         // reads necessary raster files
-  void ReadRasterFile(std::string filename, CRaster &raster_obj); //reads specified raster file
-  void ReadVectorFile(std::string filename, CVector &vector_obj); //reads specified vector file
+  void ReadGISFiles();                                            // reads necessary raster files
+  void ReadRasterFile(std::string filename, CRaster &raster_obj); // reads specified raster file
+  void ReadVectorFile(std::string filename, CVector &vector_obj); // reads specified vector file
   void postprocess_floodresults();                                // postprocesses flood results based on bbopt method
 
 protected:
   // Private variables
   std::unordered_map<int, int> streamnode_map;            // maps streamnode id to index
-  int flow;
+  int flow;                                               // index for flow being used in hyd_compute_profile
+  double peak_hrs_min;                                    // minimum hydraulic output peak hours required for all streamnodes in hyd_compute_profile
+  double peak_hrs_max;                                    // maximum hydraulic output peak hours required for all streamnodes in hyd_compute_profile
 
   // Private functions
-  void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res); // helper function uses in hyd_compute_profile
+  void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res); // helper function used in hyd_compute_profile
 };
 
 #endif

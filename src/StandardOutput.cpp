@@ -492,6 +492,7 @@ void CStreamnode::pretty_print() const
       << std::setw(10) << "wsErr"
       << std::setw(20) << "lengthEnergyloss"
       << std::setw(25) << "lengthEffectiveAdjusted"
+      << std::setw(25) << "peakHoursRequired"
       << std::endl;
 
     // Iterate over all hydraulic_output objects in depthdf and print them
@@ -571,6 +572,7 @@ void CStreamnode::pretty_print() const
         << std::setw(10) << ho->ws_err
         << std::setw(20) << ho->length_energyloss
         << std::setw(25) << ho->length_effectiveadjusted
+        << std::setw(25) << ho->peak_hrs_required
         << std::endl;
     }
     TESTOUTPUT << "=================================" << std::endl;
@@ -666,6 +668,7 @@ void CModel::hyd_result_pretty_print() const
       << std::setw(10) << "wsErr"
       << std::setw(20) << "lengthEnergyloss"
       << std::setw(25) << "lengthEffectiveAdjusted"
+      << std::setw(25) << "peakHoursRequired"
       << std::endl;
 
     // Iterate over all hydraulic_output objects in hyd_result and print them
@@ -745,6 +748,7 @@ void CModel::hyd_result_pretty_print() const
         << std::setw(10) << ho->ws_err
         << std::setw(20) << ho->length_energyloss
         << std::setw(25) << ho->length_effectiveadjusted
+        << std::setw(25) << ho->peak_hrs_required
         << std::endl;
     }
     TESTOUTPUT << "=================================" << std::endl;
@@ -795,7 +799,7 @@ void CModel::hyd_result_pretty_print_csv() const
              << "ncEqualVelocity" << "," << "ncWavgwp" << "," << "ncWavgArea"
              << "," << "ncWavgConv" << "," << "criticalDepth" << ","
              << "cpIterations" << "," << "kErr" << "," << "wsErr" << ","
-             << "lengthEnergyloss" << "," << "lengthEffectiveAdjusted"
+             << "lengthEnergyloss" << "," << "lengthEffectiveAdjusted" << "peakHoursRequired"
              << std::endl;
   // Iterate over all hydraulic_output objects in depthdf and print them
   for (const auto &ho : *(this->hyd_result)) {
@@ -832,7 +836,8 @@ void CModel::hyd_result_pretty_print_csv() const
                << ho->nc_wavgarea << "," << ho->nc_wavgconv << ","
                << ho->depth_critical << "," << ho->cp_iterations << ","
                << ho->k_err << "," << ho->ws_err << "," << ho->length_energyloss
-               << "," << ho->length_effectiveadjusted << std::endl;
+               << "," << ho->length_effectiveadjusted << ","
+               << ho->peak_hrs_required << std::endl;
   }
   HYD_OUTPUT.close();
 }
