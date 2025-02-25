@@ -157,7 +157,8 @@ bool ParseMainInputFile(CModel*& pModel,
 
     //-------------------- POSTPROCESSING OPTIONS ------------------------
     else if (!strcmp(s[0], ":PostprocessingInterpolationMethod")) { code = 400; }
-    else if (!strcmp(s[0], ":GISPath")) { code = 401; }
+    else if (!strcmp(s[0], ":DHandMethod")) { code = 401; }
+    else if (!strcmp(s[0], ":GISPath")) { code = 402; }
 
     switch (code)
     {
@@ -429,6 +430,14 @@ bool ParseMainInputFile(CModel*& pModel,
       break;
     }
     case(401):
+    {/*:DHandMethod [string method]*/
+      if (pOptions->noisy_run) { std::cout << "DHandMethod" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":DHandMethod", p, pOptions->noisy_run); break; }
+      if (!strcmp(s[1], "INTERPOLATE")) { pOptions->dhand_method = enum_dh_method::INTERPOLATE; }
+      else if (!strcmp(s[1], "FLOOR")) { pOptions->dhand_method = enum_dh_method::FLOOR; }
+      break;
+    }
+    case(402):
     {/*:GISPath [string path_to_folder]*/
       if (pOptions->noisy_run) { std::cout << "GISPath" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":GISPath", p, pOptions->noisy_run); break; }

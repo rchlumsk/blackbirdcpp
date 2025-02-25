@@ -38,6 +38,7 @@ public:
   bool manning_enforce_values;
   enum_ri_method reach_integration_method;
   enum_ppi_method interpolation_postproc_method;
+  enum_dh_method dhand_method;
   double postproc_elev_corr_threshold;
   double roughness_multiplier;
   double blended_conveyance_weights;

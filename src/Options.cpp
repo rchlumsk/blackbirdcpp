@@ -32,6 +32,7 @@ COptions::COptions()
   manning_enforce_values(false),
   reach_integration_method(enum_ri_method::EFFECTIVE_LENGTH),
   interpolation_postproc_method(enum_ppi_method::CATCHMENT_HAND),
+  dhand_method(enum_dh_method::INTERPOLATE),
   postproc_elev_corr_threshold(PLACEHOLDER),
   roughness_multiplier(PLACEHOLDER),
   blended_conveyance_weights(PLACEHOLDER),

@@ -311,6 +311,13 @@ enum enum_bc_type
   SET_DEPTH
 };
 
+// DHand post-processing method
+enum enum_dh_method
+{
+  INTERPOLATE,
+  FLOOR
+};
+
 //*****************************************************************
 //Common Functions (inline)
 //*****************************************************************
@@ -524,6 +531,14 @@ inline std::string toString(enum_bc_type type) {
   case NORMAL_DEPTH: return "NORMAL_DEPTH";
   case SET_WSL: return "SET_WSL";
   case SET_DEPTH: return "SET_DEPTH";
+  default: return "UNKNOWN";
+  }
+}
+
+inline std::string toString(enum_dh_method method) {
+  switch (method) {
+  case INTERPOLATE: return "INTERPOLATE";
+  case FLOOR: return "FLOOR";
   default: return "UNKNOWN";
   }
 }
