@@ -70,6 +70,7 @@ protected:
   // Private functions
   void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res); // helper function used in hyd_compute_profile
   std::pair<int, int> dhand_bounding_depths(double depth);                                                 // finds nearest dhands to use in postprocess_floodresults
+  std::vector<double> generate_spp_depths(int flow_ind);
 };
 
 #endif
