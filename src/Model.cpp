@@ -399,131 +399,32 @@ void CModel::postprocess_floodresults() {
       std::cout << "post processing flood results for flow " + std::to_string(flow_ind + 1) << std::endl;
     }
 
-    CRaster result;
-    if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
-        bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-      result = hand;
-    } else {
-      result = dhand[0];
+    switch (bbopt->interpolation_postproc_method)
+    {
+    case (enum_ppi_method::CATCHMENT_HAND):
+    {
+      generate_out_raster(flow_ind, false, false);
     }
-    result.name = "Result " + std::to_string(flow_ind + 1);
-    std::fill(result.data, result.data + (result.xsize * result.ysize), 0.0);
+    case (enum_ppi_method::INTERP_HAND):
+    {
+      generate_spp_depths(flow_ind);
+      generate_out_raster(flow_ind, true, false);
+    }
+    case (enum_ppi_method::CATCHMENT_DHAND):
+    {
+      generate_dhand_vals(flow_ind);
+      generate_out_raster(flow_ind, false, true);
+    }
+    case (enum_ppi_method::INTERP_DHAND):
+    {
 
-    if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND) {
-      for (int j = 0; j < result.xsize * result.ysize; j++) {
-        double curr_depth = (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s.data[j])]->depth;
-        if (c_from_s.data[j] != c_from_s.na_val && hand.data[j] != hand.na_val && c_from_s.data[j] && curr_depth >= hand.data[j]) {
-          result.data[j] = curr_depth - hand.data[j];
-        } else {
-          result.data[j] = result.na_val;
-        }
-      }
-      out_rasters.push_back(result);
-    } else if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-      std::vector<double> spp_depths = generate_spp_depths(flow_ind);
-      for (int j = 0; j < result.xsize * result.ysize; j++) {
-        if ( (handid.data[j] != handid.na_val &&
-             (handid.data[j] - 1 >= spp_depths.size() ||
-              handid.data[j] - 1 < 0))) {
-          ExitGracefully(
-              ("Model.cpp: postprocess_floodresults: handid specifies a "
-               "pourpoint id of " +
-               std::to_string(handid.data[j]) +
-               " which does not exist in snapped pourpoints")
-                  .c_str(),
-              exitcode::BAD_DATA);
-        }
-        double curr_depth = handid.data[j] == handid.na_val
-                                ? PLACEHOLDER
-                                : spp_depths[handid.data[j] - 1];
-        if (handid.data[j] != handid.na_val && curr_depth != PLACEHOLDER &&
-            hand.data[j] != hand.na_val && curr_depth >= hand.data[j]) {
-          result.data[j] = curr_depth - hand.data[j];
-        } else {
-          result.data[j] = result.na_val;
-        }
-      }
-      out_rasters.push_back(result);
-    } else if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_DHAND) {
-      for (int j = 0; j < result.xsize * result.ysize; j++) {
-        double curr_depth = (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s.data[j])]->depth;
+    }
+    case (enum_ppi_method::INTERP_DHAND_WSLCORR):
+    {
 
-        // get interpolated hand value 222
-        double curr_dhand_val = PLACEHOLDER;
-        dhand_bounding_depths(curr_depth);
-        std::pair<int, int> bounds = dhand_bounding_depths(curr_depth);
-
-        if (bounds.first == bounds.second) { // "depth" is equal to some dhand depth
-          curr_dhand_val = dhand[bounds.first].data[j];
-        } else {
-          if (bbopt->dhand_method == enum_dh_method::INTERPOLATE) {
-            if (bounds.first == PLACEHOLDER) { // "depth" is lower than all dhand depths
-              WriteWarning(
-                  "Depth of " + std::to_string(curr_depth) +
-                      " is lower than all provided dhand depths. Using "
-                      "closest available dhand, though results should be "
-                      "re-run with more dhand rasters to cover this depth",
-                  bbopt->noisy_run);
-              if (dhand[bounds.second].data[j] == dhand[bounds.second].na_val) {
-                curr_dhand_val = PLACEHOLDER;
-              } else {
-                curr_dhand_val = dhand[bounds.second].data[j];
-              }
-            } else if (bounds.second == PLACEHOLDER) { // "depth" is higher than all dhand depths
-              WriteWarning(
-                  "Depth of " + std::to_string(curr_depth) +
-                      " is higher than all provided dhand depths. Using "
-                      "closest available dhand, though results should be "
-                      "re-run with more dhand rasters to cover this depth",
-                  bbopt->noisy_run);
-              if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val) {
-                curr_dhand_val = PLACEHOLDER;
-              } else {
-                curr_dhand_val = dhand[bounds.first].data[j];
-              }
-            } else { // "depth" is between 2 dhand depths
-              if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val ||
-                  dhand[bounds.second].data[j] == dhand[bounds.second].na_val) {
-                curr_dhand_val = PLACEHOLDER;
-              } else {
-                double r1 = dhand[bounds.first].data[j];
-                double r2 = dhand[bounds.second].data[j];
-                double d1 = dhand_depth_seq[bounds.first];
-                double d2 = dhand_depth_seq[bounds.second];
-
-                curr_dhand_val = r1 * ( (d1 - curr_depth) / (d1 - d2) ) +
-                                 r2 * ( (curr_depth - d2) / (d1 - d2) );
-
-              }
-            }
-          } else { // enum_dh_method::FLOOR
-            if (bounds.first == PLACEHOLDER) {
-              if (dhand[bounds.second].data[j] == dhand[bounds.second].na_val) {
-                curr_dhand_val = PLACEHOLDER;
-              } else {
-                curr_dhand_val = dhand[bounds.second].data[j];
-              }
-            } else {
-              if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val) {
-                curr_dhand_val = PLACEHOLDER;
-              } else {
-                curr_dhand_val = dhand[bounds.first].data[j];
-              }
-            }
-          }
-        }
-        
-        if (c_from_s.data[j] != c_from_s.na_val && curr_dhand_val != PLACEHOLDER && c_from_s.data[j] && curr_depth >= curr_dhand_val) {
-          result.data[j] = curr_depth - curr_dhand_val;
-        } else {
-          result.data[j] = result.na_val;
-        }
-      }
-    } else if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND) {
-
-    } else if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
-
-    } else {
+    }
+    default:
+    {
       ExitGracefully(
           ("Model.cpp: postprocess_floodresults: postprocessing method " +
            toString(bbopt->interpolation_postproc_method) +
@@ -532,6 +433,10 @@ void CModel::postprocess_floodresults() {
           exitcode::BAD_DATA);
       break;
     }
+    } //end switch
+
+    spp_depths.clear(); // if applicable, clear spp_depths for next flow profile
+    dhand_vals.clear(); // if applicable, clear dhand_vals for next flow profile
   }
   if (!bbopt->silent_run) {
     std::cout << "finished post processing flood results" << std::endl;
@@ -864,7 +769,11 @@ std::pair<int, int> CModel::dhand_bounding_depths(double depth) {
   return {lower_ind, upper_ind}; // depth is between 2 dhand depths
 }
 
-std::vector<double> CModel::generate_spp_depths(int flow_ind) {
+//////////////////////////////////////////////////////////////////
+/// \brief Generates the interpolated depths of each spp for the "flow_ind"-th flow
+/// \param flow_ind [in] index of the flow currently being considered
+//
+void CModel::generate_spp_depths(int flow_ind) {
   ExitGracefullyIf(spp.get_index_by_fieldname("cpointid") == PLACEHOLDER,
                     "CModel.cpp: generate_spp_depths: spp does not "
                     "contain field cpointid",
@@ -877,9 +786,9 @@ std::vector<double> CModel::generate_spp_depths(int flow_ind) {
                     "CModel.cpp: generate_spp_depths: spp does not "
                     "contain field hpointid",
                     exitcode::BAD_DATA);
-  std::vector<double> spp_depths;
   CStreamnode *pSN = nullptr;
   int sid = PLACEHOLDER; // streamnode id of catchment
+  double ho_depth = PLACEHOLDER; // hydraulic output depth of catchment
   std::unordered_map<int, int> chainage_map; // for non headwater, non junction. maps hpointid to descending placement within catchment
   double seqelev_divs = PLACEHOLDER; // number of subdivisions created by spps in catchment (i.e. # of spp in catchment - 1)
   int head_ind = PLACEHOLDER; // index of first spp in catchment
@@ -891,7 +800,6 @@ std::vector<double> CModel::generate_spp_depths(int flow_ind) {
   double L3 = PLACEHOLDER; // length for junction nodes
   for (int j = 0; j < spp.features.size(); j++) {
     auto feat = spp.features[j];
-    double ho_depth = (*hyd_result)[get_hyd_res_index(flow_ind, sid)]->depth;
     if (sid != feat->GetFieldAsInteger(spp.get_index_by_fieldname("cpointid"))) { // new streamnode
       sid = feat->GetFieldAsInteger(spp.get_index_by_fieldname("cpointid"));
       pSN = get_streamnode_by_id(sid);
@@ -900,6 +808,7 @@ std::vector<double> CModel::generate_spp_depths(int flow_ind) {
           "CModel.cpp: generate_spp_depths: spp references "
           "non-existant streamnode with id of " + sid,
           exitcode::BAD_DATA);
+      ho_depth = (*hyd_result)[get_hyd_res_index(flow_ind, sid)]->depth;
       if (pSN->upnodeID1 == -1) { // headwater
         head_ind = j;
         head_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
@@ -1034,7 +943,134 @@ std::vector<double> CModel::generate_spp_depths(int flow_ind) {
       spp_depths.push_back(temp_depth + (seqelev_j - temp_elev) * ct);
     }
   }
-  return spp_depths;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Generates the hand values of each raster cell interpolated from the dhand rasters for the "flow_ind"-th flow
+/// \param flow_ind [in] index of the flow currently being considered
+//
+void CModel::generate_dhand_vals(int flow_ind) {
+  for (int j = 0; j < dhand[0].xsize * dhand[0].ysize; j++) {
+    double curr_depth = (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s.data[j])]->depth;
+
+    double curr_dhand_val = PLACEHOLDER;
+    dhand_bounding_depths(curr_depth);
+    std::pair<int, int> bounds = dhand_bounding_depths(curr_depth);
+
+    if (bounds.first == bounds.second) { // "depth" is equal to some dhand depth
+      curr_dhand_val = dhand[bounds.first].data[j];
+    } else {
+      if (bbopt->dhand_method == enum_dh_method::INTERPOLATE) {
+        if (bounds.first == PLACEHOLDER) { // "depth" is lower than all dhand depths
+          WriteWarning(
+              "Depth of " + std::to_string(curr_depth) +
+                  " is lower than all provided dhand depths. Using "
+                  "closest available dhand, though results should be "
+                  "re-run with more dhand rasters to cover this depth",
+              bbopt->noisy_run);
+          if (dhand[bounds.second].data[j] == dhand[bounds.second].na_val) {
+            curr_dhand_val = PLACEHOLDER;
+          } else {
+            curr_dhand_val = dhand[bounds.second].data[j];
+          }
+        } else if (bounds.second == PLACEHOLDER) { // "depth" is higher than all dhand depths
+          WriteWarning(
+              "Depth of " + std::to_string(curr_depth) +
+                  " is higher than all provided dhand depths. Using "
+                  "closest available dhand, though results should be "
+                  "re-run with more dhand rasters to cover this depth",
+              bbopt->noisy_run);
+          if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val) {
+            curr_dhand_val = PLACEHOLDER;
+          } else {
+            curr_dhand_val = dhand[bounds.first].data[j];
+          }
+        } else { // "depth" is between 2 dhand depths
+          if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val ||
+              dhand[bounds.second].data[j] == dhand[bounds.second].na_val) {
+            curr_dhand_val = PLACEHOLDER;
+          } else {
+            double r1 = dhand[bounds.first].data[j];
+            double r2 = dhand[bounds.second].data[j];
+            double d1 = dhand_depth_seq[bounds.first];
+            double d2 = dhand_depth_seq[bounds.second];
+
+            curr_dhand_val = r1 * ((d1 - curr_depth) / (d1 - d2)) +
+                              r2 * ((curr_depth - d2) / (d1 - d2));
+          }
+        }
+      } else { // enum_dh_method::FLOOR
+        if (bounds.first == PLACEHOLDER) {
+          if (dhand[bounds.second].data[j] == dhand[bounds.second].na_val) {
+            curr_dhand_val = PLACEHOLDER;
+          } else {
+            curr_dhand_val = dhand[bounds.second].data[j];
+          }
+        } else {
+          if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val) {
+            curr_dhand_val = PLACEHOLDER;
+          } else {
+            curr_dhand_val = dhand[bounds.first].data[j];
+          }
+        }
+      }
+    }
+    dhand_vals.push_back(curr_dhand_val);
+  }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Generates and saves a raster based on the post processing method for the "flow_ind"-th flow
+/// \param flow_ind [in] index of the flow currently being considered
+/// \param is_interp [in] boolean indicated whether post processing method is interp method
+/// \param is_dhand [in] boolean indicated whether post processing method is dhand method
+//
+void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
+  CRaster result;
+  if (!is_dhand) {
+    result = hand;
+  } else {
+    result = dhand[0];
+  }
+  result.name = "Result " + std::to_string(flow_ind + 1);
+  std::fill(result.data, result.data + (result.xsize * result.ysize), 0.0);
+
+  for (int j = 0; j < result.xsize * result.ysize; j++) {
+    double curr_depth, curr_hand;
+    // assign curr_depth
+    if (!is_interp) {
+      curr_depth =
+          c_from_s.data[j] != c_from_s.na_val
+              ? (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s.data[j])]->depth
+              : PLACEHOLDER;
+    } else {
+      if ((handid.data[j] != handid.na_val &&
+           (handid.data[j] - 1 >= spp_depths.size() || handid.data[j] - 1 < 0))) {
+        ExitGracefully(
+            ("Model.cpp: postprocess_floodresults: handid specifies a "
+             "pourpoint id of " + std::to_string(handid.data[j]) +
+             " which does not exist in snapped pourpoints").c_str(),
+            exitcode::BAD_DATA);
+      }
+      double curr_depth = handid.data[j] != handid.na_val
+                              ? spp_depths[handid.data[j] - 1]
+                              : PLACEHOLDER;
+    }
+    // assign curr_hand
+    if (!is_dhand) {
+      curr_hand = hand.data[j] != hand.na_val ? hand.data[j] : PLACEHOLDER;
+    } else {
+      curr_hand = dhand_vals[j];
+    }
+
+    if (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER && curr_depth >= curr_hand) {
+      result.data[j] = curr_depth - curr_hand;
+    } else {
+      result.data[j] = result.na_val;
+    }
+  }
+
+  out_rasters.push_back(result); // save result for this flow profile
 }
 
 // Destructor
