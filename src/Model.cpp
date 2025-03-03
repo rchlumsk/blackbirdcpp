@@ -17,7 +17,10 @@ CModel::CModel()
   streamnode_map(),
   flow(PLACEHOLDER),
   peak_hrs_min(PLACEHOLDER),
-  peak_hrs_max(PLACEHOLDER) {
+  peak_hrs_max(PLACEHOLDER),
+  spp_depths(),
+  dhand_vals(),
+  dhandid_vals() {
   // Default constructor implementation
 }
 
@@ -26,7 +29,9 @@ CModel::CModel(const CModel &other)
     : c_from_s(other.c_from_s), hand(other.hand), handid(other.handid),
       dhand(other.dhand), dhandid(other.dhandid),
       out_rasters(other.out_rasters), streamnode_map(other.streamnode_map),
-      flow(other.flow), peak_hrs_min(other.peak_hrs_min), peak_hrs_max(other.peak_hrs_max) {
+      flow(other.flow), peak_hrs_min(other.peak_hrs_min),
+      peak_hrs_max(other.peak_hrs_max), spp_depths(other.spp_depths),
+      dhand_vals(other.dhand_vals), dhandid_vals(other.dhandid_vals) {
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
     for (const auto &node : *other.bbsn) {
@@ -85,6 +90,9 @@ CModel &CModel::operator=(const CModel &other) {
   flow = other.flow;
   peak_hrs_min = other.peak_hrs_min;
   peak_hrs_max = other.peak_hrs_max;
+  spp_depths = other.spp_depths;
+  dhand_vals = other.dhand_vals;
+  dhandid_vals = other.dhandid_vals;
 
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
@@ -412,12 +420,14 @@ void CModel::postprocess_floodresults() {
     }
     case (enum_ppi_method::CATCHMENT_DHAND):
     {
-      generate_dhand_vals(flow_ind);
+      generate_dhand_vals(flow_ind, false);
       generate_out_raster(flow_ind, false, true);
     }
     case (enum_ppi_method::INTERP_DHAND):
     {
-
+      generate_spp_depths(flow_ind);
+      generate_dhand_vals(flow_ind, true);
+      generate_out_raster(flow_ind, true, true);
     }
     case (enum_ppi_method::INTERP_DHAND_WSLCORR):
     {
@@ -949,16 +959,20 @@ void CModel::generate_spp_depths(int flow_ind) {
 /// \brief Generates the hand values of each raster cell interpolated from the dhand rasters for the "flow_ind"-th flow
 /// \param flow_ind [in] index of the flow currently being considered
 //
-void CModel::generate_dhand_vals(int flow_ind) {
+void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
   for (int j = 0; j < dhand[0].xsize * dhand[0].ysize; j++) {
     double curr_depth = (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s.data[j])]->depth;
 
     double curr_dhand_val = PLACEHOLDER;
+    int curr_dhandid_val = PLACEHOLDER;
     dhand_bounding_depths(curr_depth);
     std::pair<int, int> bounds = dhand_bounding_depths(curr_depth);
 
     if (bounds.first == bounds.second) { // "depth" is equal to some dhand depth
       curr_dhand_val = dhand[bounds.first].data[j];
+      if (is_interp) {
+        curr_dhandid_val = dhandid[bounds.first].data[j];
+      }
     } else {
       if (bbopt->dhand_method == enum_dh_method::INTERPOLATE) {
         if (bounds.first == PLACEHOLDER) { // "depth" is lower than all dhand depths
@@ -973,6 +987,13 @@ void CModel::generate_dhand_vals(int flow_ind) {
           } else {
             curr_dhand_val = dhand[bounds.second].data[j];
           }
+          if (is_interp) {
+            if (dhandid[bounds.second].data[j] == dhandid[bounds.second].na_val) {
+              curr_dhandid_val = PLACEHOLDER;
+            } else {
+              curr_dhandid_val = dhandid[bounds.second].data[j];
+            }
+          }
         } else if (bounds.second == PLACEHOLDER) { // "depth" is higher than all dhand depths
           WriteWarning(
               "Depth of " + std::to_string(curr_depth) +
@@ -984,6 +1005,13 @@ void CModel::generate_dhand_vals(int flow_ind) {
             curr_dhand_val = PLACEHOLDER;
           } else {
             curr_dhand_val = dhand[bounds.first].data[j];
+          }
+          if (is_interp) {
+            if (dhandid[bounds.first].data[j] == dhandid[bounds.first].na_val) {
+              curr_dhandid_val = PLACEHOLDER;
+            } else {
+              curr_dhandid_val = dhandid[bounds.first].data[j];
+            }
           }
         } else { // "depth" is between 2 dhand depths
           if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val ||
@@ -1006,16 +1034,33 @@ void CModel::generate_dhand_vals(int flow_ind) {
           } else {
             curr_dhand_val = dhand[bounds.second].data[j];
           }
+          if (is_interp) {
+            if (dhandid[bounds.second].data[j] == dhandid[bounds.second].na_val) {
+              curr_dhandid_val = PLACEHOLDER;
+            } else {
+              curr_dhandid_val = dhandid[bounds.second].data[j];
+            }
+          }
         } else {
           if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
             curr_dhand_val = dhand[bounds.first].data[j];
           }
+          if (is_interp) {
+            if (dhandid[bounds.first].data[j] == dhandid[bounds.first].na_val) {
+              curr_dhandid_val = PLACEHOLDER;
+            } else {
+              curr_dhandid_val = dhandid[bounds.first].data[j];
+            }
+          }
         }
       }
     }
     dhand_vals.push_back(curr_dhand_val);
+    if (is_interp) {
+      dhandid_vals.push_back(curr_dhandid_val);
+    }
   }
 }
 
@@ -1026,6 +1071,7 @@ void CModel::generate_dhand_vals(int flow_ind) {
 /// \param is_dhand [in] boolean indicated whether post processing method is dhand method
 //
 void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
+  // add support for interp_dhand here
   CRaster result;
   if (!is_dhand) {
     result = hand;

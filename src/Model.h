@@ -68,12 +68,13 @@ protected:
   double peak_hrs_max;                                    // maximum hydraulic output peak hours required for all streamnodes in hyd_compute_profile
   std::vector<double> spp_depths;                         // depths of each spp for a specific flow profile. used in postprocess_floodresults if bbopt->interpolation_postproc_method is an interp method
   std::vector<double> dhand_vals;                         // hand values interpolated from dhand rasters for specific flow profile. used in postprocess_floodresults if bbopt->interpolation_postproc_method is a dhand method
+  std::vector<int> dhandid_vals;                          // handids corresponding to dhand_vals for specific flow profile. used in postprocess_floodresults if bbopt->interpolation_postproc_method is a dhand method and interp method
 
   // Private functions
   void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res); // helper function used in hyd_compute_profile
   std::pair<int, int> dhand_bounding_depths(double depth);                                                 // finds nearest dhands to use in postprocess_floodresults
   void generate_spp_depths(int flow_ind);                                                                  // generates spp_depths for the flow_ind-th profile. used in postprocess_floodresults
-  void generate_dhand_vals(int flow_ind);                                                                  // generates dhand_vals for the flow_ind-th profile. used in postprocess_floodresults
+  void generate_dhand_vals(int flow_ind, bool is_interp);                                                  // generates dhand_vals for the flow_ind-th profile. used in postprocess_floodresults
   void generate_out_raster(int flow_ind, bool is_interp, bool is_dhand);                                   // generates an output raster for the flow_ind-th profile. used in postprocess_floodresults
 };
 
