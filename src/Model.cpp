@@ -412,27 +412,31 @@ void CModel::postprocess_floodresults() {
     case (enum_ppi_method::CATCHMENT_HAND):
     {
       generate_out_raster(flow_ind, false, false);
+      break;
     }
     case (enum_ppi_method::INTERP_HAND):
     {
       generate_spp_depths(flow_ind);
       generate_out_raster(flow_ind, true, false);
+      break;
     }
     case (enum_ppi_method::CATCHMENT_DHAND):
     {
       generate_dhand_vals(flow_ind, false);
       generate_out_raster(flow_ind, false, true);
+      break;
     }
     case (enum_ppi_method::INTERP_DHAND):
     {
       generate_spp_depths(flow_ind);
       generate_dhand_vals(flow_ind, true);
       generate_out_raster(flow_ind, true, true);
+      break;
     }
-    case (enum_ppi_method::INTERP_DHAND_WSLCORR):
-    {
-
-    }
+    //case (enum_ppi_method::INTERP_DHAND_WSLCORR):
+    //{
+    //  break;
+    //}
     default:
     {
       ExitGracefully(
@@ -1090,17 +1094,31 @@ void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
               ? (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s.data[j])]->depth
               : PLACEHOLDER;
     } else {
-      if ((handid.data[j] != handid.na_val &&
-           (handid.data[j] - 1 >= spp_depths.size() || handid.data[j] - 1 < 0))) {
-        ExitGracefully(
-            ("Model.cpp: postprocess_floodresults: handid specifies a "
-             "pourpoint id of " + std::to_string(handid.data[j]) +
-             " which does not exist in snapped pourpoints").c_str(),
-            exitcode::BAD_DATA);
+      if (!is_dhand) { // interp_hand
+        if ((handid.data[j] != handid.na_val &&
+             (handid.data[j] - 1 >= spp_depths.size() || handid.data[j] - 1 < 0))) {
+          ExitGracefully(
+              ("Model.cpp: postprocess_floodresults: handid specifies a "
+               "pourpoint id of " + std::to_string(handid.data[j]) +
+               " which does not exist in snapped pourpoints").c_str(),
+              exitcode::BAD_DATA);
+        }
+        curr_depth = handid.data[j] != handid.na_val
+                                ? spp_depths[handid.data[j] - 1]
+                                : PLACEHOLDER;
+      } else { // interp_dhand
+        if ((dhandid_vals[j] != PLACEHOLDER &&
+             (dhandid_vals[j] - 1 >= spp_depths.size() || dhandid_vals[j] - 1 < 0))) {
+          ExitGracefully(
+              ("Model.cpp: postprocess_floodresults: dhandid specifies a "
+               "pourpoint id of " + std::to_string(dhandid_vals[j]) +
+               " which does not exist in snapped pourpoints").c_str(),
+              exitcode::BAD_DATA);
+        }
+        curr_depth = dhandid_vals[j] != PLACEHOLDER
+                         ? spp_depths[dhandid_vals[j] - 1]
+                         : PLACEHOLDER;
       }
-      double curr_depth = handid.data[j] != handid.na_val
-                              ? spp_depths[handid.data[j] - 1]
-                              : PLACEHOLDER;
     }
     // assign curr_hand
     if (!is_dhand) {
