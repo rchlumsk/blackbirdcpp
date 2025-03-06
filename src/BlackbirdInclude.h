@@ -366,8 +366,10 @@ inline double ConvCalc(double n, double A, double Rh) {
 }
 
 ///////////////////////////////////////////////////////////////////
-/// \brief Correction term calculation for post-processing elevation correction
-/// \return correction term
+/// \brief Calculation of correction term on elevation change for post-processing elevation correction
+/// \return 1                   if x is 50% or less (<= tt, default 0.5)
+/// \return 0 < Ct < 1          if x < tt (default 0.5)
+/// \return 0                   if x >= 100% (>= 1)
 //
 inline double CalcCt(double x, double tt) {
   return tt == 0  || tt == PLACEHOLDER ? 0 : (1 - std::min(std::max(x - tt, 0.)/tt, 1.));

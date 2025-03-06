@@ -788,6 +788,7 @@ std::pair<int, int> CModel::dhand_bounding_depths(double depth) {
 /// \param flow_ind [in] index of the flow currently being considered
 //
 void CModel::generate_spp_depths(int flow_ind) {
+  // ensure spp contains needed attributes
   ExitGracefullyIf(spp.get_index_by_fieldname("cpointid") == PLACEHOLDER,
                     "CModel.cpp: generate_spp_depths: spp does not "
                     "contain field cpointid",
@@ -800,6 +801,7 @@ void CModel::generate_spp_depths(int flow_ind) {
                     "CModel.cpp: generate_spp_depths: spp does not "
                     "contain field hpointid",
                     exitcode::BAD_DATA);
+  // initialize useful variables
   CStreamnode *pSN = nullptr;
   int sid = PLACEHOLDER; // streamnode id of catchment
   double ho_depth = PLACEHOLDER; // hydraulic output depth of catchment
@@ -812,9 +814,12 @@ void CModel::generate_spp_depths(int flow_ind) {
   double L1 = PLACEHOLDER; // length for junction nodes
   double L2 = PLACEHOLDER; // length for junction nodes
   double L3 = PLACEHOLDER; // length for junction nodes
+
+  // loop through each snapped pourpoint
   for (int j = 0; j < spp.features.size(); j++) {
     auto feat = spp.features[j];
-    if (sid != feat->GetFieldAsInteger(spp.get_index_by_fieldname("cpointid"))) { // new streamnode
+    if (sid != feat->GetFieldAsInteger(spp.get_index_by_fieldname("cpointid"))) { // snapped pourpoint in new streamnode/catachment
+      // assing variables that only change when the streamnode/catchment changes
       sid = feat->GetFieldAsInteger(spp.get_index_by_fieldname("cpointid"));
       pSN = get_streamnode_by_id(sid);
       ExitGracefullyIf(
@@ -824,6 +829,7 @@ void CModel::generate_spp_depths(int flow_ind) {
           exitcode::BAD_DATA);
       ho_depth = (*hyd_result)[get_hyd_res_index(flow_ind, sid)]->depth;
       if (pSN->upnodeID1 == -1) { // headwater
+        // assign/reset variables for a headwater node
         head_ind = j;
         head_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
         seqelev_divs = 0.0;
@@ -845,6 +851,7 @@ void CModel::generate_spp_depths(int flow_ind) {
         L3 = PLACEHOLDER;
 
       } else if(pSN->upnodeID2 != -1) { // junction
+        // assign/reset variables for a junction node
         seqelev_divs = PLACEHOLDER;
         head_ind = PLACEHOLDER;
         tail_ind = PLACEHOLDER;
@@ -856,6 +863,7 @@ void CModel::generate_spp_depths(int flow_ind) {
         L3 = get_streamnode_by_id(pSN->upnodeID2)->ds_reach_length;
 
       } else { // neither headwater nor junction
+        // assign/reset variables for a non headwater, non junction node
         chainage_map.clear();
         head_ind = j;
         head_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
@@ -894,13 +902,18 @@ void CModel::generate_spp_depths(int flow_ind) {
     }
 
     if (pSN->upnodeID1 == -1) { // headwater node
+      // headwater node, nothing to interpolate on one side of node
       double temp_elev = feat->GetFieldAsInteger(spp.get_index_by_fieldname("elev"));
+
+      // correct depths based on elevation at nodes in the same streamnode/catchment
       ExitGracefullyIf(seqelev_divs == 0,
                         "CModel.cpp: generate_spp_depths: only 1 "
                         "snapped pourpoint in headwater streamnode " + sid,
                         exitcode::BAD_DATA);
       double seqelev_j = head_elev +
         ((double)j - (double)head_ind) * (tail_elev - head_elev) / seqelev_divs;
+
+      // find max change in depth (from change in elev)
       double max_change = std::abs((seqelev_j - temp_elev) / ho_depth);
 
       if (max_change > 0.5) {
@@ -908,18 +921,26 @@ void CModel::generate_spp_depths(int flow_ind) {
         WriteWarning(warn, bbopt->noisy_run);
       }
 
+      // find correction term from elevation change
       double ct = CalcCt(max_change, bbopt->postproc_elev_corr_threshold);
 
+      // append interpolated depth to spp_depths
       spp_depths.push_back(ho_depth + (seqelev_j - temp_elev) * ct);
 
     } else if (pSN->upnodeID2 != -1) { // junction node
+      // junction catchment with multiple sets of reaches in it
+
+      // determine depth at junction, weighted average of depth and length
+      // convention: ho_depth at downstream end, depth 2 at one upstream reach segment, depth 3 at the other
       double depth2 = (*hyd_result)[get_hyd_res_index(flow_ind, pSN->upnodeID1)]->depth;
       double depth3 = (*hyd_result)[get_hyd_res_index(flow_ind, pSN->upnodeID2)]->depth;
       double depth_junction =
           L1 + L2 + L3 == 0
               ? PLACEHOLDER
               : (ho_depth * L1 + depth2 * L2 + depth3 * L3) / (L1 + L2 + L3);
-      if (depth_junction != PLACEHOLDER) { // check with rob on this stuff
+
+      // append interpolated depth to spp_depths
+      if (depth_junction != PLACEHOLDER) {
         spp_depths.push_back(depth_junction); // for now. rob to look at R logic
         //if (feat->GetFieldAsInteger(spp.get_index_by_fieldname("reachID")) != pSN->reachID) {
         //  spp_depths.push_back(depth_junction);
@@ -942,18 +963,23 @@ void CModel::generate_spp_depths(int flow_ind) {
         double chainage = L2 + (chainage_map[hid]) * (0 - L2) / seqelev_divs;
         temp_depth = ho_depth + (depth3 - ho_depth) / L2 * chainage;
       }
-          
+      
+      // correct depths based on elevation at nodes in the same streamnode/catchment
       double seqelev_j = head_elev +
         ((double)j - (double)head_ind) * (tail_elev - head_elev) / seqelev_divs;
+
+      // find max change in depth (from change in elev)
       double max_change = std::abs((seqelev_j - temp_elev) / temp_depth);
 
       if (max_change > 0.5) {
         std::string warn = "CModel.cpp: generate_spp_depths: max change >0.5 detected at streamnode nodeID=" + std::to_string(sid);
         WriteWarning(warn, bbopt->noisy_run);
       }
-          
+      
+      // find correction term from elevation change
       double ct = CalcCt(max_change, bbopt->postproc_elev_corr_threshold);
 
+      // append interpolated depth to spp_depths
       spp_depths.push_back(temp_depth + (seqelev_j - temp_elev) * ct);
     }
   }
@@ -962,16 +988,20 @@ void CModel::generate_spp_depths(int flow_ind) {
 //////////////////////////////////////////////////////////////////
 /// \brief Generates the hand values of each raster cell interpolated from the dhand rasters for the "flow_ind"-th flow
 /// \param flow_ind [in] index of the flow currently being considered
+/// \param is_interp [in] boolean indicating whether or not the post processing method is an interp method
 //
 void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
+  // loop through each raster cell
   for (int j = 0; j < dhand[0].xsize * dhand[0].ysize; j++) {
+    // grab the depth of the current raster cell and flow profile from the hydraulic output
     double curr_depth = (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s.data[j])]->depth;
 
+    // initialize variables and grab the corresponding dhand bounding depths
     double curr_dhand_val = PLACEHOLDER;
     int curr_dhandid_val = PLACEHOLDER;
-    dhand_bounding_depths(curr_depth);
     std::pair<int, int> bounds = dhand_bounding_depths(curr_depth);
 
+    // assigns the dhand value of the current raster cell (and dhandid value if interp method)
     if (bounds.first == bounds.second) { // "depth" is equal to some dhand depth
       curr_dhand_val = dhand[bounds.first].data[j];
       if (is_interp) {
@@ -1061,6 +1091,7 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
         }
       }
     }
+    // adds dhand value of current raster cell to dhand_vals and (and current dhandid to dhandid_vals if interp method)
     dhand_vals.push_back(curr_dhand_val);
     if (is_interp) {
       dhandid_vals.push_back(curr_dhandid_val);
@@ -1075,7 +1106,6 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
 /// \param is_dhand [in] boolean indicated whether post processing method is dhand method
 //
 void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
-  // add support for interp_dhand here
   CRaster result;
   if (!is_dhand) {
     result = hand;
@@ -1087,7 +1117,7 @@ void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
 
   for (int j = 0; j < result.xsize * result.ysize; j++) {
     double curr_depth, curr_hand;
-    // assign curr_depth
+    // assign curr_depth based on whether post processing method is interp and/or dhand method
     if (!is_interp) {
       curr_depth =
           c_from_s.data[j] != c_from_s.na_val
@@ -1120,13 +1150,14 @@ void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
                          : PLACEHOLDER;
       }
     }
-    // assign curr_hand
+    // assign curr_hand based on whether post processing method is dhand method
     if (!is_dhand) {
       curr_hand = hand.data[j] != hand.na_val ? hand.data[j] : PLACEHOLDER;
     } else {
       curr_hand = dhand_vals[j];
     }
 
+    // assigning resulting value based on curr_depth and curr_hand
     if (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER && curr_depth >= curr_hand) {
       result.data[j] = curr_depth - curr_hand;
     } else {
@@ -1134,7 +1165,7 @@ void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
     }
   }
 
-  out_rasters.push_back(result); // save result for this flow profile
+  out_rasters.push_back(result); // save result for this flow profile to out_rasters
 }
 
 // Destructor
