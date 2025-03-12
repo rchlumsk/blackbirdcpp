@@ -1,6 +1,12 @@
 #ifndef BLACKBIRDINCLUDE_H
 #define BLACKBIRDINCLUDE_H
 
+#define _BBNETCDF_
+
+#ifdef _BBNETCDF_
+#include <netcdf.h>
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <cpl_conv.h>
@@ -33,10 +39,26 @@ const std::string __BLACKBIRD_VERSION__ = "0.0.0";
 //*****************************************************************
 // Global Constants
 //*****************************************************************
+const double ALMOST_INF = 1e99;   ///< Largest possible double value to be used
+const double PRETTY_SMALL = 1e-8; ///< useful small tolerance for zero tests
+const double REAL_SMALL = 1e-12;  ///< Smallest possible double value to be used
+const double PI = 3.1415926535898; ///< Double approximation of pi
+
 const double HEADWATER               = -111111; // arbitrary value indicating that a node is a headwater node
 const double PLACEHOLDER             = -222222; // arbitrary value indicating a placeholder value
 const std::string PLACEHOLDER_STR    = "-222222";  // arbitrary value indicating a placeholder string value
 const double GRAVITY                 = 9.81; // gravitational acceleration
+
+//units conversion constants
+const double SEC_PER_DAY = 86400;    ///< days to seconds
+const double MIN_PER_DAY = 1440;     ///< days to minutes
+const double SEC_PER_HR = 3600;      ///< hours to seconds
+const double DAYS_PER_YEAR = 365.25; ///< years to days
+const double HR_PER_DAY = 24;        ///< days to hours
+const double DAYS_PER_MONTH[12] = {31,28,31,30,31,30,31,31,30,31,30,31};   ///< Array of doubles containing the number of days in each month
+
+//decision constants
+const double  TIME_CORRECTION         =0.0001;                                  ///< [d]      offset for time series min/max functions
 
 //*****************************************************************
 //Exit Strategies
@@ -318,9 +340,105 @@ enum enum_dh_method
   FLOOR
 };
 
+// Calender type
+enum enum_cd_type
+{
+  CALENDAR_GREGORIAN, // same as STANDARD
+  CALENDAR_PROLEPTIC_GREGORIAN,
+  CALENDAR_365_DAY, //=NO_LEAP
+  CALENDAR_360_DAY,
+  CALENDAR_JULIAN,
+  CALENDAR_366_DAY //=ALL_LEAP
+};
+
+////////////////////////////////////////////////////////////////////
+/// \brief Stores information describing a specific instance in time
+//
+struct time_struct {
+  std::string date_string; ///< String date
+  double model_time;  ///< [d] time elapsed since model start time
+  double julian_day;  ///< [d] Julian-format decimal date (time in days since
+                      ///< 0:00 Jan 1 of current year)
+  int day_of_month;   ///< Day of month
+  int month;          ///< [1..12] month of year
+  int year;           ///< year
+  bool leap_yr;       ///< Boolean flag that indicates leap year
+  bool day_changed; ///< Boolean flag indicating change of day for subdaily time
+                    ///< steps
+};
+
+/******************************************************************
+  Other Functions (defined in CommonFunctions.cpp)
+******************************************************************/
+//Time/Date Functions----------------------------------------------
+bool        IsLeapYear(            const int         year,
+                                   const int         calendar);
+void        JulianConvert(               double      model_time,
+                                   const double      start_date,
+                                   const int         start_year,
+                                   const int         calendar,
+                                                     time_struct &tt);
+std::string DecDaysToHours(        const double      dec_date,
+                                   const bool        truncate=false);
+//double      InterpolateMo(         const double      aVal[12],
+//                                   const time_struct &tt,
+//                                   const optStruct   &Options);
+time_struct DateStringToTimeStruct(const std::string sDate,
+                                         std::string sTime,
+                                   const int         calendar);
+
+std::string TimeZoneToString      (const int tz);
+double      TimeDifference        (const double      jul_day1,
+                                   const int         year1,
+                                   const double      jul_day2,
+                                   const int         year2,
+                                   const int         calendar);
+void        AddTime               (const double      jul_day1,
+                                   const int         year1,
+                                   const double      &daysadded,
+                                   const int         calendar,
+                                         double      &jul_day_out,
+                                         int         &year_out);
+int         StringToCalendar      (      std::string cal_chars);
+std::string GetCurrentMachineTime();
+double      FixTimestep           (      double      tstep);
+bool        IsValidDateString     (const std::string sDate);
+double      RoundToNearestMinute  (const double& t);
+bool        IsInDateRange         (const double &julian_day,
+                                   const int    &julian_start,
+                                   const int    &julian_end);
+int      GetJulianDayFromMonthYear(const std::string &date_str, const int calendar);
+
+bool        IsValidNetCDFTimeString   (const std::string unit_t_str);
+time_struct TimeStructFromNetCDFString(const std::string unit_t_str,
+                                       const std::string timestr,
+                                       const int calendar,
+                                       double &time_zone);
+
 //*****************************************************************
 //Common Functions (inline)
 //*****************************************************************
+
+///////////////////////////////////////////////////////////////////
+/// \brief Converts string parameter to integer type
+/// \param *s1 [in] String to be converted to integer
+/// \return Integer format of passed string
+//
+inline int s_to_i(const char *s1) { return (int)atof(s1); }
+
+///////////////////////////////////////////////////////////////////
+/// \brief Converts string parameter to long long integer type
+/// \param *s1 [in] String to be converted to long long integer
+/// \return Integer format of passed string
+//
+inline long long int s_to_ll(const char *s1) { return atoll(s1); }
+
+///////////////////////////////////////////////////////////////////
+/// \brief Converts string parameter to double type
+/// \param *s1 [in] String to be converted to double
+/// \return Double format of passed string
+//
+inline double s_to_d(const char *s1) { return atof(s1); }
 
 ///////////////////////////////////////////////////////////////////
 /// \brief returns true if character string is long integer
@@ -436,6 +554,7 @@ inline double interpolate(double new_wsl, double hydraulic_output::* f, std::vec
 
 ///////////////////////////////////////////////////////////////////
 /// \brief helper functions for printing enumerables
+/// \param type [in] instance of enumerable to convert to string
 /// \return string corresponding to enumerable option
 //
 inline std::string toString(enum_nodetype type) {
@@ -545,6 +664,17 @@ inline std::string toString(enum_dh_method method) {
   }
 }
 
+///////////////////////////////////////////////////////////////////
+/// \brief converts any input to string
+/// \param t [in] thing to be converted to a string
+/// \return string equivalent of input t
+//
+template <class T> inline std::string to_string(const T &t) {
+  std::stringstream ss;
+  ss << t;
+  return ss.str();
+}
+
 //Parsing Functions-------------------------------------------
 //defined in CommonFunctions.cpp
 std::string   StringToUppercase(const std::string& s);
@@ -553,6 +683,20 @@ void          WriteWarning(const std::string warn, bool noisy);
 void          WriteAdvisory(const std::string warn, bool noisy);
 double        fast_s_to_d(const char* s);
 void          SilentErrorHandler(CPLErr eErrClass, int err_no, const char *msg);
+
+//defined in NetCDFReading.cpp
+int GetCalendarFromNetCDF(const int ncid, int varid_t,
+                          const std::string filename,
+                          const enum_cd_type in_calendar, const bool noisy);
+void GetTimeVectorFromNetCDF(const int ncid, const int varid_t, const int ntime,
+                             double *my_time);
+void GetTimeInfoFromNetCDF(const char *unit_t, int calendar, const double *time,
+                           const int ntime, const std::string filename,
+                           double &tstep, double &start_day, int &start_yr,
+                           double &time_zone);
+void GetJulianDateFromNetCDFTime(const std::string unit_t, const int calendar,
+                                 const double &time, double &start_day,
+                                 int &start_yr);
 
 // I/O Functions-----------------------------------------------
 // defined in StandardOutput.cpp
