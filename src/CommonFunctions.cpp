@@ -164,8 +164,7 @@ void JulianConvert(double model_time, const double start_date,
 
   tt.model_time = model_time;
   tt.julian_day = ddate;
-  tt.day_of_month =
-      (int)(ceil(dday + REAL_SMALL)); // real_small to handle dday=1.0
+  tt.day_of_month = (int)(ceil(dday + REAL_SMALL)); // real_small to handle dday=1.0
   if (tt.day_of_month == 0) {
     tt.day_of_month = 1;
   }
@@ -188,9 +187,7 @@ void JulianConvert(double model_time, const double start_date,
 }
 
 ////////////////////////////////////////////////////////////////////////////
-/// \brief Returns time-of-day string for decimal date (e.g.,
-/// day=124.3-->"07:12",day=1.5  -->"12:00")
-///
+/// \brief Returns time-of-day string for decimal date (e.g., day=124.3-->"07:12",day=1.5  -->"12:00")
 /// \param dec_date [in] Decimal date
 /// \return String hours of day in 00:00:00.00 format
 //
@@ -225,24 +222,19 @@ std::string DecDaysToHours(const double dec_date, const bool truncate) {
 
 ////////////////////////////////////////////////////////////////////////////
 /// \brief returns time struct corresponding to string in the following format
-/// \param sDate    [in] date string in ISO standard format yyyy-mm-dd or
-/// yyyy/mm/dd \param calendar [in] Enum int of calendar used \param sTime [in]
-/// time string in ISO standard format hh:mm:ss.00 \return Time structure
-/// equivalent of passed date and time
+/// \param sDate    [in] date string in ISO standard format yyyy-mm-dd or yyyy/mm/dd
+/// \param calendar [in] Enum int of calendar used \param sTime [in] time string in ISO standard format hh:mm:ss.00
+/// \return Time structure equivalent of passed date and time
 //
 time_struct DateStringToTimeStruct(const std::string sDate, std::string sTime,
                                    const int calendar) {
-
   static time_struct tt;
   if (sDate.length() != (size_t)(10)) {
-    std::string errString =
-        "DateStringToTimeStruct: Invalid date format used: " + sDate;
+    std::string errString = "DateStringToTimeStruct: Invalid date format used: " + sDate;
     ExitGracefully(errString.c_str(), BAD_DATA);
   }
   if (sTime.length() < (size_t)(7)) {
-    std::string errString =
-        "DateStringToTimeStruct: Invalid time format used (hourstamp): " +
-        sTime;
+    std::string errString = "DateStringToTimeStruct: Invalid time format used (hourstamp): " + sTime;
     ExitGracefully(errString.c_str(), BAD_DATA);
   }
 
@@ -250,8 +242,7 @@ time_struct DateStringToTimeStruct(const std::string sDate, std::string sTime,
   tt.year = s_to_i(sDate.substr(0, 4).c_str());
   tt.month = s_to_i(sDate.substr(5, 2).c_str());
   if (tt.month > 12) {
-    std::string errString =
-        "DateStringToTimeStruct: Invalid time format used (month>12): " + sDate;
+    std::string errString = "DateStringToTimeStruct: Invalid time format used (month>12): " + sDate;
     ExitGracefully(errString.c_str(), BAD_DATA);
   }
   tt.day_of_month = s_to_i(sDate.substr(8, 2).c_str());
@@ -336,7 +327,6 @@ std::string TimeZoneToString(const int tz) {
 ///////////////////////////////////////////////////////////////////
 /// \brief calculates time difference, in days, between two specified dates
 /// \details positive if day 2 is after day 1
-///
 /// \param jul_day1 [in] Julian day of date 1 (measured from Jan 1 of year @ 00:00:00)
 /// \param year1    [in] year of date 1
 /// \param jul_day2 [in] Julian day of date 2 (measured from Jan 1 of year @ 00:00:00)
@@ -366,7 +356,6 @@ double TimeDifference(const double jul_day1,const int year1,const double jul_day
 
 ///////////////////////////////////////////////////////////////////
 /// \brief adds specified number of days to julian date and returns resultant julian date
-///
 /// \param jul_day1    [in]  Julian day of date 1 (measured from Jan 1 of year @ 00:00:00)
 /// \param year1       [in]  year of date 1
 /// \param daysadded   [in]  positive or negative number of days (can be fractional days) added to date 1
@@ -428,7 +417,6 @@ void AddTime(const double jul_day1,const int year1,const double &daysadded,const
   if ((calendar == CALENDAR_GREGORIAN) &&
       ((year1 == 1582 && jul_day1 <= 277) || (year1 < 1582)) &&
       ((year_out > 1582) || ((year_out == 1582) && (jul_day_out >= 278)))) {
-
     double tmp_day;
     int    tmp_yr;
 
@@ -437,7 +425,6 @@ void AddTime(const double jul_day1,const int year1,const double &daysadded,const
 
     AddTime(tmp_day,tmp_yr,10.0,calendar,jul_day_out,year_out);
     return;
-
   }
   return;
 
@@ -445,7 +432,6 @@ void AddTime(const double jul_day1,const int year1,const double &daysadded,const
 
 ///////////////////////////////////////////////////////////////////
 /// \brief Parse chars of calendar and return calendar integer
-///
 /// \param cal_chars        [in]  String conatining calendar name, e.g., "PROLEPTIC_GREGORIAN"
 /// \param StringToCalendar [out] enum integer representing calendar
 //
@@ -454,40 +440,31 @@ int StringToCalendar(std::string cal_chars)
   std::string str=StringToUppercase(cal_chars);
   if (strcmp("STANDARD", str.c_str()) == 0) {
     return CALENDAR_GREGORIAN;
-  }
-  else if (strcmp("GREGORIAN", str.c_str()) == 0) {
+  } else if (strcmp("GREGORIAN", str.c_str()) == 0) {
     return CALENDAR_GREGORIAN;
-  }
-  else if (strcmp("PROLEPTIC_GREGORIAN", str.c_str()) == 0) {
+  } else if (strcmp("PROLEPTIC_GREGORIAN", str.c_str()) == 0) {
     return CALENDAR_PROLEPTIC_GREGORIAN;
-  }
-  else if ((strcmp("NOLEAP", str.c_str()) == 0) || (strcmp("NO_LEAP", str.c_str()) == 0)) {
+  } else if ((strcmp("NOLEAP", str.c_str()) == 0) || (strcmp("NO_LEAP", str.c_str()) == 0)) {
     return CALENDAR_365_DAY;
-  }
-  else if (strcmp("365_DAY", str.c_str()) == 0) {
+  } else if (strcmp("365_DAY", str.c_str()) == 0) {
     return CALENDAR_365_DAY;
-  }
-  else if (strcmp("360_DAY", str.c_str()) == 0) {
+  } else if (strcmp("360_DAY", str.c_str()) == 0) {
     ExitGracefully("CommonFunctions: StringToCalendar: Blackbird does not support 360_DAY calendars!", BAD_DATA);
     return CALENDAR_360_DAY;
-  }
-  else if (strcmp("JULIAN", str.c_str()) == 0) {
+  } else if (strcmp("JULIAN", str.c_str()) == 0) {
     return CALENDAR_JULIAN;
-  }
-  else if (strcmp("ALL_LEAP", str.c_str()) == 0) {
+  } else if (strcmp("ALL_LEAP", str.c_str()) == 0) {
     return CALENDAR_366_DAY;
-  }
-  else if (strcmp("366_DAY", str.c_str()) == 0) {
+  } else if (strcmp("366_DAY", str.c_str()) == 0) {
     return CALENDAR_366_DAY;
-  }
-  else {
+  } else {
     printf("Calendar used: %s", str.c_str());
     ExitGracefully("CommonFunctions: StringToCalendar: Unknown calendar specified!", BAD_DATA);
   }
   return -1;  // just to avoid compiler warning of void function return
 }
 
-////////////////////////////////////////////////////// /////////////////////
+///////////////////////////////////////////////////////////////////////////
 /// \brief Get the current system date/time
 /// \return "now" as an ISO formatted string
 std::string GetCurrentMachineTime(void) {
@@ -505,7 +482,7 @@ std::string GetCurrentMachineTime(void) {
   return std::string(s);
 }
 
-////////////////////////////////////////////////////// /////////////////////
+///////////////////////////////////////////////////////////////////////////
 /// \brief Round the timestep to the nearest fractional day
 /// \return improved timestep
 double FixTimestep(double tstep) {
@@ -528,9 +505,9 @@ bool IsValidDateString(const std::string sDate) {
 }
 
 ////////////////////////////////////////////////////////////////////////////
-/// \brief Rounds time to nearest minute to prevent roundoff error in NetCDF
-/// reporting of time \param &t [in] model time, in hours \return time, in
-/// hours, rounded to nearest minute
+/// \brief Rounds time to nearest minute to prevent roundoff error in NetCDF reporting of time
+/// \param &t [in] model time, in hours
+/// \return time, in hours, rounded to nearest minute
 //
 double RoundToNearestMinute(const double &t) {
   const double MIN_PER_HOUR = 60;
@@ -540,19 +517,17 @@ double RoundToNearestMinute(const double &t) {
 }
 
 ////////////////////////////////////////////////////////////////////////////
-/// \brief returns true if julian date is between two julian days (days
-/// inclusive) \param julian_day   [in] julian date from 0.0 to 365.0 \param
-/// julian_start [in] integer start day of date range (0=Jan 1, 364=Dec 31 in
-/// non-leap) \param julian_end [in] integer end day of date range (0=Jan 1,
-/// 364=Dec 31 in non-leap)
+/// \brief returns true if julian date is between two julian days (days inclusive)
+/// \param julian_day   [in] julian date from 0.0 to 365.0
+/// \param julian_start [in] integer start day of date range (0=Jan 1, 364=Dec 31 in non-leap)
+/// \param julian_end [in] integer end day of date range (0=Jan 1, 364=Dec 31 in non-leap)
 //
 bool IsInDateRange(const double &julian_day, const int &julian_start,
                    const int &julian_end) {
   if (julian_start < julian_end) {
     return ((julian_day >= julian_start) && (julian_day <= julian_end));
   } else {
-    return ((julian_day >= julian_start) ||
-            (julian_day <= julian_end)); // wraps around Dec 31-Jan 1
+    return ((julian_day >= julian_start) || (julian_day <= julian_end)); // wraps around Dec 31-Jan 1
   }
 }
 
@@ -729,7 +704,6 @@ std::string StringToUppercase(const std::string& s)
 //////////////////////////////////////////////////////////////////
 /// \brief Simple and fast atof (ascii to float) function.
 /// \notes Executes about 5x faster than standard MSCRT library atof().
-///
 /// \notes ported 09-May-2009 from Tom Van Baak (tvb) www.LeapSecond.com
 //
 

@@ -3,6 +3,9 @@
 
 #define _BBNETCDF_
 
+#ifdef netcdf
+#define _BBNETCDF_      // if Makefile is used this will be automatically be uncommented if netCDF library is available
+#endif
 #ifdef _BBNETCDF_
 #include <netcdf.h>
 #endif

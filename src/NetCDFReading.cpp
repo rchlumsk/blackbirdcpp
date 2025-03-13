@@ -19,17 +19,18 @@ int GetCalendarFromNetCDF(const int ncid, int varid_t, const std::string filenam
   size_t  att_len;        // length of the attribute's text
   nc_type att_type;      // type of attribute
 
-
   retval = nc_inq_att(ncid, varid_t, "calendar", &att_type, &att_len);
   if (retval != NC_ENOTATT)
   {
     HandleNetCDFErrors(retval);
     // if found, read and make sure '\0' is terminating character
-    retval = nc_inq_attlen(ncid, varid_t, "calendar", &att_len);            HandleNetCDFErrors(retval);// inquire length of attribute's text
+    retval = nc_inq_attlen(ncid, varid_t, "calendar", &att_len);
+    HandleNetCDFErrors(retval);// inquire length of attribute's text
 
     char* calendar_t = new char[att_len + 1]; // allocate memory of char * to hold attribute's text
-    retval = nc_get_att_text(ncid, varid_t, "calendar", calendar_t);        HandleNetCDFErrors(retval);// read attribute text
-    calendar_t[att_len] = '\0';                // add string determining character
+    retval = nc_get_att_text(ncid, varid_t, "calendar", calendar_t);
+    HandleNetCDFErrors(retval);// read attribute text
+    calendar_t[att_len] = '\0';// add string determining character
 
     calendar = StringToCalendar(calendar_t);
 
@@ -99,6 +100,7 @@ void GetTimeInfoFromNetCDF(const char* unit_t, int calendar, const double* time,
 #endif
 
 }
+
 //////////////////////////////////////////////////////////////////
 /// reads converts Netcdf time since a reference date to a julian date
 //
@@ -126,6 +128,7 @@ void GetJulianDateFromNetCDFTime(const std::string unit_t_str, const int calenda
   AddTime(tt_ref.julian_day, tt_ref.year, delta_t, calendar, julian_day, year);
 #endif
 }
+
 //////////////////////////////////////////////////////////////////
 /// reads reads in a vector of NetCDF times in integer/float/double format
 //
