@@ -1,18 +1,14 @@
 #include "BlackbirdInclude.h"
-#include "Raster.h"
+#include "NetCDFLayer.h"
 
 // Default constructor
-CRaster::CRaster()
-  : CGriddedData() {
-}
+CNetCDF::CNetCDF() : CNetCDF() {}
 
 // Copy constructor
-CRaster::CRaster(const CRaster& other)
-  : CGriddedData(other) {
-}
+CNetCDF::CNetCDF(const CNetCDF &other) : CGriddedData(other) {}
 
 // Copy assignment operator
-CRaster& CRaster::operator=(const CRaster& other) {
+CNetCDF &CNetCDF::operator=(const CNetCDF &other) {
   if (this == &other) {
     return *this; // Handle self-assignment
   }

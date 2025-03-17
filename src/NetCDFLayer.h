@@ -1,17 +1,17 @@
-#ifndef RASTER_H
-#define RASTER_H
+#ifndef NETCDFCLASS_H
+#define NETCDFCLASS_H
 
 #include "GriddedData.h"
 
-class CRaster : public CGriddedData {
+class CNetCDF : public CGriddedData {
 public:
 
   // Constructors and Destructor
-  CRaster();
-  CRaster(const CRaster& other);
+  CNetCDF();
+  CNetCDF(const CNetCDF &other);
 
   // Copy assignment operator
-  CRaster& operator=(const CRaster& other);
+  CNetCDF &operator=(const CNetCDF &other);
 
   // Member functions
   // I/O Functions
@@ -19,4 +19,4 @@ public:
   void pretty_print() const;              // defined in StandardOutput.cpp
 };
 
-#endif
+#endif#pragma once

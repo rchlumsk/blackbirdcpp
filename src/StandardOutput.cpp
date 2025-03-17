@@ -122,7 +122,7 @@ void CModel::WriteRasterOutput()
 //////////////////////////////////////////////////////////////////
 /// \brief Writes raster data to geotiff raster file
 //
-void CRaster::WriteToFile(std::string filepath)
+void CGriddedData::WriteToFile(std::string filepath)
 {
   GDALDriver *driver = GetGDALDriverManager()->GetDriverByName("GTiff");
   ExitGracefullyIf(
@@ -204,7 +204,7 @@ void CModel::WriteFullModel() const
 //////////////////////////////////////////////////////////////////
 /// \brief Cleanly prints CRaster class data to testoutput (except data)
 //
-void CRaster::pretty_print() const {
+void CGriddedData::pretty_print() const {
   std::ofstream TESTOUTPUT;
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "\n================== Raster =================" << std::endl;
