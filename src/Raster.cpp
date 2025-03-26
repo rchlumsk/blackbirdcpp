@@ -7,12 +7,12 @@ CRaster::CRaster()
 }
 
 // Copy constructor
-CRaster::CRaster(const CRaster& other)
+CRaster::CRaster(const CRaster &other)
   : CGriddedData(other) {
 }
 
 // Copy assignment operator
-CRaster& CRaster::operator=(const CRaster& other) {
+CRaster& CRaster::operator=(const CRaster &other) {
   if (this == &other) {
     return *this; // Handle self-assignment
   }

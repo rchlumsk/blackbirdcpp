@@ -92,6 +92,11 @@
     <ExecutablePath>$(ExecutablePath)</ExecutablePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <VcpkgUseStatic>true</VcpkgUseStatic>
+    <VcpkgUseMD>
+    </VcpkgUseMD>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -124,15 +129,19 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>H5_USE_16_API;HAVE_LIBGEOTIFF;LIBGEOTIFF_STATIC;H5_BUILT_AS_STATIC_LIB;CURL_STATICLIB;CPL_DISABLE_DLL;CPL_STATIC;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\OSGeo4W\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\OSGeo4W\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>gdal.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\gdal_static\gdal\build\Release;C:\vcpkg\installed\x64-windows-static\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Ws2_32.lib;Crypt32.lib;Wldap32.lib;Wbemuuid.lib;Secur32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -160,13 +169,15 @@
     <ClCompile Include="BoundaryConditions.cpp" />
     <ClCompile Include="CommonFunctions.cpp" />
     <ClCompile Include="Model.cpp" />
+    <ClCompile Include="NetCDFLayer.cpp" />
     <ClCompile Include="Options.cpp" />
     <ClCompile Include="ParseBoundaryConditions.cpp" />
     <ClCompile Include="ParseGeometry.cpp" />
     <ClCompile Include="ParseInput.cpp" />
     <ClCompile Include="ParseLib.cpp" />
-    <ClCompile Include="Vector.cpp" />
     <ClCompile Include="Raster.cpp" />
+    <ClCompile Include="Vector.cpp" />
+    <ClCompile Include="GriddedData.cpp" />
     <ClCompile Include="Reach.cpp" />
     <ClCompile Include="StandardOutput.cpp" />
     <ClCompile Include="Streamnode.cpp" />
@@ -177,8 +188,10 @@
     <ClInclude Include="BoundaryConditions.h" />
     <ClInclude Include="GracefulEnd.h" />
     <ClInclude Include="Model.h" />
+    <ClInclude Include="NetCDFLayer.h" />
     <ClInclude Include="Options.h" />
     <ClInclude Include="ParseLib.h" />
+    <ClInclude Include="GriddedData.h" />
     <ClInclude Include="Raster.h" />
     <ClInclude Include="Reach.h" />
     <ClInclude Include="Streamnode.h" />

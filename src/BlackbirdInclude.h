@@ -7,7 +7,8 @@
 #define _BBNETCDF_      // if Makefile is used this will be automatically be uncommented if netCDF library is available
 #endif
 #ifdef _BBNETCDF_
-#include <netcdf.h>
+//#include <netcdf.h>
+#include <netcdf>
 #endif
 
 #include <algorithm>
@@ -369,54 +370,6 @@ struct time_struct {
   bool day_changed; ///< Boolean flag indicating change of day for subdaily time
                     ///< steps
 };
-
-/******************************************************************
-  Other Functions (defined in CommonFunctions.cpp)
-******************************************************************/
-//Time/Date Functions----------------------------------------------
-bool        IsLeapYear(            const int         year,
-                                   const int         calendar);
-void        JulianConvert(               double      model_time,
-                                   const double      start_date,
-                                   const int         start_year,
-                                   const int         calendar,
-                                                     time_struct &tt);
-std::string DecDaysToHours(        const double      dec_date,
-                                   const bool        truncate=false);
-//double      InterpolateMo(         const double      aVal[12],
-//                                   const time_struct &tt,
-//                                   const optStruct   &Options);
-time_struct DateStringToTimeStruct(const std::string sDate,
-                                         std::string sTime,
-                                   const int         calendar);
-
-std::string TimeZoneToString      (const int tz);
-double      TimeDifference        (const double      jul_day1,
-                                   const int         year1,
-                                   const double      jul_day2,
-                                   const int         year2,
-                                   const int         calendar);
-void        AddTime               (const double      jul_day1,
-                                   const int         year1,
-                                   const double      &daysadded,
-                                   const int         calendar,
-                                         double      &jul_day_out,
-                                         int         &year_out);
-int         StringToCalendar      (      std::string cal_chars);
-std::string GetCurrentMachineTime();
-double      FixTimestep           (      double      tstep);
-bool        IsValidDateString     (const std::string sDate);
-double      RoundToNearestMinute  (const double& t);
-bool        IsInDateRange         (const double &julian_day,
-                                   const int    &julian_start,
-                                   const int    &julian_end);
-int      GetJulianDayFromMonthYear(const std::string &date_str, const int calendar);
-
-bool        IsValidNetCDFTimeString   (const std::string unit_t_str);
-time_struct TimeStructFromNetCDFString(const std::string unit_t_str,
-                                       const std::string timestr,
-                                       const int calendar,
-                                       double &time_zone);
 
 //*****************************************************************
 //Common Functions (inline)
