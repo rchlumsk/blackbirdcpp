@@ -39,7 +39,10 @@ COptions::COptions()
   blended_nc_weights(PLACEHOLDER),
   froude_threshold(PLACEHOLDER),
   silent_run(false),
-  noisy_run(false) {
+  noisy_run(false),
+  out_format(enum_output_format::RASTER),
+  in_nc_name("bb_inputs.nc"),
+  in_nc(false) {
 }
 
 //////////////////////////////////////////////////////////////////

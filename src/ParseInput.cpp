@@ -142,6 +142,8 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":DHANDDepthSeq")) { code = 23; }
     else if (!strcmp(s[0], ":DHANDMaxDepth")) { code = 24; }
     else if (!strcmp(s[0], ":DHANDDepthStep")) { code = 25; }
+    else if (!strcmp(s[0], ":WriteNetcdfFormat")) { code = 26; }
+    else if (!strcmp(s[0], ":InputNCFile")) { code = 27; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -364,6 +366,19 @@ bool ParseMainInputFile(CModel*& pModel,
       } else {
         dhand_depth_step = std::atof(s[1]);
       }
+      break;
+    }
+    case(26):
+    {/*:WriteNetcdfFormat*/
+      if (pOptions->noisy_run) { std::cout << "WriteNetcdfFormat" << std::endl; }
+      pOptions->out_format = enum_output_format::NETCDF;
+      break;
+    }
+    case(27):
+    {/*:InputNCFile [string filename]*/
+      if (pOptions->noisy_run) { std::cout << "InputNCFile" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":InputNCFile", p, pOptions->noisy_run); break; }
+      pOptions->in_nc_name = std::string(s[1]);
       break;
     }
     case(100):

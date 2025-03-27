@@ -15,16 +15,16 @@
 class CModel {
 public:
   // Member variables
-  std::vector<CStreamnode*> *bbsn;     // A vector of Streamnode objects
-  CBoundaryConditions *bbbc;           // A single bb_boundarycondition object
-  COptions *bbopt;                     // A single bb_options object
-  std::vector<double> dhand_depth_seq; // sequence of depths for dhand
-  CRaster c_from_s;                    // raster object for catchments from streamnodes
-  CVector spp;                         // vector object for snapped pourpoints
-  CRaster hand;                        // raster object for hand
-  CRaster handid;                      // raster object for hand pourpoints
-  std::vector<CRaster> dhand;          // raster object for dhand
-  std::vector<CRaster> dhandid;        // raster object for dhand pourpoints
+  std::vector<CStreamnode*> *bbsn;                      // A vector of Streamnode objects
+  CBoundaryConditions *bbbc;                            // A single bb_boundarycondition object
+  COptions *bbopt;                                      // A single bb_options object
+  std::vector<double> dhand_depth_seq;                  // sequence of depths for dhand
+  std::unique_ptr<CGriddedData> c_from_s;               // pointer to gridded data object for catchments from streamnodes
+  CVector spp;                                          // vector object for snapped pourpoints
+  std::unique_ptr<CGriddedData> hand;                   // pointer to gridded data object for hand
+  std::unique_ptr<CGriddedData> handid;                 // pointer to gridded data object for hand pourpoints
+  std::vector<std::unique_ptr<CGriddedData>> dhand;     // vector of pointers to gridded data objects for dhand
+  std::vector<std::unique_ptr<CGriddedData>> dhandid;   // vector of pointers to gridded data objects for dhand pourpoints
 
   // Outputs
   std::vector<hydraulic_output *> *hyd_result;  // hydraulic outputs generated from hyd_compute_profile
@@ -57,8 +57,9 @@ public:
   void hyd_result_pretty_print_csv() const;                       // writes hyd_result to csv file
 
   // GIS Functions
-  void ReadGISFiles();                                            // reads necessary raster files
-  void ReadRasterFile(std::string filename, CRaster &raster_obj); // reads specified raster file
+  void ReadGISFiles();                                            // reads necessary gis files
+  void ReadNetCDFFile(std::string filename, CNetCDF *netcdf_obj); // reads specified netcdf file
+  void ReadRasterFile(std::string filename, CRaster *raster_obj); // reads specified raster file
   void ReadVectorFile(std::string filename, CVector &vector_obj); // reads specified vector file
   void postprocess_floodresults();                                // postprocesses flood results based on bbopt method
 

@@ -23,8 +23,8 @@ public:
 
   // Member functions
   // I/O Functions
-  void WriteToFile(std::string filepath); // defined in StandardOutput.cpp
-  void pretty_print() const;              // defined in StandardOutput.cpp
+  virtual void WriteToFile(std::string filepath); // defined in StandardOutput.cpp
+  virtual void pretty_print() const;              // defined in StandardOutput.cpp
 };
 
 #endif

@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cpl_conv.h>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <gdal_priv.h>
 #include <iomanip>
@@ -22,6 +23,7 @@
 #include <limits>
 #include <map>
 #include <math.h>
+#include <memory>
 #include <ogrsf_frmts.h>
 #include <set>
 #include <stdlib.h>
@@ -344,31 +346,11 @@ enum enum_dh_method
   FLOOR
 };
 
-// Calender type
-enum enum_cd_type
+// DHand post-processing method
+enum enum_output_format
 {
-  CALENDAR_GREGORIAN, // same as STANDARD
-  CALENDAR_PROLEPTIC_GREGORIAN,
-  CALENDAR_365_DAY, //=NO_LEAP
-  CALENDAR_360_DAY,
-  CALENDAR_JULIAN,
-  CALENDAR_366_DAY //=ALL_LEAP
-};
-
-////////////////////////////////////////////////////////////////////
-/// \brief Stores information describing a specific instance in time
-//
-struct time_struct {
-  std::string date_string; ///< String date
-  double model_time;  ///< [d] time elapsed since model start time
-  double julian_day;  ///< [d] Julian-format decimal date (time in days since
-                      ///< 0:00 Jan 1 of current year)
-  int day_of_month;   ///< Day of month
-  int month;          ///< [1..12] month of year
-  int year;           ///< year
-  bool leap_yr;       ///< Boolean flag that indicates leap year
-  bool day_changed; ///< Boolean flag indicating change of day for subdaily time
-                    ///< steps
+  RASTER,
+  NETCDF
 };
 
 //*****************************************************************
@@ -620,6 +602,14 @@ inline std::string toString(enum_dh_method method) {
   }
 }
 
+inline std::string toString(enum_output_format method) {
+  switch (method) {
+  case RASTER: return "RASTER";
+  case NETCDF: return "NETCDF";
+  default: return "UNKNOWN";
+  }
+}
+
 ///////////////////////////////////////////////////////////////////
 /// \brief converts any input to string
 /// \param t [in] thing to be converted to a string
@@ -639,20 +629,6 @@ void          WriteWarning(const std::string warn, bool noisy);
 void          WriteAdvisory(const std::string warn, bool noisy);
 double        fast_s_to_d(const char* s);
 void          SilentErrorHandler(CPLErr eErrClass, int err_no, const char *msg);
-
-//defined in NetCDFReading.cpp
-int GetCalendarFromNetCDF(const int ncid, int varid_t,
-                          const std::string filename,
-                          const enum_cd_type in_calendar, const bool noisy);
-void GetTimeVectorFromNetCDF(const int ncid, const int varid_t, const int ntime,
-                             double *my_time);
-void GetTimeInfoFromNetCDF(const char *unit_t, int calendar, const double *time,
-                           const int ntime, const std::string filename,
-                           double &tstep, double &start_day, int &start_yr,
-                           double &time_zone);
-void GetJulianDateFromNetCDFTime(const std::string unit_t, const int calendar,
-                                 const double &time, double &start_day,
-                                 int &start_yr);
 
 // I/O Functions-----------------------------------------------
 // defined in StandardOutput.cpp

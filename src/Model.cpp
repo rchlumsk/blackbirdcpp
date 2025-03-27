@@ -256,12 +256,14 @@ int CModel::get_hyd_res_index(int flow_ind, int sid) {
 /// \brief Reads GIS files required for model
 //
 void CModel::ReadGISFiles() {
-  // mandatory setup
   GDALAllRegister();
+  
+  if (std::filesystem::exists(bbopt->gis_path + "/" + bbopt->in_nc_name)) {
+    bbopt->in_nc = true;
+  }
 
-  ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif",
-                 c_from_s);
-  c_from_s.name = "Catchments from Streamnodes";
+  ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif", dynamic_cast<CRaster *>(c_from_s.get()));
+  c_from_s->name = "Catchments from Streamnodes";
   if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
@@ -270,26 +272,24 @@ void CModel::ReadGISFiles() {
   }
   if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
-    ReadRasterFile(bbopt->gis_path + "/bb_hand.tif", hand);
-    hand.name = "HAND";
+    ReadRasterFile(bbopt->gis_path + "/bb_hand.tif",  dynamic_cast<CRaster *>(hand.get()));
+    hand->name = "HAND";
     if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-      ReadRasterFile(bbopt->gis_path + "/bb_hand_pourpoint_id.tif", handid);
-      handid.name = "HAND ID";
+      ReadRasterFile(bbopt->gis_path + "/bb_hand_pourpoint_id.tif",  dynamic_cast<CRaster *>(handid.get()));
+      handid->name = "HAND ID";
     }
   } else { // use dhand
     for (auto d : dhand_depth_seq) {
       std::stringstream stream;
       stream << std::fixed << std::setprecision(4) << d;
-      dhand.push_back(CRaster());
-      ReadRasterFile(bbopt->gis_path + "/bb_dhand_depth_" + stream.str() + "m.tif",
-                     dhand.back());
-      dhand.back().name = "DHAND " + stream.str();
+      dhand.push_back(std::make_unique<CRaster>());
+      ReadRasterFile(bbopt->gis_path + "/bb_dhand_depth_" + stream.str() + "m.tif", dynamic_cast<CRaster *>(dhand.back().get()));
+      dhand.back()->name = "DHAND " + stream.str();
       if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
           bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
-        dhandid.push_back(CRaster());
-        ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" + stream.str() + "m.tif",
-                       dhand.back());
-        dhandid.back().name = "DHAND ID " + stream.str();
+        dhandid.push_back(std::make_unique<CRaster>());
+        ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" + stream.str() + "m.tif", dynamic_cast<CRaster *>(dhand.back().get()));
+        dhandid.back()->name = "DHAND ID " + stream.str();
       }
     }
   }
@@ -300,9 +300,17 @@ void CModel::ReadGISFiles() {
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Reads specified NetCDF file
+//
+void CModel::ReadNetCDFFile(std::string filename, CNetCDF *raster_obj) {
+  netCDF::NcFile nc_file(filename, netCDF::NcFile::read);
+  netCDF::NcVar var;
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Reads specified Raster file
 //
-void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
+void CModel::ReadRasterFile(std::string filename, CRaster *raster_obj) {
   CPLPushErrorHandler(SilentErrorHandler);
   GDALDataset *dataset =
       static_cast<GDALDataset *>(GDALOpen(filename.c_str(), GA_ReadOnly));
@@ -315,24 +323,24 @@ void CModel::ReadRasterFile(std::string filename, CRaster &raster_obj) {
       ("Model.cpp: ReadRasterFile: couldn't open " + filename + " or " + filename + "f").c_str(),
       exitcode::FILE_OPEN_ERR);
 
-  raster_obj.xsize = dataset->GetRasterXSize();
-  raster_obj.ysize = dataset->GetRasterYSize();
+  raster_obj->xsize = dataset->GetRasterXSize();
+  raster_obj->ysize = dataset->GetRasterYSize();
   if (dataset->GetProjectionRef() != nullptr) {
     size_t len = strlen(dataset->GetProjectionRef()) + 1;
-    raster_obj.proj = new char[len];
-    memcpy(raster_obj.proj, dataset->GetProjectionRef(), len);
+    raster_obj->proj = new char[len];
+    memcpy(raster_obj->proj, dataset->GetProjectionRef(), len);
   } else {
-    raster_obj.proj = nullptr;
+    raster_obj->proj = nullptr;
   }
-  dataset->GetGeoTransform(raster_obj.geotrans);
+  dataset->GetGeoTransform(raster_obj->geotrans);
 
-  raster_obj.data = static_cast<double *>(
-      CPLMalloc(sizeof(double) * raster_obj.xsize * raster_obj.ysize));
+  raster_obj->data = static_cast<double *>(
+      CPLMalloc(sizeof(double) * raster_obj->xsize * raster_obj->ysize));
   GDALRasterBand *band = dataset->GetRasterBand(1);
-  raster_obj.datatype = band->GetRasterDataType();
-  raster_obj.na_val = band->GetNoDataValue();
-  band->RasterIO(GF_Read, 0, 0, raster_obj.xsize, raster_obj.ysize,
-                 raster_obj.data, raster_obj.xsize, raster_obj.ysize,
+  raster_obj->datatype = band->GetRasterDataType();
+  raster_obj->na_val = band->GetNoDataValue();
+  band->RasterIO(GF_Read, 0, 0, raster_obj->xsize, raster_obj->ysize,
+                 raster_obj->data, raster_obj->xsize, raster_obj->ysize,
                  GDT_Float64, 0, 0);
   GDALClose(dataset);
 }
