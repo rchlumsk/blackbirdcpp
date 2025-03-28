@@ -7,9 +7,9 @@ CModel::CModel()
   bbbc(new CBoundaryConditions),
   bbopt(new COptions),
   dhand_depth_seq(),
-  c_from_s(),
-  hand(),
-  handid(),
+  c_from_s(nullptr),
+  hand(nullptr),
+  handid(nullptr),
   dhand(),
   dhandid(),
   hyd_result(nullptr),
@@ -26,12 +26,26 @@ CModel::CModel()
 
 // Copy constructor
 CModel::CModel(const CModel &other)
-    : c_from_s(other.c_from_s), hand(other.hand), handid(other.handid),
-      dhand(other.dhand), dhandid(other.dhandid),
-      out_rasters(other.out_rasters), streamnode_map(other.streamnode_map),
+    : out_rasters(other.out_rasters), streamnode_map(other.streamnode_map),
       flow(other.flow), peak_hrs_min(other.peak_hrs_min),
       peak_hrs_max(other.peak_hrs_max), spp_depths(other.spp_depths),
       dhand_vals(other.dhand_vals), dhandid_vals(other.dhandid_vals) {
+  if (other.c_from_s) {
+    c_from_s = other.c_from_s->clone();
+  }
+  if (other.hand) {
+    hand = other.hand->clone();
+  }
+  if (other.handid) {
+    handid = other.handid->clone();
+  }
+  for (const auto &layer : other.dhand) {
+    dhand.push_back(layer->clone());
+  }
+  for (const auto &layer : other.dhandid) {
+    dhandid.push_back(layer->clone());
+  }
+
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
     for (const auto &node : *other.bbsn) {
@@ -60,6 +74,23 @@ CModel &CModel::operator=(const CModel &other) {
     return *this; // Handle self-assignment
   }
 
+  if (other.c_from_s) {
+    c_from_s = other.c_from_s->clone();
+  }
+  if (other.hand) {
+    hand = other.hand->clone();
+  }
+  if (other.handid) {
+    handid = other.handid->clone();
+  }
+  for (const auto &layer : other.dhand) {
+    dhand.push_back(layer->clone());
+  }
+  for (const auto &layer : other.dhandid) {
+    dhandid.push_back(layer->clone());
+  }
+
+
   if (bbsn) {
     for (auto ptr : *bbsn) {
       delete ptr;
@@ -80,11 +111,6 @@ CModel &CModel::operator=(const CModel &other) {
   }
 
   dhand_depth_seq = other.dhand_depth_seq;
-  c_from_s = other.c_from_s;
-  hand = other.hand;
-  handid = other.handid;
-  dhand = other.dhand;
-  dhandid = other.dhandid;
   out_rasters = other.out_rasters;
   streamnode_map = other.streamnode_map;
   flow = other.flow;
@@ -259,7 +285,8 @@ void CModel::ReadGISFiles() {
   GDALAllRegister();
   
   if (std::filesystem::exists(bbopt->gis_path + "/" + bbopt->in_nc_name)) {
-    bbopt->in_nc = true;
+    bbopt->in_format = enum_gridded_format::NETCDF;
+    // TODO function for reading netcdf
   }
 
   ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif", dynamic_cast<CRaster *>(c_from_s.get()));
@@ -400,7 +427,7 @@ void CModel::postprocess_floodresults() {
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
     // do stuff 99
   }
-  ExitGracefullyIf(!c_from_s.data,
+  ExitGracefullyIf(!c_from_s->data,
                    "Raster.cpp: postprocess_floodresults: catchments from "
                    "streamnodes missing",
                    exitcode::RUNTIME_ERR);
@@ -1000,9 +1027,9 @@ void CModel::generate_spp_depths(int flow_ind) {
 //
 void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
   // loop through each raster cell
-  for (int j = 0; j < dhand[0].xsize * dhand[0].ysize; j++) {
+  for (int j = 0; j < dhand[0]->xsize * dhand[0]->ysize; j++) {
     // grab the depth of the current raster cell and flow profile from the hydraulic output
-    double curr_depth = (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s.data[j])]->depth;
+    double curr_depth = (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s->data[j])]->depth;
 
     // initialize variables and grab the corresponding dhand bounding depths
     double curr_dhand_val = PLACEHOLDER;
@@ -1011,9 +1038,9 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
 
     // assigns the dhand value of the current raster cell (and dhandid value if interp method)
     if (bounds.first == bounds.second) { // "depth" is equal to some dhand depth
-      curr_dhand_val = dhand[bounds.first].data[j];
+      curr_dhand_val = dhand[bounds.first]->data[j];
       if (is_interp) {
-        curr_dhandid_val = dhandid[bounds.first].data[j];
+        curr_dhandid_val = dhandid[bounds.first]->data[j];
       }
     } else {
       if (bbopt->dhand_method == enum_dh_method::INTERPOLATE) {
@@ -1024,16 +1051,16 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
                   "closest available dhand, though results should be "
                   "re-run with more dhand rasters to cover this depth",
               bbopt->noisy_run);
-          if (dhand[bounds.second].data[j] == dhand[bounds.second].na_val) {
+          if (dhand[bounds.second]->data[j] == dhand[bounds.second]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
-            curr_dhand_val = dhand[bounds.second].data[j];
+            curr_dhand_val = dhand[bounds.second]->data[j];
           }
           if (is_interp) {
-            if (dhandid[bounds.second].data[j] == dhandid[bounds.second].na_val) {
+            if (dhandid[bounds.second]->data[j] == dhandid[bounds.second]->na_val) {
               curr_dhandid_val = PLACEHOLDER;
             } else {
-              curr_dhandid_val = dhandid[bounds.second].data[j];
+              curr_dhandid_val = dhandid[bounds.second]->data[j];
             }
           }
         } else if (bounds.second == PLACEHOLDER) { // "depth" is higher than all dhand depths
@@ -1043,25 +1070,25 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
                   "closest available dhand, though results should be "
                   "re-run with more dhand rasters to cover this depth",
               bbopt->noisy_run);
-          if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val) {
+          if (dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
-            curr_dhand_val = dhand[bounds.first].data[j];
+            curr_dhand_val = dhand[bounds.first]->data[j];
           }
           if (is_interp) {
-            if (dhandid[bounds.first].data[j] == dhandid[bounds.first].na_val) {
+            if (dhandid[bounds.first]->data[j] == dhandid[bounds.first]->na_val) {
               curr_dhandid_val = PLACEHOLDER;
             } else {
-              curr_dhandid_val = dhandid[bounds.first].data[j];
+              curr_dhandid_val = dhandid[bounds.first]->data[j];
             }
           }
         } else { // "depth" is between 2 dhand depths
-          if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val ||
-              dhand[bounds.second].data[j] == dhand[bounds.second].na_val) {
+          if (dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val ||
+              dhand[bounds.second]->data[j] == dhand[bounds.second]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
-            double r1 = dhand[bounds.first].data[j];
-            double r2 = dhand[bounds.second].data[j];
+            double r1 = dhand[bounds.first]->data[j];
+            double r2 = dhand[bounds.second]->data[j];
             double d1 = dhand_depth_seq[bounds.first];
             double d2 = dhand_depth_seq[bounds.second];
 
@@ -1071,29 +1098,29 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
         }
       } else { // enum_dh_method::FLOOR
         if (bounds.first == PLACEHOLDER) {
-          if (dhand[bounds.second].data[j] == dhand[bounds.second].na_val) {
+          if (dhand[bounds.second]->data[j] == dhand[bounds.second]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
-            curr_dhand_val = dhand[bounds.second].data[j];
+            curr_dhand_val = dhand[bounds.second]->data[j];
           }
           if (is_interp) {
-            if (dhandid[bounds.second].data[j] == dhandid[bounds.second].na_val) {
+            if (dhandid[bounds.second]->data[j] == dhandid[bounds.second]->na_val) {
               curr_dhandid_val = PLACEHOLDER;
             } else {
-              curr_dhandid_val = dhandid[bounds.second].data[j];
+              curr_dhandid_val = dhandid[bounds.second]->data[j];
             }
           }
         } else {
-          if (dhand[bounds.first].data[j] == dhand[bounds.first].na_val) {
+          if (dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
-            curr_dhand_val = dhand[bounds.first].data[j];
+            curr_dhand_val = dhand[bounds.first]->data[j];
           }
           if (is_interp) {
-            if (dhandid[bounds.first].data[j] == dhandid[bounds.first].na_val) {
+            if (dhandid[bounds.first]->data[j] == dhandid[bounds.first]->na_val) {
               curr_dhandid_val = PLACEHOLDER;
             } else {
-              curr_dhandid_val = dhandid[bounds.first].data[j];
+              curr_dhandid_val = dhandid[bounds.first]->data[j];
             }
           }
         }
@@ -1114,12 +1141,8 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
 /// \param is_dhand [in] boolean indicated whether post processing method is dhand method
 //
 void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
-  CRaster result;
-  if (!is_dhand) {
-    result = hand;
-  } else {
-    result = dhand[0];
-  }
+  initialize_out_gridded(is_dhand);
+
   result.name = "Result " + std::to_string(flow_ind + 1);
   std::fill(result.data, result.data + (result.xsize * result.ysize), 0.0);
 
@@ -1174,6 +1197,49 @@ void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
   }
 
   out_rasters.push_back(result); // save result for this flow profile to out_rasters
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Generates and saves a raster based on the post processing method for the "flow_ind"-th flow
+/// \param flow_ind [in] index of the flow currently being considered
+/// \param is_interp [in] boolean indicated whether post processing method is interp method
+/// \param is_dhand [in] boolean indicated whether post processing method is dhand method
+//
+void CModel::initialize_out_gridded(bool is_dhand) {
+
+  // CRaster result;
+  // if (!is_dhand) {
+  //   result = hand;
+  // } else {
+  //   result = dhand[0];
+  // }
+
+  if (bbopt->in_format == bbopt->out_format) { // raster to raster OR netcdf to netcdf
+    std::unique_ptr<CGriddedData> result;
+    if (!is_dhand) {
+      result = hand->clone();
+    } else {
+      result = dhand[0]->clone();
+    }
+    out_rasters.push_back(std::move(result));
+  } else if (bbopt->in_format == enum_gridded_format::RASTER &&
+             bbopt->out_format == enum_gridded_format::NETCDF) { // raster to netcdf
+    auto res_netcdf = std::make_unique<CNetCDF>();
+    if (!is_dhand) {
+      // TODO
+    } else {
+      
+    }
+  } else if (bbopt->in_format == enum_gridded_format::NETCDF &&
+             bbopt->out_format == enum_gridded_format::RASTER) { // netcdf to raster
+  } else {
+    ExitGracefully(("Model.cpp: generate_out_gridded: input " +
+                    toString(bbopt->in_format) + " to output " +
+                    toString(bbopt->out_format) +
+                    " is undefined and not currently supported.")
+                       .c_str(),
+                   exitcode::BAD_DATA);
+  }
 }
 
 // Destructor

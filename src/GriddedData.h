@@ -1,6 +1,8 @@
 #ifndef GRIDDEDDATA_H
 #define GRIDDEDDATA_H
 
+#include "BlackbirdInclude.h"
+
 class CGriddedData {
 public:
   // Member variables
@@ -8,10 +10,7 @@ public:
   double* data;           // raster values
   int xsize;              // x dimension of raster values
   int ysize;              // y dimension of raster values
-  char* proj;             // raster projection
-  double geotrans[6];     // raster geo transform
   double na_val;          // raster value representing NA
-  GDALDataType datatype;  // datatype of raster values
 
   // Constructors and Destructor
   CGriddedData();
@@ -20,6 +19,9 @@ public:
 
   // Copy assignment operator
   CGriddedData &operator=(const CGriddedData &other);
+
+  // Polymorphic clone
+  virtual std::unique_ptr<CGriddedData> clone() const = 0;
 
   // Member functions
   // I/O Functions

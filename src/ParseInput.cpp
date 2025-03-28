@@ -371,7 +371,7 @@ bool ParseMainInputFile(CModel*& pModel,
     case(26):
     {/*:WriteNetcdfFormat*/
       if (pOptions->noisy_run) { std::cout << "WriteNetcdfFormat" << std::endl; }
-      pOptions->out_format = enum_output_format::NETCDF;
+      pOptions->out_format = enum_gridded_format::NETCDF;
       break;
     }
     case(27):

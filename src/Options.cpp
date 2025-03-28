@@ -40,9 +40,9 @@ COptions::COptions()
   froude_threshold(PLACEHOLDER),
   silent_run(false),
   noisy_run(false),
-  out_format(enum_output_format::RASTER),
-  in_nc_name("bb_inputs.nc"),
-  in_nc(false) {
+  in_format(enum_gridded_format::RASTER),
+  out_format(enum_gridded_format::RASTER),
+  in_nc_name("bb_inputs.nc") {
 }
 
 //////////////////////////////////////////////////////////////////

@@ -44,9 +44,9 @@ public:
   double blended_conveyance_weights;
   double blended_nc_weights;
   double froude_threshold;
-  enum_output_format out_format;
+  enum_gridded_format in_format;
+  enum_gridded_format out_format;
   std::string in_nc_name;
-  bool in_nc; // true if input GIS data was in netcdf format
 
   bool silent_run;
   bool noisy_run;

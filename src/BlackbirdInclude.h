@@ -347,7 +347,7 @@ enum enum_dh_method
 };
 
 // DHand post-processing method
-enum enum_output_format
+enum enum_gridded_format
 {
   RASTER,
   NETCDF
@@ -602,7 +602,7 @@ inline std::string toString(enum_dh_method method) {
   }
 }
 
-inline std::string toString(enum_output_format method) {
+inline std::string toString(enum_gridded_format method) {
   switch (method) {
   case RASTER: return "RASTER";
   case NETCDF: return "NETCDF";

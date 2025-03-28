@@ -27,8 +27,8 @@ public:
   std::vector<std::unique_ptr<CGriddedData>> dhandid;   // vector of pointers to gridded data objects for dhand pourpoints
 
   // Outputs
-  std::vector<hydraulic_output *> *hyd_result;  // hydraulic outputs generated from hyd_compute_profile
-  std::vector<CRaster> out_rasters;             // output depth raster objects to be written to file
+  std::vector<hydraulic_output *> *hyd_result;                        // hydraulic outputs generated from hyd_compute_profile
+  std::vector<std::unique_ptr<CGriddedData>> out_rasters;             // output depth raster objects to be written to file
 
   // Constructors and destructor
   CModel();
@@ -79,6 +79,7 @@ protected:
   void generate_spp_depths(int flow_ind);                                                                  // generates spp_depths for the flow_ind-th profile. used in postprocess_floodresults
   void generate_dhand_vals(int flow_ind, bool is_interp);                                                  // generates dhand_vals for the flow_ind-th profile. used in postprocess_floodresults
   void generate_out_raster(int flow_ind, bool is_interp, bool is_dhand);                                   // generates an output raster for the flow_ind-th profile. used in postprocess_floodresults
+  void initialize_out_gridded(bool is_dhand);                                                              // initializes an output gridded data instance for the flow ind-th profile. used in generate_out_gridded
 };
 
 #endif
