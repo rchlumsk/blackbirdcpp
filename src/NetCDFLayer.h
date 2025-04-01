@@ -5,6 +5,13 @@
 
 class CNetCDF : public CGriddedData {
 public:
+  // Member variables
+  std::vector<double> x_coords;                               // netcdf x coordinates
+  std::vector<double> y_coords;                               // netcdf y coordinates
+  std::string grid_mapping_name;                              // CF-compliant projection name
+  std::unordered_map<std::string, double> projection_params;  // Projection attributes
+  nc_type datatype;                                           // netcdf data type
+  std::map<std::string, std::string> attributes;              // attributes metadata
 
   // Constructors and Destructor
   CNetCDF();
@@ -20,8 +27,8 @@ public:
 
   // Member functions
   // I/O Functions
-  //void WriteToFile(std::string filepath); // defined in StandardOutput.cpp
-  //void pretty_print() const;              // defined in StandardOutput.cpp
+  void WriteToFile(std::string filepath) override; // defined in StandardOutput.cpp
+  void pretty_print() const override;              // defined in StandardOutput.cpp
 };
 
 #endif

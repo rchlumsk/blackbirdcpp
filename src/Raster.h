@@ -13,6 +13,7 @@ public:
   // Constructors and Destructor
   CRaster();
   CRaster(const CRaster& other);
+  ~CRaster();
 
   // Copy assignment operator
   CRaster &operator=(const CRaster &other);
@@ -24,8 +25,8 @@ public:
 
   // Member functions
   // I/O Functions
-  //void WriteToFile(std::string filepath); // defined in StandardOutput.cpp
-  //void pretty_print() const;              // defined in StandardOutput.cpp
+  void WriteToFile(std::string filepath) override; // defined in StandardOutput.cpp
+  void pretty_print() const override;              // defined in StandardOutput.cpp
 };
 
 #endif

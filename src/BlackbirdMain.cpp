@@ -52,11 +52,11 @@ int main(int argc, char* argv[])
     ExitGracefully("Main::Unable to read input file(s)", BAD_DATA);
   }
 
-  // Read input rasters if applicable
+  // Read input gridded data if applicable
   if (pOptions->interpolation_postproc_method != enum_ppi_method::NONE) {
     if (!pOptions->silent_run) {
       std::cout << "======================================================" << std::endl;
-      std::cout << "Reading Raster Data..." << std::endl;
+      std::cout << "Reading Gridded Data..." << std::endl;
     }
     pModel->ReadGISFiles();
   }

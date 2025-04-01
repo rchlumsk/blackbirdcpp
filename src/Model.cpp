@@ -26,7 +26,7 @@ CModel::CModel()
 
 // Copy constructor
 CModel::CModel(const CModel &other)
-    : out_rasters(other.out_rasters), streamnode_map(other.streamnode_map),
+    : streamnode_map(other.streamnode_map),
       flow(other.flow), peak_hrs_min(other.peak_hrs_min),
       peak_hrs_max(other.peak_hrs_max), spp_depths(other.spp_depths),
       dhand_vals(other.dhand_vals), dhandid_vals(other.dhandid_vals) {
@@ -44,6 +44,9 @@ CModel::CModel(const CModel &other)
   }
   for (const auto &layer : other.dhandid) {
     dhandid.push_back(layer->clone());
+  }
+  for (const auto &layer : other.out_rasters) {
+    out_rasters.push_back(layer->clone());
   }
 
   if (other.bbsn) {
@@ -89,6 +92,9 @@ CModel &CModel::operator=(const CModel &other) {
   for (const auto &layer : other.dhandid) {
     dhandid.push_back(layer->clone());
   }
+  for (const auto &layer : other.out_rasters) {
+    out_rasters.push_back(layer->clone());
+  }
 
 
   if (bbsn) {
@@ -111,7 +117,6 @@ CModel &CModel::operator=(const CModel &other) {
   }
 
   dhand_depth_seq = other.dhand_depth_seq;
-  out_rasters = other.out_rasters;
   streamnode_map = other.streamnode_map;
   flow = other.flow;
   peak_hrs_min = other.peak_hrs_min;
@@ -283,45 +288,60 @@ int CModel::get_hyd_res_index(int flow_ind, int sid) {
 //
 void CModel::ReadGISFiles() {
   GDALAllRegister();
-  
-  if (std::filesystem::exists(bbopt->gis_path + "/" + bbopt->in_nc_name)) {
-    bbopt->in_format = enum_gridded_format::NETCDF;
-    // TODO function for reading netcdf
-  }
 
-  ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif", dynamic_cast<CRaster *>(c_from_s.get()));
-  c_from_s->name = "Catchments from Streamnodes";
+  // Read vector file for snapped pourpoints
   if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
     ReadVectorFile(bbopt->gis_path + "/bb_snapped_pourpoints_hand.shp", spp);
     spp.name = "Snapped Pourpoints";
   }
-  if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
-      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
-    ReadRasterFile(bbopt->gis_path + "/bb_hand.tif",  dynamic_cast<CRaster *>(hand.get()));
-    hand->name = "HAND";
-    if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-      ReadRasterFile(bbopt->gis_path + "/bb_hand_pourpoint_id.tif",  dynamic_cast<CRaster *>(handid.get()));
-      handid->name = "HAND ID";
+
+  // Read gridded data either from netcdf or raster
+  if (std::filesystem::exists(bbopt->gis_path + "/" + bbopt->in_nc_name)) {
+    if (!bbopt->silent_run) {
+      std::cout << "Reading from NetCDF" << std::endl;
     }
-  } else { // use dhand
-    for (auto d : dhand_depth_seq) {
-      std::stringstream stream;
-      stream << std::fixed << std::setprecision(4) << d;
-      dhand.push_back(std::make_unique<CRaster>());
-      ReadRasterFile(bbopt->gis_path + "/bb_dhand_depth_" + stream.str() + "m.tif", dynamic_cast<CRaster *>(dhand.back().get()));
-      dhand.back()->name = "DHAND " + stream.str();
-      if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
-          bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
-        dhandid.push_back(std::make_unique<CRaster>());
-        ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" + stream.str() + "m.tif", dynamic_cast<CRaster *>(dhand.back().get()));
-        dhandid.back()->name = "DHAND ID " + stream.str();
+    bbopt->in_format = enum_gridded_format::NETCDF;
+    // TODO function for reading netcdf
+  } else {
+    if (!bbopt->silent_run) {
+      std::cout << "Reading from Rasters" << std::endl;
+    }
+
+    c_from_s = std::make_unique<CRaster>();
+    hand = std::make_unique<CRaster>();
+    handid = std::make_unique<CRaster>();
+
+    bbopt->in_format = enum_gridded_format::RASTER;
+    ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif", dynamic_cast<CRaster *>(c_from_s.get()));
+    c_from_s->name = "Catchments from Streamnodes";
+    if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
+        bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
+      ReadRasterFile(bbopt->gis_path + "/bb_hand.tif",  dynamic_cast<CRaster *>(hand.get()));
+      hand->name = "HAND";
+      if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+        ReadRasterFile(bbopt->gis_path + "/bb_hand_pourpoint_id.tif",  dynamic_cast<CRaster *>(handid.get()));
+        handid->name = "HAND ID";
+      }
+    } else { // use dhand
+      for (auto d : dhand_depth_seq) {
+        std::stringstream stream;
+        stream << std::fixed << std::setprecision(4) << d;
+        dhand.push_back(std::make_unique<CRaster>());
+        ReadRasterFile(bbopt->gis_path + "/bb_dhand_depth_" + stream.str() + "m.tif", dynamic_cast<CRaster *>(dhand.back().get()));
+        dhand.back()->name = "DHAND " + stream.str();
+        if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+            bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
+          dhandid.push_back(std::make_unique<CRaster>());
+          ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" + stream.str() + "m.tif", dynamic_cast<CRaster *>(dhand.back().get()));
+          dhandid.back()->name = "DHAND ID " + stream.str();
+        }
       }
     }
   }
   if (!bbopt->silent_run) {
-    std::cout << "...raster data successfully read" << std::endl;
+    std::cout << "...gridded data successfully read" << std::endl;
     std::cout << std::endl;
   }
 }
@@ -330,8 +350,7 @@ void CModel::ReadGISFiles() {
 /// \brief Reads specified NetCDF file
 //
 void CModel::ReadNetCDFFile(std::string filename, CNetCDF *raster_obj) {
-  netCDF::NcFile nc_file(filename, netCDF::NcFile::read);
-  netCDF::NcVar var;
+  // TODO continue here
 }
 
 //////////////////////////////////////////////////////////////////
@@ -427,7 +446,7 @@ void CModel::postprocess_floodresults() {
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
     // do stuff 99
   }
-  ExitGracefullyIf(!c_from_s->data,
+  ExitGracefullyIf(!c_from_s || !c_from_s->data,
                    "Raster.cpp: postprocess_floodresults: catchments from "
                    "streamnodes missing",
                    exitcode::RUNTIME_ERR);
@@ -749,7 +768,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   }
 
   // compute peak hours required and update min and max accordingly
-  sn->mm->peak_hrs_required = (sn->mm->area * sn->mm->length_effectiveadjusted / sn->mm->flow) / 3600; // TODO check with rob
+  sn->mm->peak_hrs_required = (sn->mm->area * sn->mm->length_effectiveadjusted / sn->mm->flow) / 3600;
   if (peak_hrs_min == PLACEHOLDER || sn->mm->peak_hrs_required < peak_hrs_min) {
     peak_hrs_min = sn->mm->peak_hrs_required;
   }
@@ -1142,30 +1161,30 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
 //
 void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
   initialize_out_gridded(is_dhand);
+  CGriddedData *result = out_rasters.back().get();
+  result->name = "Result " + std::to_string(flow_ind + 1);
+  std::fill(result->data, result->data + (result->xsize * result->ysize), 0.0);
 
-  result.name = "Result " + std::to_string(flow_ind + 1);
-  std::fill(result.data, result.data + (result.xsize * result.ysize), 0.0);
-
-  for (int j = 0; j < result.xsize * result.ysize; j++) {
+  for (int j = 0; j < result->xsize * result->ysize; j++) {
     double curr_depth, curr_hand;
     // assign curr_depth based on whether post processing method is interp and/or dhand method
     if (!is_interp) {
       curr_depth =
-          c_from_s.data[j] != c_from_s.na_val
-              ? (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s.data[j])]->depth
+          c_from_s->data[j] != c_from_s->na_val
+              ? (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s->data[j])]->depth
               : PLACEHOLDER;
     } else {
       if (!is_dhand) { // interp_hand
-        if ((handid.data[j] != handid.na_val &&
-             (handid.data[j] - 1 >= spp_depths.size() || handid.data[j] - 1 < 0))) {
+        if ((handid->data[j] != handid->na_val &&
+             (handid->data[j] - 1 >= spp_depths.size() || handid->data[j] - 1 < 0))) {
           ExitGracefully(
               ("Model.cpp: postprocess_floodresults: handid specifies a "
-               "pourpoint id of " + std::to_string(handid.data[j]) +
+               "pourpoint id of " + std::to_string(handid->data[j]) +
                " which does not exist in snapped pourpoints").c_str(),
               exitcode::BAD_DATA);
         }
-        curr_depth = handid.data[j] != handid.na_val
-                                ? spp_depths[handid.data[j] - 1]
+        curr_depth = handid->data[j] != handid->na_val
+                                ? spp_depths[handid->data[j] - 1]
                                 : PLACEHOLDER;
       } else { // interp_dhand
         if ((dhandid_vals[j] != PLACEHOLDER &&
@@ -1183,20 +1202,18 @@ void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
     }
     // assign curr_hand based on whether post processing method is dhand method
     if (!is_dhand) {
-      curr_hand = hand.data[j] != hand.na_val ? hand.data[j] : PLACEHOLDER;
+      curr_hand = hand->data[j] != hand->na_val ? hand->data[j] : PLACEHOLDER;
     } else {
       curr_hand = dhand_vals[j];
     }
 
     // assigning resulting value based on curr_depth and curr_hand
     if (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER && curr_depth >= curr_hand) {
-      result.data[j] = curr_depth - curr_hand;
+      result->data[j] = curr_depth - curr_hand;
     } else {
-      result.data[j] = result.na_val;
+      result->data[j] = result->na_val;
     }
   }
-
-  out_rasters.push_back(result); // save result for this flow profile to out_rasters
 }
 
 //////////////////////////////////////////////////////////////////
@@ -1206,13 +1223,6 @@ void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
 /// \param is_dhand [in] boolean indicated whether post processing method is dhand method
 //
 void CModel::initialize_out_gridded(bool is_dhand) {
-
-  // CRaster result;
-  // if (!is_dhand) {
-  //   result = hand;
-  // } else {
-  //   result = dhand[0];
-  // }
 
   if (bbopt->in_format == bbopt->out_format) { // raster to raster OR netcdf to netcdf
     std::unique_ptr<CGriddedData> result;
@@ -1224,14 +1234,147 @@ void CModel::initialize_out_gridded(bool is_dhand) {
     out_rasters.push_back(std::move(result));
   } else if (bbopt->in_format == enum_gridded_format::RASTER &&
              bbopt->out_format == enum_gridded_format::NETCDF) { // raster to netcdf
+    // Initialize output
     auto res_netcdf = std::make_unique<CNetCDF>();
+
+    // Set raster to copy parameters from
+    CRaster *hand_raster = nullptr;
     if (!is_dhand) {
-      // TODO
+      hand_raster = dynamic_cast<CRaster *>(hand.get());
     } else {
-      
+      hand_raster = dynamic_cast<CRaster *>(dhand[0].get());
     }
+
+    // Assign common variables
+    res_netcdf->data = static_cast<double *>(
+        CPLMalloc(sizeof(double) * hand_raster->xsize * hand_raster->ysize));
+    std::copy(hand_raster->data,
+              hand_raster->data + hand_raster->xsize * hand_raster->ysize,
+              res_netcdf->data);
+    res_netcdf->xsize = hand_raster->xsize;
+    res_netcdf->ysize = hand_raster->ysize;
+    res_netcdf->na_val = hand_raster->na_val;
+
+    // Convert unique variables
+    res_netcdf->x_coords.resize(hand_raster->xsize);
+    res_netcdf->y_coords.resize(hand_raster->ysize);
+    for (int i = 0; i < hand_raster->xsize; i++) {
+      res_netcdf->x_coords[i] =
+          hand_raster->geotrans[0] + i * hand_raster->geotrans[1];
+    }
+    for (int j = 0; j < hand_raster->ysize; j++) {
+      res_netcdf->y_coords[j] =
+          hand_raster->geotrans[3] + j * hand_raster->geotrans[5];
+    }
+    res_netcdf->datatype = ConvertGDALTypeToNetCDF(hand_raster->datatype);
+
+    // Convert projection WKT to NetCDF CF-compliant metadata
+    OGRSpatialReference srs;
+    if (srs.importFromWkt(hand_raster->proj) != OGRERR_NONE) {
+      ExitGracefully("Model.cpp: initialize_out_gridded: Failed to parse WKT projection.", exitcode::BAD_DATA);
+    }
+    // Identify projection type
+    if (srs.IsProjected()) {
+      const char *projName = srs.GetAttrValue("PROJECTION");
+
+      if (strcmp(projName, "Transverse_Mercator") == 0) {
+        res_netcdf->grid_mapping_name = "transverse_mercator";
+        res_netcdf->projection_params["latitude_of_projection_origin"] = srs.GetProjParm(SRS_PP_LATITUDE_OF_ORIGIN, 0.0);
+        res_netcdf->projection_params["longitude_of_central_meridian"] = srs.GetProjParm(SRS_PP_CENTRAL_MERIDIAN, 0.0);
+        res_netcdf->projection_params["scale_factor"] = srs.GetProjParm(SRS_PP_SCALE_FACTOR, 1.0);
+        res_netcdf->projection_params["false_easting"] = srs.GetProjParm(SRS_PP_FALSE_EASTING, 0.0);
+        res_netcdf->projection_params["false_northing"] = srs.GetProjParm(SRS_PP_FALSE_NORTHING, 0.0);
+      } else if (strcmp(projName, "Lambert_Conformal_Conic_2SP") == 0) {
+        res_netcdf->grid_mapping_name = "lambert_conformal_conic";
+        res_netcdf->projection_params["standard_parallel_1"] = srs.GetProjParm(SRS_PP_STANDARD_PARALLEL_1, 0.0);
+        res_netcdf->projection_params["standard_parallel_2"] = srs.GetProjParm(SRS_PP_STANDARD_PARALLEL_2, 0.0);
+        res_netcdf->projection_params["latitude_of_projection_origin"] = srs.GetProjParm(SRS_PP_LATITUDE_OF_ORIGIN, 0.0);
+        res_netcdf->projection_params["longitude_of_central_meridian"] = srs.GetProjParm(SRS_PP_CENTRAL_MERIDIAN, 0.0);
+        res_netcdf->projection_params["false_easting"] = srs.GetProjParm(SRS_PP_FALSE_EASTING, 0.0);
+        res_netcdf->projection_params["false_northing"] = srs.GetProjParm(SRS_PP_FALSE_NORTHING, 0.0);
+      } else {
+        ExitGracefully("Model.cpp: initialize_out_gridded: Unsupported projection type in CRaster.", exitcode::BAD_DATA);
+      }
+    } else {
+      ExitGracefully("Model.cpp: initialize_out_gridded: CRaster does not have a projected coordinate system.", exitcode::BAD_DATA);
+    }
+    // Store EPSG code
+    if (srs.GetAuthorityCode(nullptr) != nullptr) {
+      res_netcdf->projection_params["epsg_code"] = std::stoi(srs.GetAuthorityCode(nullptr));
+    }
+    // TODO attributes ->
+
+    // Save to out_rasters
+    out_rasters.push_back(std::move(res_netcdf));
   } else if (bbopt->in_format == enum_gridded_format::NETCDF &&
              bbopt->out_format == enum_gridded_format::RASTER) { // netcdf to raster
+    // Initialize output
+    auto res_raster = std::make_unique<CRaster>();
+
+    // Set raster to copy parameters from
+    CNetCDF *hand_netcdf = nullptr;
+    if (!is_dhand) {
+      hand_netcdf = dynamic_cast<CNetCDF *>(hand.get());
+    } else {
+      hand_netcdf = dynamic_cast<CNetCDF *>(dhand[0].get());
+    }
+
+    // Assign common variables
+    res_raster->data = static_cast<double *>(
+        CPLMalloc(sizeof(double) * hand_netcdf->xsize * hand_netcdf->ysize));
+    std::copy(hand_netcdf->data,
+              hand_netcdf->data + hand_netcdf->xsize * hand_netcdf->ysize,
+              res_raster->data);
+    res_raster->xsize = hand_netcdf->xsize;
+    res_raster->ysize = hand_netcdf->ysize;
+    res_raster->na_val = hand_netcdf->na_val;
+
+    // Convert unique variables
+    res_raster->geotrans[0] = hand_netcdf->x_coords[0];                                                              // Origin X
+    res_raster->geotrans[1] = (hand_netcdf->xsize > 1) ? (hand_netcdf->x_coords[1] - hand_netcdf->x_coords[0]) : 1;  // Pixel size X
+    res_raster->geotrans[2] = 0;                                                                                     // No rotation
+    res_raster->geotrans[3] = hand_netcdf->y_coords[0];                                                              // Origin Y
+    res_raster->geotrans[4] = 0;                                                                                     // No rotation
+    res_raster->geotrans[5] = (hand_netcdf->ysize > 1) ? (hand_netcdf->y_coords[1] - hand_netcdf->y_coords[0]) : -1; // Pixel size Y
+    res_raster->datatype = ConvertNetCDFTypeToGDAL(hand_netcdf->datatype);
+    
+    OGRSpatialReference srs;
+    if (hand_netcdf->projection_params.count("epsg_code")) {
+      int epsg = static_cast<int>(hand_netcdf->projection_params.at("epsg_code"));
+      if (srs.importFromEPSG(epsg) != OGRERR_NONE) {
+        ExitGracefully("Model.cpp: initialize_out_gridded: Failed to import EPSG code.", exitcode::BAD_DATA);
+      }
+    } else if (!hand_netcdf->grid_mapping_name.empty()) {
+      // Handle specific projection types
+      if (hand_netcdf->grid_mapping_name == "transverse_mercator") {
+        srs.SetProjCS("Transverse Mercator");
+        srs.SetTM(hand_netcdf->projection_params.at("latitude_of_projection_origin"),
+                  hand_netcdf->projection_params.at("longitude_of_central_meridian"),
+                  hand_netcdf->projection_params.at("scale_factor"),
+                  hand_netcdf->projection_params.at("false_easting"),
+                  hand_netcdf->projection_params.at("false_northing"));
+      } else if (hand_netcdf->grid_mapping_name == "lambert_conformal_conic") {
+        srs.SetLCC(hand_netcdf->projection_params.at("standard_parallel_1"),
+                   hand_netcdf->projection_params.at("standard_parallel_2"),
+                   hand_netcdf->projection_params.at("latitude_of_projection_origin"),
+                   hand_netcdf->projection_params.at("longitude_of_central_meridian"),
+                   hand_netcdf->projection_params.at("false_easting"),
+                   hand_netcdf->projection_params.at("false_northing"));
+      } else {
+        ExitGracefully("Model.cpp: initialize_out_gridded: Unsupported projection type.", exitcode::BAD_DATA);
+      }
+    } else {
+      ExitGracefully("Model.cpp: initialize_out_gridded: No valid projection information found.", exitcode::BAD_DATA);
+    }
+
+    // Convert SRS to WKT
+    char *wkt = nullptr;
+    srs.exportToWkt(&wkt);
+    res_raster->proj = CPLStrdup(wkt);
+    CPLFree(wkt);
+
+    // Save to out_rasters
+    out_rasters.push_back(std::move(res_raster));
   } else {
     ExitGracefully(("Model.cpp: generate_out_gridded: input " +
                     toString(bbopt->in_format) + " to output " +

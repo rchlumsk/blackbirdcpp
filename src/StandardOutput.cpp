@@ -115,14 +115,14 @@ void CModel::WriteRasterOutput()
   }
   for (int i = 0; i < out_rasters.size(); i++) {
     std::string filepath = FilenamePrepare("bb_results_depth_" + std::to_string(i + 1) + ".tif");
-    out_rasters[i].WriteToFile(filepath);
+    out_rasters[i]->WriteToFile(filepath);
   }
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Writes raster data to geotiff raster file
+/// \brief Writes gridded data to geotiff raster file
 //
-void CGriddedData::WriteToFile(std::string filepath)
+void CRaster::WriteToFile(std::string filepath)
 {
   GDALDriver *driver = GetGDALDriverManager()->GetDriverByName("GTiff");
   ExitGracefullyIf(
@@ -153,7 +153,14 @@ void CGriddedData::WriteToFile(std::string filepath)
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Writes model data to test output
+/// \brief Writes gridded data to netcdf file
+//
+void CNetCDF::WriteToFile(std::string filepath)
+{ // TODO
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Writes model data to test output as raster file
 //
 void CModel::WriteFullModel() const
 {
@@ -169,26 +176,26 @@ void CModel::WriteFullModel() const
   TESTOUTPUT << std::endl;
   TESTOUTPUT << "===========================================\n" << std::endl;
   TESTOUTPUT.close();
-  if (c_from_s.name != PLACEHOLDER_STR) {
-    c_from_s.pretty_print();
+  if (c_from_s->name != PLACEHOLDER_STR) {
+    c_from_s->pretty_print();
   }
   if (spp.name != PLACEHOLDER_STR) {
     spp.pretty_print();
   }
-  if (hand.name != PLACEHOLDER_STR) {
-    hand.pretty_print();
+  if (hand->name != PLACEHOLDER_STR) {
+    hand->pretty_print();
   }
-  if (handid.name != PLACEHOLDER_STR) {
-    handid.pretty_print();
+  if (handid->name != PLACEHOLDER_STR) {
+    handid->pretty_print();
   }
-  for (auto r : dhand) {
-    r.pretty_print();
+  for (auto& r : dhand) {
+    r->pretty_print();
   }
-  for (auto r : dhandid) {
-    r.pretty_print();
+  for (auto& r : dhandid) {
+    r->pretty_print();
   }
-  for (auto r : out_rasters) {
-    r.pretty_print();
+  for (auto& r : out_rasters) {
+    r->pretty_print();
   }
   this->bbopt->pretty_print();
   this->bbbc->pretty_print();
@@ -202,9 +209,17 @@ void CModel::WriteFullModel() const
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Cleanly prints CGriddedData class data to testoutput (except data)
+//
+void CGriddedData::pretty_print() const
+{ // TODO
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Cleanly prints CRaster class data to testoutput (except data)
 //
-void CGriddedData::pretty_print() const {
+void CRaster::pretty_print() const
+{
   std::ofstream TESTOUTPUT;
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "\n================== Raster =================" << std::endl;
@@ -222,9 +237,17 @@ void CGriddedData::pretty_print() const {
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Cleanly prints CNetCDF class data to testoutput (except data)
+//
+void CNetCDF::pretty_print() const
+{ // TODO
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Cleanly prints CVector class data to testoutput (except features)
 //
-void CVector::pretty_print() const {
+void CVector::pretty_print() const
+{
   std::ofstream TESTOUTPUT;
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
   TESTOUTPUT << "\n================== Vector =================" << std::endl;

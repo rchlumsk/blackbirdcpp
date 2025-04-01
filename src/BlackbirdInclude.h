@@ -491,6 +491,43 @@ inline double interpolate(double new_wsl, double hydraulic_output::* f, std::vec
 }
 
 ///////////////////////////////////////////////////////////////////
+/// \brief returns data type in NetCDF form given GDAL form
+/// \param gdal_type [in] data type in GDAL form
+/// \return returns data type in NetCDF form
+//
+inline nc_type ConvertGDALTypeToNetCDF(GDALDataType gdal_type) {
+  switch (gdal_type) {
+  case GDT_Byte: return NC_BYTE;
+  case GDT_UInt16: return NC_USHORT;
+  case GDT_Int16: return NC_SHORT;
+  case GDT_UInt32: return NC_UINT;
+  case GDT_Int32: return NC_INT;
+  case GDT_Float32: return NC_FLOAT;
+  case GDT_Float64: return NC_DOUBLE;
+  default: return NC_NAT;
+  }
+}
+
+///////////////////////////////////////////////////////////////////
+/// \brief returns data type in GDAL form given NetCDF form
+/// \param netcdf_type [in] data type in NetCDF form
+/// \return returns data type in GDAL form
+//
+inline GDALDataType ConvertNetCDFTypeToGDAL(nc_type netcdf_type) {
+  switch (netcdf_type) {
+  case NC_BYTE: return GDT_Byte;
+  case NC_CHAR: return GDT_Byte;
+  case NC_SHORT: return GDT_Int16;
+  case NC_USHORT: return GDT_UInt16;
+  case NC_INT: return GDT_Int32;
+  case NC_UINT: return GDT_UInt32;
+  case NC_FLOAT: return GDT_Float32;
+  case NC_DOUBLE: return GDT_Float64;
+  default: return GDT_Unknown;
+  }
+}
+
+///////////////////////////////////////////////////////////////////
 /// \brief helper functions for printing enumerables
 /// \param type [in] instance of enumerable to convert to string
 /// \return string corresponding to enumerable option
