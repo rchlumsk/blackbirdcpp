@@ -24,6 +24,8 @@ public:
   virtual std::unique_ptr<CGriddedData> clone() const = 0;
 
   // Member functions
+  void transpose_data();       // transposes the data variable to match with expected formatting
+
   // I/O Functions
   virtual void WriteToFile(std::string filepath) = 0; // defined in StandardOutput.cpp
   virtual void pretty_print() const;              // defined in StandardOutput.cpp

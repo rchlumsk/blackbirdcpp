@@ -40,6 +40,19 @@ CGriddedData &CGriddedData::operator=(const CGriddedData &other) {
   return *this;
 }
 
+void CGriddedData::transpose_data() {
+  double *transposed_data = static_cast<double *>(CPLMalloc(sizeof(double) * xsize * ysize));
+
+  for (size_t i = 0; i < ysize; ++i) {
+    for (size_t j = 0; j < xsize; ++j) {
+      transposed_data[j * ysize + i] = data[i * xsize + j];
+    }
+  }
+
+  CPLFree(data);
+  data = transposed_data;
+}
+
 // Destructor
 CGriddedData::~CGriddedData() {
   if (data) {

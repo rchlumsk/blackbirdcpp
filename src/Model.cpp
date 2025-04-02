@@ -350,7 +350,150 @@ void CModel::ReadGISFiles() {
 /// \brief Reads specified NetCDF file
 //
 void CModel::ReadNetCDFFile(std::string filename, CNetCDF *raster_obj) {
-  // TODO continue here
+  int ncid;
+  if (nc_open(filename.c_str(), NC_NOWRITE, &ncid) != NC_NOERR) {
+    ExitGracefully(
+        ("Model.cpp: ReadNetCDFFile: Failed to open NetCDF file: " +
+         filename)
+            .c_str(),
+        exitcode::BAD_DATA);
+  }
+
+  // Read dimensions
+  size_t x_len, y_len, depth_len;
+  int x_dimid, y_dimid, depth_dimid;
+
+  if (nc_inq_dimid(ncid, "easting", &x_dimid) == NC_NOERR) {
+    nc_inq_dimlen(ncid, x_dimid, &x_len);
+  } else {
+    ExitGracefully("Model.cpp: ReadNetCDFFile: NetCDF file missing 'easting' dimension.", exitcode::BAD_DATA);
+  }
+  if (nc_inq_dimid(ncid, "northing", &y_dimid) == NC_NOERR) {
+    nc_inq_dimlen(ncid, y_dimid, &y_len);
+  } else {
+    ExitGracefully("Model.cpp: ReadNetCDFFile: NetCDF file missing 'northing' dimension.", exitcode::BAD_DATA);
+  }
+
+  bool has_depth = (nc_inq_dimid(ncid, "depth", &depth_dimid) == NC_NOERR);
+  if (nc_inq_dimid(ncid, "depth", &depth_dimid) == NC_NOERR) {
+    nc_inq_dimlen(ncid, depth_dimid, &depth_len);
+  }
+
+  // Read coordinate variables
+  std::vector<double> x_coords(x_len);
+  std::vector<double> y_coords(y_len);
+
+  int x_varid, y_varid;
+  if (nc_inq_varid(ncid, "easting", &x_varid) == NC_NOERR) {
+    nc_get_var_double(ncid, x_varid, x_coords.data());
+  } else {
+    ExitGracefully("Model.cpp: ReadNetCDFFile: NetCDF file missing 'easting' coordinate variable.", exitcode::BAD_DATA);
+  }
+  if (nc_inq_varid(ncid, "northing", &y_varid) == NC_NOERR) {
+    nc_get_var_double(ncid, y_varid, y_coords.data());
+  } else {
+    ExitGracefully("Model.cpp: ReadNetCDFFile: NetCDF file missing 'northing' coordinate variable.", exitcode::BAD_DATA);
+  }
+
+  // Read general attributes for the NetCDF object
+  char grid_mapping_name[NC_MAX_NAME + 1];
+  if (nc_inq_att(ncid, NC_GLOBAL, "grid_mapping", nullptr, nullptr) ==
+      NC_NOERR) {
+    nc_get_att_text(ncid, NC_GLOBAL, "grid_mapping", grid_mapping_name);
+    raster_obj->grid_mapping_name = std::string(grid_mapping_name);
+  }
+
+  // Read the projection parameters
+  int varid;
+  if (nc_inq_varid(ncid, "projection_params", &varid) == NC_NOERR) {
+    // Get the number of values in projection_params
+    int ndims;
+    int dimids[NC_MAX_DIMS];
+    nc_inq_var(ncid, varid, nullptr, nullptr, &ndims, dimids, nullptr);
+
+    if (ndims == 1) { // Ensure it's a 1D variable
+      size_t n_params;
+      nc_inq_dimlen(ncid, dimids[0], &n_params);
+
+      std::vector<double> params(n_params);
+      nc_get_var_double(ncid, varid, params.data());
+
+      // Assuming projection parameters are stored as an array of values
+      for (size_t i = 0; i < n_params; ++i) {
+        std::stringstream param_name;
+        param_name << "param" << i; // Customize naming if needed
+        raster_obj->projection_params[param_name.str()] = params[i];
+      }
+    }
+  }
+
+  // Read the datatype(e.g., nc_double, nc_float)
+  nc_type var_type;
+  if (nc_inq_varid(ncid, "data", &varid) == NC_NOERR) {
+    nc_inq_vartype(ncid, varid, &var_type);
+    raster_obj->datatype = var_type;
+  }
+
+  // Read layers
+  c_from_s = std::make_unique<CNetCDF>();
+  hand = std::make_unique<CNetCDF>();
+  handid = std::make_unique<CNetCDF>();
+
+  bbopt->in_format = enum_gridded_format::RASTER;
+  ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif", dynamic_cast<CRaster *>(c_from_s.get()));
+  c_from_s->name = "Catchments from Streamnodes";
+  if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
+      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
+    ReadNetCDFLayer(dynamic_cast<CNetCDF *>(hand.get()), ncid, "hand", x_len, y_len);
+    hand->name = "HAND";
+    if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+      ReadNetCDFLayer(dynamic_cast<CNetCDF *>(handid.get()), ncid, "handid", x_len, y_len);
+      handid->name = "HAND ID";
+    }
+  } else { // use dhand
+    for (auto d : dhand_depth_seq) {
+      std::stringstream stream;
+      stream << std::fixed << std::setprecision(4) << d;
+      dhand.push_back(std::make_unique<CNetCDF>());
+      ReadNetCDFLayer(dynamic_cast<CNetCDF *>(dhand.back().get()), ncid, "dhand", x_len, y_len);
+      dhand.back()->name = "DHAND " + stream.str();
+      if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+          bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
+        dhandid.push_back(std::make_unique<CNetCDF>());
+        ReadNetCDFLayer(dynamic_cast<CNetCDF *>(dhand.back().get()), ncid, "dhandid", x_len, y_len);
+        dhandid.back()->name = "DHAND ID " + stream.str();
+      }
+    }
+  }
+
+  nc_close(ncid);
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Reads specified NetCDF layer
+//
+void CModel::ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid, const std::string &var_name, int xsize, int ysize) {
+  int varid;
+  if (nc_inq_varid(ncid, var_name.c_str(), &varid) != NC_NOERR) {
+    ExitGracefully(("Model.cpp: ReadNetCDFLayer: NetCDF file missing '" + var_name + "' variable.").c_str(),
+                   exitcode::BAD_DATA);
+  }
+
+  netcdf_obj->xsize = xsize;
+  netcdf_obj->ysize = ysize;
+  netcdf_obj->data = static_cast<double *>(
+      CPLMalloc(sizeof(double) * netcdf_obj->xsize * netcdf_obj->ysize));
+  nc_get_var_double(ncid, varid, netcdf_obj->data);
+
+  // Read _FillValue
+  float fill_value;
+  nc_type var_type;
+  if (nc_inq_att(ncid, varid, "_FillValue", &var_type, nullptr) == NC_NOERR) {
+    nc_get_att_float(ncid, varid, "_FillValue", &fill_value);
+    netcdf_obj->na_val = static_cast<double>(fill_value);
+  } else {
+    netcdf_obj->na_val = std::numeric_limits<double>::quiet_NaN();
+  }
 }
 
 //////////////////////////////////////////////////////////////////
@@ -1162,7 +1305,7 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
 void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
   initialize_out_gridded(is_dhand);
   CGriddedData *result = out_rasters.back().get();
-  result->name = "Result " + std::to_string(flow_ind + 1);
+  result->name = "result_depths_" + std::to_string(flow_ind + 1);
   std::fill(result->data, result->data + (result->xsize * result->ysize), 0.0);
 
   for (int j = 0; j < result->xsize * result->ysize; j++) {
@@ -1214,6 +1357,11 @@ void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
       result->data[j] = result->na_val;
     }
   }
+
+  // Transpose data if writing to NetCDF
+  if ((bbopt->in_format == enum_gridded_format::RASTER && bbopt->out_format == enum_gridded_format::NETCDF) || (bbopt->in_format == enum_gridded_format::NETCDF && bbopt->out_format == enum_gridded_format::RASTER)) {
+    result->transpose_data();
+  }
 }
 
 //////////////////////////////////////////////////////////////////
@@ -1259,12 +1407,11 @@ void CModel::initialize_out_gridded(bool is_dhand) {
     res_netcdf->x_coords.resize(hand_raster->xsize);
     res_netcdf->y_coords.resize(hand_raster->ysize);
     for (int i = 0; i < hand_raster->xsize; i++) {
-      res_netcdf->x_coords[i] =
-          hand_raster->geotrans[0] + i * hand_raster->geotrans[1];
+      res_netcdf->x_coords[i] = hand_raster->geotrans[0] + i * hand_raster->geotrans[1];
     }
+    std::reverse(res_netcdf->x_coords.begin(), res_netcdf->x_coords.end()); // TODO not working? might have to do this for netcdf -> raster as well
     for (int j = 0; j < hand_raster->ysize; j++) {
-      res_netcdf->y_coords[j] =
-          hand_raster->geotrans[3] + j * hand_raster->geotrans[5];
+      res_netcdf->y_coords[j] = hand_raster->geotrans[3] + j * hand_raster->geotrans[5];
     }
     res_netcdf->datatype = ConvertGDALTypeToNetCDF(hand_raster->datatype);
 

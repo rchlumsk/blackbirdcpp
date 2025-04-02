@@ -26,6 +26,7 @@ public:
   }
 
   // Member functions
+
   // I/O Functions
   void WriteToFile(std::string filepath) override; // defined in StandardOutput.cpp
   void pretty_print() const override;              // defined in StandardOutput.cpp

@@ -57,11 +57,12 @@ public:
   void hyd_result_pretty_print_csv() const;                       // writes hyd_result to csv file
 
   // GIS Functions
-  void ReadGISFiles();                                            // reads necessary gis files
-  void ReadNetCDFFile(std::string filename, CNetCDF *netcdf_obj); // reads specified netcdf file
-  void ReadRasterFile(std::string filename, CRaster *raster_obj); // reads specified raster file
-  void ReadVectorFile(std::string filename, CVector &vector_obj); // reads specified vector file
-  void postprocess_floodresults();                                // postprocesses flood results based on bbopt method
+  void ReadGISFiles();                                                                                      // reads necessary gis files
+  void ReadNetCDFFile(std::string filename, CNetCDF *netcdf_obj);                                           // reads specified netcdf file
+  void ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid, const std::string& var_name, int xsize, int ysize);   // reads specified netcdf layer
+  void ReadRasterFile(std::string filename, CRaster *raster_obj);                                           // reads specified raster file
+  void ReadVectorFile(std::string filename, CVector &vector_obj);                                           // reads specified vector file
+  void postprocess_floodresults();                                                                          // postprocesses flood results based on bbopt method
 
 protected:
   // Private variables

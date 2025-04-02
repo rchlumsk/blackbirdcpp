@@ -114,7 +114,7 @@ void CModel::WriteRasterOutput()
     return;
   }
   for (int i = 0; i < out_rasters.size(); i++) {
-    std::string filepath = FilenamePrepare("bb_results_depth_" + std::to_string(i + 1) + ".tif");
+    std::string filepath = FilenamePrepare("bb_results_depth_" + std::to_string(i + 1) + ".nc"); // TODO edit this and add separate path for netcdf
     out_rasters[i]->WriteToFile(filepath);
   }
 }
@@ -155,8 +155,130 @@ void CRaster::WriteToFile(std::string filepath)
 //////////////////////////////////////////////////////////////////
 /// \brief Writes gridded data to netcdf file
 //
-void CNetCDF::WriteToFile(std::string filepath)
-{ // TODO
+void CNetCDF::WriteToFile(std::string filepath) {
+  int ncid;
+  int x_dimid, y_dimid;
+  int x_varid, y_varid;
+  int data_varid;
+
+  // Create the NetCDF file
+  if (nc_create(filepath.c_str(), NC_CLOBBER, &ncid) != NC_NOERR) {
+    ExitGracefully(("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to create NetCDF file: " + filepath).c_str(), exitcode::RUNTIME_ERR);
+  }
+
+  // Define the dimensions
+  if (nc_def_dim(ncid, "easting", x_coords.size(), &x_dimid) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'easting' dimension.", exitcode::RUNTIME_ERR);
+  }
+  if (nc_def_dim(ncid, "northing", y_coords.size(), &y_dimid) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'northing' dimension.", exitcode::RUNTIME_ERR);
+  }
+
+  // Define the coordinate variables
+  if (nc_def_var(ncid, "easting", NC_DOUBLE, 1, &x_dimid, &x_varid) !=
+      NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'easting' variable.", exitcode::RUNTIME_ERR);
+  }
+  if (nc_def_var(ncid, "northing", NC_DOUBLE, 1, &y_dimid, &y_varid) !=
+      NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'northing' variable.", exitcode::RUNTIME_ERR);
+  }
+
+  // Define the data variable
+  int dims[2] = {x_dimid, y_dimid};
+  if (nc_def_var(ncid, name.c_str(), NC_DOUBLE, 2, dims, &data_varid) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'data' variable.", exitcode::RUNTIME_ERR);
+  }
+
+  // Set units attribute for easting/northing
+  std::string units = "meters";
+
+  if (nc_put_att_text(ncid, x_varid, "units", units.size(), units.c_str()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'units' for easting.", exitcode::RUNTIME_ERR);
+  }
+  if (nc_put_att_text(ncid, y_varid, "units", units.size(), units.c_str()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'units' for northing.", exitcode::RUNTIME_ERR);
+  }
+  if (nc_put_att_text(ncid, data_varid, "units", units.size(), units.c_str()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'units' for data.", exitcode::RUNTIME_ERR);
+  }
+
+  // Set long_name attributes
+  std::string x_longname = "easting";
+  std::string y_longname = "northing";
+  std::string data_longname = name;
+
+  if (nc_put_att_text(ncid, x_varid, "long_name", x_longname.size(), x_longname.c_str()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'long_name' for easting.",  exitcode::RUNTIME_ERR);
+  }
+  if (nc_put_att_text(ncid, y_varid, "long_name", y_longname.size(), y_longname.c_str()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'long_name' for northing.", exitcode::RUNTIME_ERR);
+  }
+  if (nc_put_att_text(ncid, data_varid, "long_name", data_longname.size(), data_longname.c_str()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'long_name' for data.", exitcode::RUNTIME_ERR);
+  }
+
+  // Set _FillValue for the data variable
+  if (nc_put_att_double(ncid, data_varid, "_FillValue", NC_DOUBLE, 1, &na_val) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write '_FillValue' for data.", exitcode::RUNTIME_ERR);
+  }
+
+  // Define projection and other metadata attributes
+  if (grid_mapping_name != "") {
+    if (nc_put_att_text(ncid, data_varid, "grid_mapping", grid_mapping_name.size(), grid_mapping_name.c_str()) != NC_NOERR) {
+      ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'grid_mapping' attribute.", exitcode::RUNTIME_ERR);
+    }
+  }
+  for (const auto &param : projection_params) {
+    if (nc_put_att_double(ncid, data_varid, param.first.c_str(), NC_DOUBLE, 1, &param.second) != NC_NOERR) {
+      ExitGracefully(("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write projection attribute: " + param.first).c_str(), exitcode::RUNTIME_ERR);
+    }
+  }
+
+  // Set global attributes
+  std::string attr_val = "Projected coordinate system with EPSG code " + to_string(projection_params["epsg_code"]);
+  if (nc_put_att_text(ncid, NC_GLOBAL, "EPSG", attr_val.length(), attr_val.c_str()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write global attribute: EPSG", exitcode::RUNTIME_ERR);
+  }
+  attr_val = "Provided by Heron Hydrologic under an MIT license";
+  if (nc_put_att_text(ncid, NC_GLOBAL, "License", attr_val.length(), attr_val.c_str()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write global attribute: License", exitcode::RUNTIME_ERR);
+  }
+  attr_val = "Blackbird_OutputDepthsNC";
+  if (nc_put_att_text(ncid, NC_GLOBAL, "Product", attr_val.length(), attr_val.c_str()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write global attribute: Product", exitcode::RUNTIME_ERR);
+  }
+
+  // End define mode before writing data
+  if (nc_enddef(ncid) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to end define mode.", exitcode::RUNTIME_ERR);
+  }
+
+  // Write the coordinate data
+  if (nc_put_var_double(ncid, x_varid, x_coords.data()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'easting' data.", exitcode::RUNTIME_ERR);
+  }
+  if (nc_put_var_double(ncid, y_varid, y_coords.data()) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'northing' data.", exitcode::RUNTIME_ERR);
+  }
+
+  // Write the data values
+  if (nc_put_var_double(ncid, data_varid, data) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'data' values.", exitcode::RUNTIME_ERR);
+  }
+
+  // Write the attributes
+  for (const auto &attr : attributes) {
+    if (nc_put_att_text(ncid, data_varid, attr.first.c_str(),
+                        attr.second.size(), attr.second.c_str()) != NC_NOERR) {
+      ExitGracefully(("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write attribute: " + attr.first).c_str(), exitcode::RUNTIME_ERR);
+    }
+  }
+
+  // Close the NetCDF file
+  if (nc_close(ncid) != NC_NOERR) {
+    ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to close NetCDF file.", exitcode::RUNTIME_ERR);
+  }
 }
 
 //////////////////////////////////////////////////////////////////
