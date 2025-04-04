@@ -108,14 +108,136 @@ void CModel::WriteMajorOutput(std::string solfile, bool final) const
   // write some output
 }
 
-void CModel::WriteRasterOutput()
+void CModel::WriteGriddedOutput()
 {
   if (bbopt->interpolation_postproc_method == enum_ppi_method::NONE) {
     return;
   }
-  for (int i = 0; i < out_rasters.size(); i++) {
-    std::string filepath = FilenamePrepare("bb_results_depth_" + std::to_string(i + 1) + ".nc"); // TODO edit this and add separate path for netcdf
-    out_rasters[i]->WriteToFile(filepath);
+  if (bbopt->out_format == enum_gridded_format::RASTER) {
+    for (int i = 0; i < out_rasters.size(); i++) {
+      std::string filepath = FilenamePrepare("bb_results_depth_" + std::to_string(i + 1) + ".tif");
+      out_rasters[i]->WriteToFile(filepath);
+    }
+  } else if (bbopt->out_format == enum_gridded_format::NETCDF) {
+    int ncid;
+    int x_dimid, y_dimid;
+    int x_varid, y_varid;
+    std::vector<int> data_varid;
+
+    std::string filepath = FilenamePrepare("bb_results_depth.nc");
+
+    // Create the NetCDF file
+    if (nc_create(filepath.c_str(), NC_CLOBBER, &ncid) != NC_NOERR) {
+      ExitGracefully(("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to create NetCDF file: " + filepath).c_str(), exitcode::RUNTIME_ERR);
+    }
+
+    for (int i = 0; i < out_rasters.size(); i++) {
+      auto layer = dynamic_cast<CNetCDF *>(out_rasters[i].get());
+
+      if (i == 0) { // if first layer, set one time items
+        // Define the dimensions
+        if (nc_def_dim(ncid, "easting", layer->x_coords.size(), &x_dimid) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'easting' dimension.", exitcode::RUNTIME_ERR);
+        }
+        if (nc_def_dim(ncid, "northing", layer->y_coords.size(), &y_dimid) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'northing' dimension.", exitcode::RUNTIME_ERR);
+        }
+
+        // Define the coordinate variables
+        if (nc_def_var(ncid, "easting", NC_DOUBLE, 1, &x_dimid, &x_varid) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'easting' variable.", exitcode::RUNTIME_ERR);
+        }
+        if (nc_def_var(ncid, "northing", NC_DOUBLE, 1, &y_dimid, &y_varid) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'northing' variable.", exitcode::RUNTIME_ERR);
+        }
+
+        // Set units attribute for easting/northing
+        std::string units = "meters";
+
+        if (nc_put_att_text(ncid, x_varid, "units", units.size(), units.c_str()) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'units' for easting.", exitcode::RUNTIME_ERR);
+        }
+        if (nc_put_att_text(ncid, y_varid, "units", units.size(), units.c_str()) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'units' for northing.", exitcode::RUNTIME_ERR);
+        }
+
+        // Set long_name attributes
+        std::string x_longname = "easting";
+        std::string y_longname = "northing";
+
+        if (nc_put_att_text(ncid, x_varid, "long_name", x_longname.size(), x_longname.c_str()) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'long_name' for easting.",  exitcode::RUNTIME_ERR);
+        }
+        if (nc_put_att_text(ncid, y_varid, "long_name", y_longname.size(), y_longname.c_str()) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'long_name' for northing.", exitcode::RUNTIME_ERR);
+        }
+
+        // Set global attributes
+        std::string attr_val = "Projected coordinate system with EPSG code " + layer->epsg;
+        if (nc_put_att_text(ncid, NC_GLOBAL, "EPSG", attr_val.length(), attr_val.c_str()) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write global attribute: EPSG", exitcode::RUNTIME_ERR);
+        }
+        attr_val = "Provided by Heron Hydrologic under an MIT license";
+        if (nc_put_att_text(ncid, NC_GLOBAL, "License", attr_val.length(), attr_val.c_str()) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write global attribute: License", exitcode::RUNTIME_ERR);
+        }
+        attr_val = "Blackbird_OutputDepthsNC";
+        if (nc_put_att_text(ncid, NC_GLOBAL, "Product", attr_val.length(), attr_val.c_str()) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write global attribute: Product", exitcode::RUNTIME_ERR);
+        }
+      }
+
+      // Define the data variable
+      int dims[2] = {x_dimid, y_dimid};
+      std::string data_units = "meters";
+      std::string data_longname = layer->name;
+      data_varid.push_back(PLACEHOLDER);
+      if (nc_def_var(ncid, layer->name.c_str(), NC_DOUBLE, 2, dims, &data_varid.back()) != NC_NOERR) {
+        ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to define 'data' variable.", exitcode::RUNTIME_ERR);
+      }
+      // Set units for the data variable
+      if (nc_put_att_text(ncid, data_varid.back(), "units", data_units.size(), data_units.c_str()) != NC_NOERR) {
+        ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'units' for data.", exitcode::RUNTIME_ERR);
+      }
+      // Set longname for the data variable
+      if (nc_put_att_text(ncid, data_varid.back(), "long_name", data_longname.size(), data_longname.c_str()) != NC_NOERR) {
+        ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'long_name' for data.", exitcode::RUNTIME_ERR);
+      }
+      // Set _FillValue for the data variable
+      if (nc_put_att_double(ncid, data_varid.back(), "_FillValue", NC_DOUBLE, 1, &layer->na_val) != NC_NOERR) {
+        ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write '_FillValue' for data.", exitcode::RUNTIME_ERR);
+      }
+    }
+
+    // End define mode before writing data
+    if (nc_enddef(ncid) != NC_NOERR) {
+      ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to end define mode.", exitcode::RUNTIME_ERR);
+    }
+
+    for (int i = 0; i < out_rasters.size(); i++) {
+      auto layer = dynamic_cast<CNetCDF *>(out_rasters[i].get());
+      if (i == 0) { // if first layer, set one time items
+        // Write the coordinate data
+        if (nc_put_var_double(ncid, x_varid, layer->x_coords.data()) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'easting' data.", exitcode::RUNTIME_ERR);
+        }
+        if (nc_put_var_double(ncid, y_varid, layer->y_coords.data()) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'northing' data.", exitcode::RUNTIME_ERR);
+        }
+      }
+
+      // Write the data values
+      if (nc_put_var_double(ncid, data_varid[i], layer->data) != NC_NOERR) {
+        ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'data' values.", exitcode::RUNTIME_ERR);
+      }
+    }
+
+    // Close the NetCDF file
+    if (nc_close(ncid) != NC_NOERR) {
+      ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to close NetCDF file.", exitcode::RUNTIME_ERR);
+    }
+  } else {
+    ExitGracefully("StandardOutput.cpp: WriteGriddedOutput: unsupported output format", exitcode::BAD_DATA);
   }
 }
 
@@ -223,20 +345,8 @@ void CNetCDF::WriteToFile(std::string filepath) {
     ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write '_FillValue' for data.", exitcode::RUNTIME_ERR);
   }
 
-  // Define projection and other metadata attributes
-  if (grid_mapping_name != "") {
-    if (nc_put_att_text(ncid, data_varid, "grid_mapping", grid_mapping_name.size(), grid_mapping_name.c_str()) != NC_NOERR) {
-      ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'grid_mapping' attribute.", exitcode::RUNTIME_ERR);
-    }
-  }
-  for (const auto &param : projection_params) {
-    if (nc_put_att_double(ncid, data_varid, param.first.c_str(), NC_DOUBLE, 1, &param.second) != NC_NOERR) {
-      ExitGracefully(("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write projection attribute: " + param.first).c_str(), exitcode::RUNTIME_ERR);
-    }
-  }
-
   // Set global attributes
-  std::string attr_val = "Projected coordinate system with EPSG code " + to_string(projection_params["epsg_code"]);
+  std::string attr_val = "Projected coordinate system with EPSG code " + epsg;
   if (nc_put_att_text(ncid, NC_GLOBAL, "EPSG", attr_val.length(), attr_val.c_str()) != NC_NOERR) {
     ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write global attribute: EPSG", exitcode::RUNTIME_ERR);
   }
@@ -265,14 +375,6 @@ void CNetCDF::WriteToFile(std::string filepath) {
   // Write the data values
   if (nc_put_var_double(ncid, data_varid, data) != NC_NOERR) {
     ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write 'data' values.", exitcode::RUNTIME_ERR);
-  }
-
-  // Write the attributes
-  for (const auto &attr : attributes) {
-    if (nc_put_att_text(ncid, data_varid, attr.first.c_str(),
-                        attr.second.size(), attr.second.c_str()) != NC_NOERR) {
-      ExitGracefully(("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to write attribute: " + attr.first).c_str(), exitcode::RUNTIME_ERR);
-    }
   }
 
   // Close the NetCDF file
@@ -334,7 +436,16 @@ void CModel::WriteFullModel() const
 /// \brief Cleanly prints CGriddedData class data to testoutput (except data)
 //
 void CGriddedData::pretty_print() const
-{ // TODO
+{
+  std::ofstream TESTOUTPUT;
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(),
+                  std::ios::app);
+  TESTOUTPUT << "\n=============== Gridded Data ==============" << std::endl;
+  TESTOUTPUT << std::left << std::setw(35) << "Name:" << name << std::endl;
+  TESTOUTPUT << std::setw(35) << "X Dimension:" << xsize << std::endl;
+  TESTOUTPUT << std::setw(35) << "Y Dimension:" << ysize << std::endl;
+  TESTOUTPUT << std::setw(35) << "NA Value:" << na_val << std::endl;
+  TESTOUTPUT.close();
 }
 
 //////////////////////////////////////////////////////////////////
@@ -342,18 +453,16 @@ void CGriddedData::pretty_print() const
 //
 void CRaster::pretty_print() const
 {
+  CGriddedData::pretty_print();
   std::ofstream TESTOUTPUT;
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
-  TESTOUTPUT << "\n================== Raster =================" << std::endl;
-  TESTOUTPUT << std::left << std::setw(35) << "Name:" << name << std::endl;
-  TESTOUTPUT << std::setw(35) << "X Dimension:" << xsize << std::endl;
-  TESTOUTPUT << std::setw(35) << "Y Dimension:" << ysize << std::endl;
-  TESTOUTPUT << std::setw(35) << "Projection:" << proj << std::endl;
+  TESTOUTPUT << "\n=============== Raster ==============" << std::endl;
+  TESTOUTPUT << std::left << std::setw(35) << "Projection:" << proj << std::endl;
   TESTOUTPUT << std::setw(35) << "Geo Transform:" << geotrans[0] << ", "
              << geotrans[1] << ", " << geotrans[2] << ", " << geotrans[3]
              << ", " << geotrans[4] << ", " << geotrans[5] << std::endl;
-  TESTOUTPUT << std::setw(35) << "NA Value:" << na_val << std::endl;
   TESTOUTPUT << std::setw(35) << "GDAL Datatype:" << datatype << std::endl;
+  TESTOUTPUT << "=====================================\n" << std::endl;
   TESTOUTPUT << "===========================================\n" << std::endl;
   TESTOUTPUT.close();
 }
@@ -362,7 +471,16 @@ void CRaster::pretty_print() const
 /// \brief Cleanly prints CNetCDF class data to testoutput (except data)
 //
 void CNetCDF::pretty_print() const
-{ // TODO
+{
+  CGriddedData::pretty_print();
+  std::ofstream TESTOUTPUT;
+  TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
+  TESTOUTPUT << "\n=============== NetCDF ==============" << std::endl;
+  TESTOUTPUT << std::left << std::setw(35) << "EPSG:" << epsg << std::endl;
+  TESTOUTPUT << std::setw(35) << "NetCDF Datatype:" << datatype << std::endl;
+  TESTOUTPUT << "=====================================\n" << std::endl;
+  TESTOUTPUT << "===========================================\n" << std::endl;
+  TESTOUTPUT.close();
 }
 
 //////////////////////////////////////////////////////////////////

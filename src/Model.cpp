@@ -303,7 +303,7 @@ void CModel::ReadGISFiles() {
       std::cout << "Reading from NetCDF" << std::endl;
     }
     bbopt->in_format = enum_gridded_format::NETCDF;
-    // TODO function for reading netcdf
+    ReadNetCDFFile(bbopt->gis_path + "/" + bbopt->in_nc_name);
   } else {
     if (!bbopt->silent_run) {
       std::cout << "Reading from Rasters" << std::endl;
@@ -349,7 +349,7 @@ void CModel::ReadGISFiles() {
 //////////////////////////////////////////////////////////////////
 /// \brief Reads specified NetCDF file
 //
-void CModel::ReadNetCDFFile(std::string filename, CNetCDF *raster_obj) {
+void CModel::ReadNetCDFFile(std::string filename) {
   int ncid;
   if (nc_open(filename.c_str(), NC_NOWRITE, &ncid) != NC_NOERR) {
     ExitGracefully(
@@ -395,43 +395,23 @@ void CModel::ReadNetCDFFile(std::string filename, CNetCDF *raster_obj) {
     ExitGracefully("Model.cpp: ReadNetCDFFile: NetCDF file missing 'northing' coordinate variable.", exitcode::BAD_DATA);
   }
 
-  // Read general attributes for the NetCDF object
-  char grid_mapping_name[NC_MAX_NAME + 1];
-  if (nc_inq_att(ncid, NC_GLOBAL, "grid_mapping", nullptr, nullptr) ==
-      NC_NOERR) {
-    nc_get_att_text(ncid, NC_GLOBAL, "grid_mapping", grid_mapping_name);
-    raster_obj->grid_mapping_name = std::string(grid_mapping_name);
-  }
+  // Read the epsg
+  std::size_t len;
+  std::string epsg;
+  if (nc_inq_attlen(ncid, NC_GLOBAL, "EPSG", &len) == NC_NOERR) {
+    std::vector<char> buffer(len + 1, '\0');
 
-  // Read the projection parameters
-  int varid;
-  if (nc_inq_varid(ncid, "projection_params", &varid) == NC_NOERR) {
-    // Get the number of values in projection_params
-    int ndims;
-    int dimids[NC_MAX_DIMS];
-    nc_inq_var(ncid, varid, nullptr, nullptr, &ndims, dimids, nullptr);
-
-    if (ndims == 1) { // Ensure it's a 1D variable
-      size_t n_params;
-      nc_inq_dimlen(ncid, dimids[0], &n_params);
-
-      std::vector<double> params(n_params);
-      nc_get_var_double(ncid, varid, params.data());
-
-      // Assuming projection parameters are stored as an array of values
-      for (size_t i = 0; i < n_params; ++i) {
-        std::stringstream param_name;
-        param_name << "param" << i; // Customize naming if needed
-        raster_obj->projection_params[param_name.str()] = params[i];
+    if (nc_get_att_text(ncid, NC_GLOBAL, "EPSG", buffer.data()) == NC_NOERR) {
+      std::istringstream iss(buffer.data());
+      std::string token;
+      while (iss >> token) {
+        epsg = token;
       }
+    } else {
+      ExitGracefully("Model.cpp: ReadNetCDFFile: failed to read global attribute \"EPSG\"", exitcode::RUNTIME_ERR);
     }
-  }
-
-  // Read the datatype(e.g., nc_double, nc_float)
-  nc_type var_type;
-  if (nc_inq_varid(ncid, "data", &varid) == NC_NOERR) {
-    nc_inq_vartype(ncid, varid, &var_type);
-    raster_obj->datatype = var_type;
+  } else {
+    ExitGracefully("Model.cpp: ReadNetCDFFile: global attribute \"EPSG\" not found", exitcode::BAD_DATA);
   }
 
   // Read layers
@@ -439,15 +419,14 @@ void CModel::ReadNetCDFFile(std::string filename, CNetCDF *raster_obj) {
   hand = std::make_unique<CNetCDF>();
   handid = std::make_unique<CNetCDF>();
 
-  bbopt->in_format = enum_gridded_format::RASTER;
-  ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif", dynamic_cast<CRaster *>(c_from_s.get()));
+  ReadNetCDFLayer(dynamic_cast<CNetCDF *>(c_from_s.get()), ncid, "catchments_streamnodes", x_len, y_len, x_coords, y_coords, epsg);
   c_from_s->name = "Catchments from Streamnodes";
   if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
-    ReadNetCDFLayer(dynamic_cast<CNetCDF *>(hand.get()), ncid, "hand", x_len, y_len);
+    ReadNetCDFLayer(dynamic_cast<CNetCDF *>(hand.get()), ncid, "hand", x_len, y_len, x_coords, y_coords, epsg);
     hand->name = "HAND";
     if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-      ReadNetCDFLayer(dynamic_cast<CNetCDF *>(handid.get()), ncid, "handid", x_len, y_len);
+      ReadNetCDFLayer(dynamic_cast<CNetCDF *>(handid.get()), ncid, "handid", x_len, y_len, x_coords, y_coords, epsg);
       handid->name = "HAND ID";
     }
   } else { // use dhand
@@ -455,12 +434,12 @@ void CModel::ReadNetCDFFile(std::string filename, CNetCDF *raster_obj) {
       std::stringstream stream;
       stream << std::fixed << std::setprecision(4) << d;
       dhand.push_back(std::make_unique<CNetCDF>());
-      ReadNetCDFLayer(dynamic_cast<CNetCDF *>(dhand.back().get()), ncid, "dhand", x_len, y_len);
+      ReadNetCDFLayer(dynamic_cast<CNetCDF *>(dhand.back().get()), ncid, "dhand", x_len, y_len, x_coords, y_coords, epsg);
       dhand.back()->name = "DHAND " + stream.str();
       if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
           bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
         dhandid.push_back(std::make_unique<CNetCDF>());
-        ReadNetCDFLayer(dynamic_cast<CNetCDF *>(dhand.back().get()), ncid, "dhandid", x_len, y_len);
+        ReadNetCDFLayer(dynamic_cast<CNetCDF *>(dhand.back().get()), ncid, "dhandid", x_len, y_len, x_coords, y_coords, epsg);
         dhandid.back()->name = "DHAND ID " + stream.str();
       }
     }
@@ -472,7 +451,10 @@ void CModel::ReadNetCDFFile(std::string filename, CNetCDF *raster_obj) {
 //////////////////////////////////////////////////////////////////
 /// \brief Reads specified NetCDF layer
 //
-void CModel::ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid, const std::string &var_name, int xsize, int ysize) {
+void CModel::ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid,
+                             const std::string &var_name, int xsize, int ysize,
+                             std::vector<double> x_coords,
+                             std::vector<double> y_coords, std::string epsg) {
   int varid;
   if (nc_inq_varid(ncid, var_name.c_str(), &varid) != NC_NOERR) {
     ExitGracefully(("Model.cpp: ReadNetCDFLayer: NetCDF file missing '" + var_name + "' variable.").c_str(),
@@ -481,10 +463,17 @@ void CModel::ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid, const std::string &v
 
   netcdf_obj->xsize = xsize;
   netcdf_obj->ysize = ysize;
+  netcdf_obj->x_coords = x_coords;
+  netcdf_obj->y_coords = y_coords;
+  netcdf_obj->epsg = epsg;
   netcdf_obj->data = static_cast<double *>(
       CPLMalloc(sizeof(double) * netcdf_obj->xsize * netcdf_obj->ysize));
   nc_get_var_double(ncid, varid, netcdf_obj->data);
 
+  // Read the datatype(e.g., nc_double, nc_float)
+  if (nc_inq_vartype(ncid, varid, &netcdf_obj->datatype) != NC_NOERR) {
+    ExitGracefully(("Model.cpp: ReadNetCDFFile: failed to read datatype of variable" + var_name).c_str(), exitcode::RUNTIME_ERR);
+  }
   // Read _FillValue
   float fill_value;
   nc_type var_type;
@@ -608,26 +597,26 @@ void CModel::postprocess_floodresults() {
     {
     case (enum_ppi_method::CATCHMENT_HAND):
     {
-      generate_out_raster(flow_ind, false, false);
+      generate_out_gridded(flow_ind, false, false);
       break;
     }
     case (enum_ppi_method::INTERP_HAND):
     {
       generate_spp_depths(flow_ind);
-      generate_out_raster(flow_ind, true, false);
+      generate_out_gridded(flow_ind, true, false);
       break;
     }
     case (enum_ppi_method::CATCHMENT_DHAND):
     {
       generate_dhand_vals(flow_ind, false);
-      generate_out_raster(flow_ind, false, true);
+      generate_out_gridded(flow_ind, false, true);
       break;
     }
     case (enum_ppi_method::INTERP_DHAND):
     {
       generate_spp_depths(flow_ind);
       generate_dhand_vals(flow_ind, true);
-      generate_out_raster(flow_ind, true, true);
+      generate_out_gridded(flow_ind, true, true);
       break;
     }
     //case (enum_ppi_method::INTERP_DHAND_WSLCORR):
@@ -1297,12 +1286,12 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Generates and saves a raster based on the post processing method for the "flow_ind"-th flow
+/// \brief Generates and saves a gridded data based on the post processing method for the "flow_ind"-th flow
 /// \param flow_ind [in] index of the flow currently being considered
 /// \param is_interp [in] boolean indicated whether post processing method is interp method
 /// \param is_dhand [in] boolean indicated whether post processing method is dhand method
 //
-void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
+void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
   initialize_out_gridded(is_dhand);
   CGriddedData *result = out_rasters.back().get();
   result->name = "result_depths_" + std::to_string(flow_ind + 1);
@@ -1359,7 +1348,7 @@ void CModel::generate_out_raster(int flow_ind, bool is_interp, bool is_dhand) {
   }
 
   // Transpose data if writing to NetCDF
-  if ((bbopt->in_format == enum_gridded_format::RASTER && bbopt->out_format == enum_gridded_format::NETCDF) || (bbopt->in_format == enum_gridded_format::NETCDF && bbopt->out_format == enum_gridded_format::RASTER)) {
+  if (bbopt->out_format == enum_gridded_format::NETCDF) {
     result->transpose_data();
   }
 }
@@ -1409,7 +1398,6 @@ void CModel::initialize_out_gridded(bool is_dhand) {
     for (int i = 0; i < hand_raster->xsize; i++) {
       res_netcdf->x_coords[i] = hand_raster->geotrans[0] + i * hand_raster->geotrans[1];
     }
-    std::reverse(res_netcdf->x_coords.begin(), res_netcdf->x_coords.end()); // TODO not working? might have to do this for netcdf -> raster as well
     for (int j = 0; j < hand_raster->ysize; j++) {
       res_netcdf->y_coords[j] = hand_raster->geotrans[3] + j * hand_raster->geotrans[5];
     }
@@ -1420,36 +1408,10 @@ void CModel::initialize_out_gridded(bool is_dhand) {
     if (srs.importFromWkt(hand_raster->proj) != OGRERR_NONE) {
       ExitGracefully("Model.cpp: initialize_out_gridded: Failed to parse WKT projection.", exitcode::BAD_DATA);
     }
-    // Identify projection type
-    if (srs.IsProjected()) {
-      const char *projName = srs.GetAttrValue("PROJECTION");
-
-      if (strcmp(projName, "Transverse_Mercator") == 0) {
-        res_netcdf->grid_mapping_name = "transverse_mercator";
-        res_netcdf->projection_params["latitude_of_projection_origin"] = srs.GetProjParm(SRS_PP_LATITUDE_OF_ORIGIN, 0.0);
-        res_netcdf->projection_params["longitude_of_central_meridian"] = srs.GetProjParm(SRS_PP_CENTRAL_MERIDIAN, 0.0);
-        res_netcdf->projection_params["scale_factor"] = srs.GetProjParm(SRS_PP_SCALE_FACTOR, 1.0);
-        res_netcdf->projection_params["false_easting"] = srs.GetProjParm(SRS_PP_FALSE_EASTING, 0.0);
-        res_netcdf->projection_params["false_northing"] = srs.GetProjParm(SRS_PP_FALSE_NORTHING, 0.0);
-      } else if (strcmp(projName, "Lambert_Conformal_Conic_2SP") == 0) {
-        res_netcdf->grid_mapping_name = "lambert_conformal_conic";
-        res_netcdf->projection_params["standard_parallel_1"] = srs.GetProjParm(SRS_PP_STANDARD_PARALLEL_1, 0.0);
-        res_netcdf->projection_params["standard_parallel_2"] = srs.GetProjParm(SRS_PP_STANDARD_PARALLEL_2, 0.0);
-        res_netcdf->projection_params["latitude_of_projection_origin"] = srs.GetProjParm(SRS_PP_LATITUDE_OF_ORIGIN, 0.0);
-        res_netcdf->projection_params["longitude_of_central_meridian"] = srs.GetProjParm(SRS_PP_CENTRAL_MERIDIAN, 0.0);
-        res_netcdf->projection_params["false_easting"] = srs.GetProjParm(SRS_PP_FALSE_EASTING, 0.0);
-        res_netcdf->projection_params["false_northing"] = srs.GetProjParm(SRS_PP_FALSE_NORTHING, 0.0);
-      } else {
-        ExitGracefully("Model.cpp: initialize_out_gridded: Unsupported projection type in CRaster.", exitcode::BAD_DATA);
-      }
-    } else {
-      ExitGracefully("Model.cpp: initialize_out_gridded: CRaster does not have a projected coordinate system.", exitcode::BAD_DATA);
-    }
     // Store EPSG code
     if (srs.GetAuthorityCode(nullptr) != nullptr) {
-      res_netcdf->projection_params["epsg_code"] = std::stoi(srs.GetAuthorityCode(nullptr));
+      res_netcdf->epsg = std::stoi(srs.GetAuthorityCode(nullptr));
     }
-    // TODO attributes ->
 
     // Save to out_rasters
     out_rasters.push_back(std::move(res_netcdf));
@@ -1480,45 +1442,27 @@ void CModel::initialize_out_gridded(bool is_dhand) {
     res_raster->geotrans[0] = hand_netcdf->x_coords[0];                                                              // Origin X
     res_raster->geotrans[1] = (hand_netcdf->xsize > 1) ? (hand_netcdf->x_coords[1] - hand_netcdf->x_coords[0]) : 1;  // Pixel size X
     res_raster->geotrans[2] = 0;                                                                                     // No rotation
-    res_raster->geotrans[3] = hand_netcdf->y_coords[0];                                                              // Origin Y
+    res_raster->geotrans[3] = hand_netcdf->y_coords[0]; // Origin Y (flipped y because netcdf stores reversed)
     res_raster->geotrans[4] = 0;                                                                                     // No rotation
-    res_raster->geotrans[5] = (hand_netcdf->ysize > 1) ? (hand_netcdf->y_coords[1] - hand_netcdf->y_coords[0]) : -1; // Pixel size Y
+    res_raster->geotrans[5] =
+        (hand_netcdf->ysize > 1)
+            ? (hand_netcdf->y_coords[1] -
+               hand_netcdf->y_coords[0])
+            : -1; // Pixel size Y (flipped y because netcdf stores reversed)
     res_raster->datatype = ConvertNetCDFTypeToGDAL(hand_netcdf->datatype);
     
+    // Create projection reference string
     OGRSpatialReference srs;
-    if (hand_netcdf->projection_params.count("epsg_code")) {
-      int epsg = static_cast<int>(hand_netcdf->projection_params.at("epsg_code"));
-      if (srs.importFromEPSG(epsg) != OGRERR_NONE) {
-        ExitGracefully("Model.cpp: initialize_out_gridded: Failed to import EPSG code.", exitcode::BAD_DATA);
-      }
-    } else if (!hand_netcdf->grid_mapping_name.empty()) {
-      // Handle specific projection types
-      if (hand_netcdf->grid_mapping_name == "transverse_mercator") {
-        srs.SetProjCS("Transverse Mercator");
-        srs.SetTM(hand_netcdf->projection_params.at("latitude_of_projection_origin"),
-                  hand_netcdf->projection_params.at("longitude_of_central_meridian"),
-                  hand_netcdf->projection_params.at("scale_factor"),
-                  hand_netcdf->projection_params.at("false_easting"),
-                  hand_netcdf->projection_params.at("false_northing"));
-      } else if (hand_netcdf->grid_mapping_name == "lambert_conformal_conic") {
-        srs.SetLCC(hand_netcdf->projection_params.at("standard_parallel_1"),
-                   hand_netcdf->projection_params.at("standard_parallel_2"),
-                   hand_netcdf->projection_params.at("latitude_of_projection_origin"),
-                   hand_netcdf->projection_params.at("longitude_of_central_meridian"),
-                   hand_netcdf->projection_params.at("false_easting"),
-                   hand_netcdf->projection_params.at("false_northing"));
-      } else {
-        ExitGracefully("Model.cpp: initialize_out_gridded: Unsupported projection type.", exitcode::BAD_DATA);
-      }
+    if (srs.importFromEPSG(std::stoi(hand_netcdf->epsg)) == OGRERR_NONE) {
+      char *wkt = nullptr;
+      srs.exportToWkt(&wkt);
+      res_raster->proj = CPLStrdup(wkt);
+      CPLFree(wkt);
     } else {
-      ExitGracefully("Model.cpp: initialize_out_gridded: No valid projection information found.", exitcode::BAD_DATA);
+      ExitGracefully("Model.cpp: initialize_out_gridded: input netcdf does not "
+                     "have a specified projection system",
+                     exitcode::BAD_DATA);
     }
-
-    // Convert SRS to WKT
-    char *wkt = nullptr;
-    srs.exportToWkt(&wkt);
-    res_raster->proj = CPLStrdup(wkt);
-    CPLFree(wkt);
 
     // Save to out_rasters
     out_rasters.push_back(std::move(res_raster));

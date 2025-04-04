@@ -51,15 +51,17 @@ public:
   std::string FilenamePrepare(std::string filebase) const;        // attaches main_output_dir folder and run_name to filebase
   void WriteOutputFileHeaders(COptions*const& pOptions);
   void WriteMajorOutput(std::string solfile, bool final) const;
-  void WriteRasterOutput();                                       // writes raster output to files
+  void WriteGriddedOutput();                                      // writes gridded output to files
   void WriteFullModel() const;                                    // writes full model data to testoutput
   void hyd_result_pretty_print() const;                           // writes hyd_result to testoutput
   void hyd_result_pretty_print_csv() const;                       // writes hyd_result to csv file
 
   // GIS Functions
   void ReadGISFiles();                                                                                      // reads necessary gis files
-  void ReadNetCDFFile(std::string filename, CNetCDF *netcdf_obj);                                           // reads specified netcdf file
-  void ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid, const std::string& var_name, int xsize, int ysize);   // reads specified netcdf layer
+  void ReadNetCDFFile(std::string filename);                                                                // reads specified netcdf file
+  void ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid, const std::string &var_name,                          // reads specified netcdf layer
+                       int xsize, int ysize, std::vector<double> x_coords,
+                       std::vector<double> y_coords, std::string epsg);
   void ReadRasterFile(std::string filename, CRaster *raster_obj);                                           // reads specified raster file
   void ReadVectorFile(std::string filename, CVector &vector_obj);                                           // reads specified vector file
   void postprocess_floodresults();                                                                          // postprocesses flood results based on bbopt method
@@ -79,7 +81,7 @@ protected:
   std::pair<int, int> dhand_bounding_depths(double depth);                                                 // finds nearest dhands to use in postprocess_floodresults
   void generate_spp_depths(int flow_ind);                                                                  // generates spp_depths for the flow_ind-th profile. used in postprocess_floodresults
   void generate_dhand_vals(int flow_ind, bool is_interp);                                                  // generates dhand_vals for the flow_ind-th profile. used in postprocess_floodresults
-  void generate_out_raster(int flow_ind, bool is_interp, bool is_dhand);                                   // generates an output raster for the flow_ind-th profile. used in postprocess_floodresults
+  void generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand);                                  // generates an output gridded for the flow_ind-th profile. used in postprocess_floodresults
   void initialize_out_gridded(bool is_dhand);                                                              // initializes an output gridded data instance for the flow ind-th profile. used in generate_out_gridded
 };
 

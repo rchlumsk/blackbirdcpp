@@ -8,10 +8,8 @@ public:
   // Member variables
   std::vector<double> x_coords;                               // netcdf x coordinates
   std::vector<double> y_coords;                               // netcdf y coordinates
-  std::string grid_mapping_name;                              // CF-compliant projection name
-  std::unordered_map<std::string, double> projection_params;  // Projection attributes
+  std::string epsg;                                           // netcdf epsg
   nc_type datatype;                                           // netcdf data type
-  std::map<std::string, std::string> attributes;              // attributes metadata
 
   // Constructors and Destructor
   CNetCDF();
