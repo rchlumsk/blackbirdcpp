@@ -13,7 +13,7 @@ CModel::CModel()
   dhand(),
   dhandid(),
   hyd_result(nullptr),
-  out_rasters(),
+  out_gridded(),
   streamnode_map(),
   flow(PLACEHOLDER),
   peak_hrs_min(PLACEHOLDER),
@@ -45,8 +45,8 @@ CModel::CModel(const CModel &other)
   for (const auto &layer : other.dhandid) {
     dhandid.push_back(layer->clone());
   }
-  for (const auto &layer : other.out_rasters) {
-    out_rasters.push_back(layer->clone());
+  for (const auto &layer : other.out_gridded) {
+    out_gridded.push_back(layer->clone());
   }
 
   if (other.bbsn) {
@@ -92,8 +92,8 @@ CModel &CModel::operator=(const CModel &other) {
   for (const auto &layer : other.dhandid) {
     dhandid.push_back(layer->clone());
   }
-  for (const auto &layer : other.out_rasters) {
-    out_rasters.push_back(layer->clone());
+  for (const auto &layer : other.out_gridded) {
+    out_gridded.push_back(layer->clone());
   }
 
 
@@ -247,6 +247,7 @@ void CModel::calc_output_flows() {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Add streamnode to model and map
+/// \param pSN [in] pointer reference to CStreamnode being added
 //
 void CModel::add_streamnode(CStreamnode*& pSN) {
   bbsn->push_back(pSN);
@@ -255,21 +256,19 @@ void CModel::add_streamnode(CStreamnode*& pSN) {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Returns streamnode with id 'sid'
+/// \param sid [in] id of streamnode to get index of
 /// \return streamnode with id 'sid'
 //
 CStreamnode* CModel::get_streamnode_by_id(int sid) {
-  //std::cout << "bbsn size: " << bbsn->size() << std::endl;
-  //std::cout << "sid: " << sid << std::endl;
   return streamnode_map.find(sid) != streamnode_map.end() ? bbsn->at(streamnode_map[sid]) : NULL;
 }
 
 //////////////////////////////////////////////////////////////////
 /// \brief Returns index of streamnode with id 'sid'
+/// \param sid [in] id of streamnode to get index of
 /// \return index of streamnode with id 'sid'
 //
 int CModel::get_index_by_id(int sid) {
-  // std::cout << "bbsn size: " << bbsn->size() << std::endl;
-  // std::cout << "sid: " << sid << std::endl;
   return streamnode_map.find(sid) != streamnode_map.end()
              ? streamnode_map[sid]
              : NULL;
@@ -277,6 +276,8 @@ int CModel::get_index_by_id(int sid) {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Returns index in hyd_result of streamnode with id 'sid' and a flow index of flow_ind
+/// \param flow_ind [in] index of the flow currently being considered
+/// \param sid [in] id of streamnode to get index of
 /// \return index in hyd_result of streamnode with id 'sid' and a flow index of flow_ind
 //
 int CModel::get_hyd_res_index(int flow_ind, int sid) {
@@ -348,6 +349,7 @@ void CModel::ReadGISFiles() {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Reads specified NetCDF file
+/// \param filename [in] full path to netcdf file to read from
 //
 void CModel::ReadNetCDFFile(std::string filename) {
   int ncid;
@@ -450,6 +452,14 @@ void CModel::ReadNetCDFFile(std::string filename) {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Reads specified NetCDF layer
+/// \param netcdf_obj [in] pointer to CNetCDF object to write to
+/// \param ncid [in] ncid of file, for netcdf API
+/// \param var_name [in] name of variable to read
+/// \param xsize [in] size of x dimension of data
+/// \param ysize [in] size of y dimension of data
+/// \param x_coords [in] x dimension data
+/// \param y_coords [in] y dimension data
+/// \param epsg [in] EPSG projection code of data
 //
 void CModel::ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid,
                              const std::string &var_name, int xsize, int ysize,
@@ -487,6 +497,8 @@ void CModel::ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid,
 
 //////////////////////////////////////////////////////////////////
 /// \brief Reads specified Raster file
+/// \param filename [in] full path to raster file to read from
+/// \param raster_obj [in] pointer to CRaster object to write to
 //
 void CModel::ReadRasterFile(std::string filename, CRaster *raster_obj) {
   CPLPushErrorHandler(SilentErrorHandler);
@@ -525,6 +537,8 @@ void CModel::ReadRasterFile(std::string filename, CRaster *raster_obj) {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Reads specified Vector file
+/// \param filename [in] full path to vector file to read from
+/// \param raster_obj [in] pointer to CVector object to write to
 //
 void CModel::ReadVectorFile(std::string filename, CVector &vector_obj) {
   CPLPushErrorHandler(SilentErrorHandler);
@@ -1293,7 +1307,7 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
 //
 void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
   initialize_out_gridded(is_dhand);
-  CGriddedData *result = out_rasters.back().get();
+  CGriddedData *result = out_gridded.back().get();
   result->name = "result_depths_" + std::to_string(flow_ind + 1);
   std::fill(result->data, result->data + (result->xsize * result->ysize), 0.0);
 
@@ -1368,7 +1382,7 @@ void CModel::initialize_out_gridded(bool is_dhand) {
     } else {
       result = dhand[0]->clone();
     }
-    out_rasters.push_back(std::move(result));
+    out_gridded.push_back(std::move(result));
   } else if (bbopt->in_format == enum_gridded_format::RASTER &&
              bbopt->out_format == enum_gridded_format::NETCDF) { // raster to netcdf
     // Initialize output
@@ -1413,8 +1427,8 @@ void CModel::initialize_out_gridded(bool is_dhand) {
       res_netcdf->epsg = std::stoi(srs.GetAuthorityCode(nullptr));
     }
 
-    // Save to out_rasters
-    out_rasters.push_back(std::move(res_netcdf));
+    // Save to out_gridded
+    out_gridded.push_back(std::move(res_netcdf));
   } else if (bbopt->in_format == enum_gridded_format::NETCDF &&
              bbopt->out_format == enum_gridded_format::RASTER) { // netcdf to raster
     // Initialize output
@@ -1464,8 +1478,8 @@ void CModel::initialize_out_gridded(bool is_dhand) {
                      exitcode::BAD_DATA);
     }
 
-    // Save to out_rasters
-    out_rasters.push_back(std::move(res_raster));
+    // Save to out_gridded
+    out_gridded.push_back(std::move(res_raster));
   } else {
     ExitGracefully(("Model.cpp: generate_out_gridded: input " +
                     toString(bbopt->in_format) + " to output " +

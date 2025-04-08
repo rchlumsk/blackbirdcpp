@@ -6,9 +6,9 @@
 class CRaster : public CGriddedData {
 public:
   // Member variables
-  char *proj;            // raster projection
-  double geotrans[6];    // raster geo transform
-  GDALDataType datatype; // datatype of raster values
+  char *proj;                                                 // raster projection
+  double geotrans[6];                                         // raster geo transform
+  GDALDataType datatype;                                      // datatype of raster values
 
   // Constructors and Destructor
   CRaster();
@@ -23,10 +23,9 @@ public:
     return std::make_unique<CRaster>(*this);
   }
 
-  // Member functions
   // I/O Functions
-  void WriteToFile(std::string filepath) override; // defined in StandardOutput.cpp
-  void pretty_print() const override;              // defined in StandardOutput.cpp
+  void WriteToFile(std::string filepath) override;            // defined in StandardOutput.cpp
+  void pretty_print() const override;                         // defined in StandardOutput.cpp
 };
 
 #endif

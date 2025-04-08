@@ -40,6 +40,10 @@ CGriddedData &CGriddedData::operator=(const CGriddedData &other) {
   return *this;
 }
 
+
+//////////////////////////////////////////////////////////////////
+/// \brief Transposes the x and y dimension of the gridded data
+//
 void CGriddedData::transpose_data() {
   double *transposed_data = static_cast<double *>(CPLMalloc(sizeof(double) * xsize * ysize));
 

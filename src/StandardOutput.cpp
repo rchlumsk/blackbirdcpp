@@ -114,9 +114,9 @@ void CModel::WriteGriddedOutput()
     return;
   }
   if (bbopt->out_format == enum_gridded_format::RASTER) {
-    for (int i = 0; i < out_rasters.size(); i++) {
+    for (int i = 0; i < out_gridded.size(); i++) {
       std::string filepath = FilenamePrepare("bb_results_depth_" + std::to_string(i + 1) + ".tif");
-      out_rasters[i]->WriteToFile(filepath);
+      out_gridded[i]->WriteToFile(filepath);
     }
   } else if (bbopt->out_format == enum_gridded_format::NETCDF) {
     int ncid;
@@ -131,8 +131,8 @@ void CModel::WriteGriddedOutput()
       ExitGracefully(("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to create NetCDF file: " + filepath).c_str(), exitcode::RUNTIME_ERR);
     }
 
-    for (int i = 0; i < out_rasters.size(); i++) {
-      auto layer = dynamic_cast<CNetCDF *>(out_rasters[i].get());
+    for (int i = 0; i < out_gridded.size(); i++) {
+      auto layer = dynamic_cast<CNetCDF *>(out_gridded[i].get());
 
       if (i == 0) { // if first layer, set one time items
         // Define the dimensions
@@ -214,8 +214,8 @@ void CModel::WriteGriddedOutput()
       ExitGracefully("StandardOutput.cpp: CNetCDF::WriteToFile: Failed to end define mode.", exitcode::RUNTIME_ERR);
     }
 
-    for (int i = 0; i < out_rasters.size(); i++) {
-      auto layer = dynamic_cast<CNetCDF *>(out_rasters[i].get());
+    for (int i = 0; i < out_gridded.size(); i++) {
+      auto layer = dynamic_cast<CNetCDF *>(out_gridded[i].get());
       if (i == 0) { // if first layer, set one time items
         // Write the coordinate data
         if (nc_put_var_double(ncid, x_varid, layer->x_coords.data()) != NC_NOERR) {
@@ -418,7 +418,7 @@ void CModel::WriteFullModel() const
   for (auto& r : dhandid) {
     r->pretty_print();
   }
-  for (auto& r : out_rasters) {
+  for (auto& r : out_gridded) {
     r->pretty_print();
   }
   this->bbopt->pretty_print();
