@@ -25,6 +25,7 @@ public:
   std::unique_ptr<CGriddedData> handid;                 // pointer to GriddedData object for hand pourpoints
   std::vector<std::unique_ptr<CGriddedData>> dhand;     // vector of pointers to GriddedData objects for dhand
   std::vector<std::unique_ptr<CGriddedData>> dhandid;   // vector of pointers to GriddedData objects for dhand pourpoints
+  std::vector<std::string> fp_names;                    // names of flowprofiles read in from .bbb
 
   // Outputs
   std::vector<hydraulic_output *> *hyd_result;                        // hydraulic outputs generated from hyd_compute_profile
@@ -59,7 +60,7 @@ public:
   // GIS Functions
   void ReadGISFiles();                                                                                      // reads necessary gis files
   void ReadNetCDFFile(std::string filename);                                                                // reads specified netcdf file
-  void ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid, const std::string &var_name,                          // reads specified netcdf layer
+  void ReadNetCDFLayer(CNetCDFLayer *netcdf_obj, int ncid, const std::string &var_name,                          // reads specified netcdf layer
                        int xsize, int ysize, std::vector<double> x_coords,
                        std::vector<double> y_coords, std::string epsg);
   void ReadRasterFile(std::string filename, CRaster *raster_obj);                                           // reads specified raster file

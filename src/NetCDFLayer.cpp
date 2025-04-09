@@ -2,7 +2,7 @@
 #include "NetCDFLayer.h"
 
 // Default constructor
-CNetCDF::CNetCDF()
+CNetCDFLayer::CNetCDFLayer()
   : CGriddedData(),
   x_coords(),
   y_coords(),
@@ -11,7 +11,7 @@ CNetCDF::CNetCDF()
 }
 
 // Copy constructor
-CNetCDF::CNetCDF(const CNetCDF &other)
+CNetCDFLayer::CNetCDFLayer(const CNetCDFLayer &other)
   : CGriddedData(other),
   x_coords(other.x_coords),
   y_coords(other.y_coords),
@@ -20,7 +20,7 @@ CNetCDF::CNetCDF(const CNetCDF &other)
 }
 
 // Copy assignment operator
-CNetCDF& CNetCDF::operator=(const CNetCDF &other) {
+CNetCDFLayer& CNetCDFLayer::operator=(const CNetCDFLayer &other) {
   if (this == &other) {
     return *this; // Handle self-assignment
   }

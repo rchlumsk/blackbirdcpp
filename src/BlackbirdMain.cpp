@@ -140,7 +140,7 @@ void ProcessExecutableArguments(int argc, char* argv[], COptions*& pOptions)
     if (i != argc) {
       word = argv[i];
     }
-    if ((word == "-g") || (word == "-p") || (word == "-b") || (word == "-o") ||
+    if ((word == "-g") || (word == "-b") || (word == "-o") ||
         (word == "-s") || (word == "-n") || (word == "-r") || (i == argc))
     {
       if (mode == 0) {

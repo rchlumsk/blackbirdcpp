@@ -7,6 +7,7 @@ class CGriddedData {
 public:
   // Member variables
   std::string name;                                           // name of layer
+  std::string fp_name;                                        // flow profile name of layer
   double* data;                                               // raw data values
   int xsize;                                                  // x dimension of gridded values
   int ysize;                                                  // y dimension of gridded values

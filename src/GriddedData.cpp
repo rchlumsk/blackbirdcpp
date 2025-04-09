@@ -4,6 +4,7 @@
 // Default constructor
 CGriddedData::CGriddedData()
   : name(PLACEHOLDER_STR),
+  fp_name(PLACEHOLDER_STR),
   data(nullptr),
   xsize(PLACEHOLDER),
   ysize(PLACEHOLDER),
@@ -13,6 +14,7 @@ CGriddedData::CGriddedData()
 // Copy constructor
 CGriddedData::CGriddedData(const CGriddedData &other)
   : name(other.name),
+  fp_name(other.fp_name),
   data(static_cast<double *>(CPLMalloc(sizeof(double) * other.xsize * other.ysize))),
   xsize(other.xsize),
   ysize(other.ysize),
@@ -30,6 +32,7 @@ CGriddedData &CGriddedData::operator=(const CGriddedData &other) {
   }
 
   name = other.name;
+  fp_name = other.fp_name;
   xsize = other.xsize;
   ysize = other.ysize;
   na_val = other.na_val;

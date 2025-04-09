@@ -40,7 +40,7 @@
 extern std::string g_output_directory; ///< Had to be here to avoid passing Options structure around willy-nilly
 extern bool   g_suppress_warnings;///< Had to be here to avoid passing Options object around willy-nilly
 
-// Model version
+// Program version
 const std::string __BLACKBIRD_VERSION__ = "0.0.0";
 //*****************************************************************
 // Global Constants

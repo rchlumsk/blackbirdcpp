@@ -288,6 +288,12 @@ int CModel::get_hyd_res_index(int flow_ind, int sid) {
 /// \brief Reads GIS files required for model
 //
 void CModel::ReadGISFiles() {
+  if (bbopt->gis_path == PLACEHOLDER_STR) {
+    ExitGracefully(
+        "Model.cpp: ReadGISFiles: :GISPath must be provided in .bbi file",
+        exitcode::BAD_DATA);
+  }
+  
   GDALAllRegister();
 
   // Read vector file for snapped pourpoints
@@ -299,6 +305,9 @@ void CModel::ReadGISFiles() {
   }
 
   // Read gridded data either from netcdf or raster
+  if (!bbopt->silent_run) {
+    std::cout << "Searching for NetCDF file" << std::endl;
+  }
   if (std::filesystem::exists(bbopt->gis_path + "/" + bbopt->in_nc_name)) {
     if (!bbopt->silent_run) {
       std::cout << "Reading from NetCDF" << std::endl;
@@ -307,6 +316,7 @@ void CModel::ReadGISFiles() {
     ReadNetCDFFile(bbopt->gis_path + "/" + bbopt->in_nc_name);
   } else {
     if (!bbopt->silent_run) {
+      std::cout << "NetCDF file not found at " + bbopt->gis_path + "/" + bbopt->in_nc_name << std::endl;
       std::cout << "Reading from Rasters" << std::endl;
     }
 
@@ -417,31 +427,31 @@ void CModel::ReadNetCDFFile(std::string filename) {
   }
 
   // Read layers
-  c_from_s = std::make_unique<CNetCDF>();
-  hand = std::make_unique<CNetCDF>();
-  handid = std::make_unique<CNetCDF>();
+  c_from_s = std::make_unique<CNetCDFLayer>();
+  hand = std::make_unique<CNetCDFLayer>();
+  handid = std::make_unique<CNetCDFLayer>();
 
-  ReadNetCDFLayer(dynamic_cast<CNetCDF *>(c_from_s.get()), ncid, "catchments_streamnodes", x_len, y_len, x_coords, y_coords, epsg);
+  ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(c_from_s.get()), ncid, "catchments_streamnodes", x_len, y_len, x_coords, y_coords, epsg);
   c_from_s->name = "Catchments from Streamnodes";
   if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
-    ReadNetCDFLayer(dynamic_cast<CNetCDF *>(hand.get()), ncid, "hand", x_len, y_len, x_coords, y_coords, epsg);
+    ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(hand.get()), ncid, "hand", x_len, y_len, x_coords, y_coords, epsg);
     hand->name = "HAND";
     if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-      ReadNetCDFLayer(dynamic_cast<CNetCDF *>(handid.get()), ncid, "handid", x_len, y_len, x_coords, y_coords, epsg);
+      ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(handid.get()), ncid, "handid", x_len, y_len, x_coords, y_coords, epsg);
       handid->name = "HAND ID";
     }
   } else { // use dhand
     for (auto d : dhand_depth_seq) {
       std::stringstream stream;
       stream << std::fixed << std::setprecision(4) << d;
-      dhand.push_back(std::make_unique<CNetCDF>());
-      ReadNetCDFLayer(dynamic_cast<CNetCDF *>(dhand.back().get()), ncid, "dhand", x_len, y_len, x_coords, y_coords, epsg);
+      dhand.push_back(std::make_unique<CNetCDFLayer>());
+      ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(dhand.back().get()), ncid, "dhand", x_len, y_len, x_coords, y_coords, epsg);
       dhand.back()->name = "DHAND " + stream.str();
       if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
           bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
-        dhandid.push_back(std::make_unique<CNetCDF>());
-        ReadNetCDFLayer(dynamic_cast<CNetCDF *>(dhand.back().get()), ncid, "dhandid", x_len, y_len, x_coords, y_coords, epsg);
+        dhandid.push_back(std::make_unique<CNetCDFLayer>());
+        ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(dhand.back().get()), ncid, "dhandid", x_len, y_len, x_coords, y_coords, epsg);
         dhandid.back()->name = "DHAND ID " + stream.str();
       }
     }
@@ -452,7 +462,7 @@ void CModel::ReadNetCDFFile(std::string filename) {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Reads specified NetCDF layer
-/// \param netcdf_obj [in] pointer to CNetCDF object to write to
+/// \param netcdf_obj [in] pointer to CNetCDFLayer object to write to
 /// \param ncid [in] ncid of file, for netcdf API
 /// \param var_name [in] name of variable to read
 /// \param xsize [in] size of x dimension of data
@@ -461,7 +471,7 @@ void CModel::ReadNetCDFFile(std::string filename) {
 /// \param y_coords [in] y dimension data
 /// \param epsg [in] EPSG projection code of data
 //
-void CModel::ReadNetCDFLayer(CNetCDF *netcdf_obj, int ncid,
+void CModel::ReadNetCDFLayer(CNetCDFLayer *netcdf_obj, int ncid,
                              const std::string &var_name, int xsize, int ysize,
                              std::vector<double> x_coords,
                              std::vector<double> y_coords, std::string epsg) {
@@ -1308,7 +1318,8 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
 void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
   initialize_out_gridded(is_dhand);
   CGriddedData *result = out_gridded.back().get();
-  result->name = "result_depths_" + std::to_string(flow_ind + 1);
+  result->name = "result_depths_" + fp_names[flow_ind];
+  result->fp_name = fp_names[flow_ind];
   std::fill(result->data, result->data + (result->xsize * result->ysize), 0.0);
 
   for (int j = 0; j < result->xsize * result->ysize; j++) {
@@ -1386,7 +1397,7 @@ void CModel::initialize_out_gridded(bool is_dhand) {
   } else if (bbopt->in_format == enum_gridded_format::RASTER &&
              bbopt->out_format == enum_gridded_format::NETCDF) { // raster to netcdf
     // Initialize output
-    auto res_netcdf = std::make_unique<CNetCDF>();
+    auto res_netcdf = std::make_unique<CNetCDFLayer>();
 
     // Set raster to copy parameters from
     CRaster *hand_raster = nullptr;
@@ -1435,11 +1446,11 @@ void CModel::initialize_out_gridded(bool is_dhand) {
     auto res_raster = std::make_unique<CRaster>();
 
     // Set raster to copy parameters from
-    CNetCDF *hand_netcdf = nullptr;
+    CNetCDFLayer *hand_netcdf = nullptr;
     if (!is_dhand) {
-      hand_netcdf = dynamic_cast<CNetCDF *>(hand.get());
+      hand_netcdf = dynamic_cast<CNetCDFLayer *>(hand.get());
     } else {
-      hand_netcdf = dynamic_cast<CNetCDF *>(dhand[0].get());
+      hand_netcdf = dynamic_cast<CNetCDFLayer *>(dhand[0].get());
     }
 
     // Assign common variables

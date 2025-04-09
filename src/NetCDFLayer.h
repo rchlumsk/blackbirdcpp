@@ -3,7 +3,7 @@
 
 #include "GriddedData.h"
 
-class CNetCDF : public CGriddedData {
+class CNetCDFLayer : public CGriddedData {
 public:
   // Member variables
   std::vector<double> x_coords;                               // netcdf x coordinates
@@ -12,15 +12,15 @@ public:
   nc_type datatype;                                           // netcdf data type
 
   // Constructors and Destructor
-  CNetCDF();
-  CNetCDF(const CNetCDF &other);
+  CNetCDFLayer();
+  CNetCDFLayer(const CNetCDFLayer &other);
 
   // Copy assignment operator
-  CNetCDF &operator=(const CNetCDF &other);
+  CNetCDFLayer &operator=(const CNetCDFLayer &other);
 
   // Polymorphic clone
   std::unique_ptr<CGriddedData> clone() const override {
-    return std::make_unique<CNetCDF>(*this);
+    return std::make_unique<CNetCDFLayer>(*this);
   }
 
   // I/O Functions  

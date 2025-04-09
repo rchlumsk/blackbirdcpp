@@ -202,10 +202,20 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
         {
           end_of_file = pp->Tokenize(s, Len);
           if (IsComment(s[0], Len)) {}//comment line
-          else if (!strcmp(s[0], ":Attributes")) {}//ignored by Blackbird - needed for GUIs
+          else if (!strcmp(s[0], ":Attributes")) // Attributes row. Reads in flow profile names
+          {
+            if (Len < 3) { pp->ImproperFormat(s); }
+            for (int i = 2; i < Len; i++) {
+              pModel->fp_names.push_back(s[i]);
+            }
+          }
           else if (!strcmp(s[0], ":EndSteadyFlows")) { done = true; }
           else
           {
+            if (pModel->fp_names.empty()) {
+                error = "ParseBoundaryConditions File: :Attributes must be specified at the beginning of  :SteadyFlows block";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            }
             row++;
             if (Len < 2) { pp->ImproperFormat(s); }
             if (StringIsLong(s[0])) {
@@ -220,7 +230,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
               error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :SteadyFlows must be unique integer or long integer";
               ExitGracefully(error.c_str(), BAD_DATA_WARN);
             }
-            for (int i = 1; i < Len; i++) {
+            for (int i = 1; i < pModel->fp_names.size() + 1; i++) {
               if (StringIsDouble(s[i])) {
                 pSN->add_steadyflow(std::stod(s[i]));
               }
