@@ -144,6 +144,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":DHANDDepthStep")) { code = 25; }
     else if (!strcmp(s[0], ":WriteNetcdfFormat")) { code = 26; }
     else if (!strcmp(s[0], ":InputNCFile")) { code = 27; }
+    else if (!strcmp(s[0], ":WritePngFormat")) { code = 28; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -379,6 +380,12 @@ bool ParseMainInputFile(CModel*& pModel,
       if (pOptions->noisy_run) { std::cout << "InputNCFile" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":InputNCFile", p, pOptions->noisy_run); break; }
       pOptions->in_nc_name = std::string(s[1]);
+      break;
+    }
+    case(28):
+    {/*:WritePngFormat*/
+      if (pOptions->noisy_run) { std::cout << "WritePngFormat" << std::endl; }
+      pOptions->out_format = enum_gridded_format::PNG;
       break;
     }
     case(100):

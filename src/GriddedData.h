@@ -29,6 +29,7 @@ public:
 
   // I/O Functions
   virtual void WriteToFile(std::string filepath) = 0;         // defined in StandardOutput.cpp
+  void WriteToPng(std::string filepath);                      // defined in StandardOutput.cpp
   virtual void pretty_print() const;                          // defined in StandardOutput.cpp
 };
 

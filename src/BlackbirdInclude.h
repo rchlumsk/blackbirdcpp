@@ -25,6 +25,7 @@
 #include <math.h>
 #include <memory>
 #include <ogrsf_frmts.h>
+#include <png.h>
 #include <set>
 #include <stdlib.h>
 #include <string>
@@ -350,7 +351,8 @@ enum enum_dh_method
 enum enum_gridded_format
 {
   RASTER,
-  NETCDF
+  NETCDF,
+  PNG
 };
 
 //*****************************************************************
@@ -643,6 +645,7 @@ inline std::string toString(enum_gridded_format method) {
   switch (method) {
   case RASTER: return "RASTER";
   case NETCDF: return "NETCDF";
+  case PNG: return "PNG";
   default: return "UNKNOWN";
   }
 }

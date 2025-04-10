@@ -1386,7 +1386,7 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
 //
 void CModel::initialize_out_gridded(bool is_dhand) {
 
-  if (bbopt->in_format == bbopt->out_format) { // raster to raster OR netcdf to netcdf
+  if (bbopt->in_format == bbopt->out_format || bbopt->out_format == enum_gridded_format::PNG) { // raster to raster OR netcdf to netcdf OR anything to png
     std::unique_ptr<CGriddedData> result;
     if (!is_dhand) {
       result = hand->clone();
@@ -1467,13 +1467,13 @@ void CModel::initialize_out_gridded(bool is_dhand) {
     res_raster->geotrans[0] = hand_netcdf->x_coords[0];                                                              // Origin X
     res_raster->geotrans[1] = (hand_netcdf->xsize > 1) ? (hand_netcdf->x_coords[1] - hand_netcdf->x_coords[0]) : 1;  // Pixel size X
     res_raster->geotrans[2] = 0;                                                                                     // No rotation
-    res_raster->geotrans[3] = hand_netcdf->y_coords[0]; // Origin Y (flipped y because netcdf stores reversed)
+    res_raster->geotrans[3] = hand_netcdf->y_coords[0];                                                              // Origin Y
     res_raster->geotrans[4] = 0;                                                                                     // No rotation
-    res_raster->geotrans[5] =
+    res_raster->geotrans[5] =                                                                                        // Pixel size Y
         (hand_netcdf->ysize > 1)
             ? (hand_netcdf->y_coords[1] -
                hand_netcdf->y_coords[0])
-            : -1; // Pixel size Y (flipped y because netcdf stores reversed)
+            : -1;
     res_raster->datatype = ConvertNetCDFTypeToGDAL(hand_netcdf->datatype);
     
     // Create projection reference string

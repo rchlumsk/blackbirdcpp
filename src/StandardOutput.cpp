@@ -113,7 +113,10 @@ void CModel::WriteGriddedOutput()
   if (bbopt->interpolation_postproc_method == enum_ppi_method::NONE) {
     return;
   }
-  if (bbopt->out_format == enum_gridded_format::RASTER) {
+  switch (bbopt->out_format)
+  {
+  case (enum_gridded_format::RASTER):
+  {
     if (!bbopt->silent_run) {
       std::cout << "Writing output to Raster files" << std::endl;
     }
@@ -121,7 +124,10 @@ void CModel::WriteGriddedOutput()
       std::string filepath = FilenamePrepare("bb_results_depth_" + fp_names[i] + ".tif");
       out_gridded[i]->WriteToFile(filepath);
     }
-  } else if (bbopt->out_format == enum_gridded_format::NETCDF) {
+    break;
+  }
+  case (enum_gridded_format::NETCDF):
+  {
     if (!bbopt->silent_run) {
       std::cout << "Writing output to NetCDF file" << std::endl;
     }
@@ -254,8 +260,24 @@ void CModel::WriteGriddedOutput()
     if (nc_close(ncid) != NC_NOERR) {
       ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to close NetCDF file.", exitcode::RUNTIME_ERR);
     }
-  } else {
+    break;
+  }
+  case (enum_gridded_format::PNG):
+  {
+    if (!bbopt->silent_run) {
+      std::cout << "Writing output to PNG files with metadata in JSON files" << std::endl;
+    }
+    for (int i = 0; i < out_gridded.size(); i++) {
+      std::string filepath = FilenamePrepare("bb_results_depth_" + fp_names[i] + ".png");
+      out_gridded[i]->WriteToPng(filepath);
+    }
+    break;
+  }
+  default:
+  {
     ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: unsupported output format", exitcode::BAD_DATA);
+    break;
+  }
   }
 }
 
@@ -290,6 +312,91 @@ void CRaster::WriteToFile(std::string filepath)
   output_band->SetNoDataValue(na_val);
 
   GDALClose(output_dataset);
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Writes gridded data to normalized png file with metadata in a json file
+//
+void CGriddedData::WriteToPng(std::string filepath)
+{
+  // Compute min/max values of data
+  double min_val = PLACEHOLDER, max_val = PLACEHOLDER;
+  for (int i = 0; i < xsize * ysize; i++) {
+    if (data[i] == na_val) {
+      continue;
+    }
+    if (data[i] < min_val || min_val == PLACEHOLDER) {
+      min_val = data[i];
+    }
+    if (data[i] > max_val || max_val == PLACEHOLDER) {
+      max_val = data[i];
+    }
+  }
+
+  // Normalize data to 0-255
+  std::vector<uint8_t> data_norm(xsize * ysize);
+  double range = max_val - min_val;
+  if (range == 0.) {
+    range = 1.;
+  }
+  for (int i = 0; i < xsize * ysize; i++) {
+    double norm = 255. * (data[i] - min_val) / range;
+    data_norm[i] = static_cast<uint8_t>(std::clamp(norm, 0., 255.));
+  }
+
+  // Write PNG
+  FILE *fp = nullptr;
+  if (fopen_s(&fp, filepath.c_str(), "wb") != 0 || !fp) {
+    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: Failed to "
+                   "create png file",
+                   exitcode::FILE_OPEN_ERR);
+  }
+
+  png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+  png_infop info = png_create_info_struct(png);
+  if (setjmp(png_jmpbuf(png))) {
+    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: libpng error", exitcode::RUNTIME_ERR);
+  }
+
+  png_init_io(png, fp);
+  png_set_IHDR(png, info, xsize, ysize, 8, PNG_COLOR_TYPE_GRAY,
+               PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT,
+               PNG_FILTER_TYPE_DEFAULT);
+  png_write_info(png, info);
+
+  for (int y = 0; y < ysize; y++) {
+    png_bytep row = reinterpret_cast<png_bytep>(&data_norm[y * xsize]);
+    png_write_row(png, row);
+  }
+
+  png_write_end(png, nullptr);
+  png_destroy_write_struct(&png, &info);
+  fclose(fp);
+
+  std::string json_path = filepath.substr(0, filepath.find_last_of('.')) + ".json";
+  double xmin, xmax, ymin, ymax;
+  if (CRaster *self_raster = dynamic_cast<CRaster *>(this)) {
+    xmin = self_raster->geotrans[0];
+    xmax = self_raster->geotrans[0] + xsize * self_raster->geotrans[1];
+    ymin = self_raster->geotrans[3] + ysize * self_raster->geotrans[5];
+    ymax = self_raster->geotrans[3];
+  } else if (CNetCDFLayer *self_netcdf = dynamic_cast<CNetCDFLayer *>(this)) {
+    xmin = self_netcdf->x_coords.front();
+    xmax = self_netcdf->x_coords.back();
+    ymin = self_netcdf->y_coords.back();
+    ymax = self_netcdf->y_coords.front();
+  } else {
+    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: gridded data is not a valid class", exitcode::RUNTIME_ERR);
+  }
+
+  std::ofstream json(json_path);
+  json << std::fixed << std::setprecision(6);
+  json << "{\n";
+  json << "  \"extents\": [[[" << ymax << ", " << xmin << "], [" << ymin << ", " << xmax << "]]],\n";
+  json << "  \"flow_rate\": \"" << name << "\",\n";
+  json << "  \"min_depth\": " << min_val << ",\n";
+  json << "  \"max_depth\": " << max_val << ",\n";
+  json << "}\n";
 }
 
 //////////////////////////////////////////////////////////////////
