@@ -4,7 +4,7 @@
     <ShowAllFiles>true</ShowAllFiles>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommandArguments>Waldemar_sample -o output\</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>Waldemar_sample -o output</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>C:\Users\heron\Documents\Brian\BlackbirdCpp\SampleModelFiles_Waldemar</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>

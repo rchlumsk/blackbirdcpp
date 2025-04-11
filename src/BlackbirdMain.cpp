@@ -140,8 +140,8 @@ void ProcessExecutableArguments(int argc, char* argv[], COptions*& pOptions)
     if (i != argc) {
       word = argv[i];
     }
-    if ((word == "-g") || (word == "-b") || (word == "-o") ||
-        (word == "-s") || (word == "-n") || (word == "-r") || (i == argc))
+    if ((word == "-g") || (word == "-b") || (word == "-o") || (word == "-s") ||
+        (word == "-n") || (word == "-r") || (word == "-f") || (i == argc))
     {
       if (mode == 0) {
         pOptions->bbi_filename = argument + ".bbi";
@@ -154,6 +154,12 @@ void ProcessExecutableArguments(int argc, char* argv[], COptions*& pOptions)
       else if (mode == 2) { pOptions->bbb_filename = argument; argument = ""; }
       else if (mode == 3) { pOptions->main_output_dir = argument; argument = ""; }
       else if (mode == 4) { pOptions->run_name = argument; argument = ""; }
+      else if (mode == 5) {
+        if (argument == "r") { pOptions->out_format = enum_gridded_format::RASTER; argument = ""; }
+        else if (argument == "n") { pOptions->out_format = enum_gridded_format::NETCDF; argument = ""; }
+        else if (argument == "p") { pOptions->out_format = enum_gridded_format::PNG; argument = ""; }
+        else { ExitGracefully(("BlackbirdMain: \"-f " + argument + "\" unsupported output format").c_str(), exitcode::BAD_DATA); }
+      }
 
       if (word == "-g") { mode = 1; }
       else if (word == "-b") { mode = 2; }
@@ -161,6 +167,7 @@ void ProcessExecutableArguments(int argc, char* argv[], COptions*& pOptions)
       else if (word == "-s") { pOptions->silent_run = true; mode = 10; }
       else if (word == "-n") { pOptions->noisy_run = true;  mode = 10; }
       else if (word == "-r") { mode = 4; }
+      else if (word == "-f") { mode = 5; }
     }
     else {
       if (argument == "") { argument += word; }
