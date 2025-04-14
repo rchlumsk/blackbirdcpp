@@ -145,7 +145,7 @@ void CModel::WriteGriddedOutput()
     std::string filepath = FilenamePrepare("bb_results_depth.nc");
 
     // Create the NetCDF file
-    if (nc_create(filepath.c_str(), NC_CLOBBER, &ncid) != NC_NOERR) {
+    if (nc_create(filepath.c_str(), NC_NETCDF4 | NC_CLOBBER, &ncid) != NC_NOERR) {
       ExitGracefully(("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to create NetCDF file: " + filepath).c_str(), exitcode::RUNTIME_ERR);
     }
 
@@ -218,7 +218,7 @@ void CModel::WriteGriddedOutput()
       std::string data_units = "meters";
       std::string data_longname = "result_depths_" + layer->fp_name;
       data_varid.push_back(PLACEHOLDER);
-      if (nc_def_var(ncid, layer->name.c_str(), NC_DOUBLE, 2, dims, &data_varid.back()) != NC_NOERR) {
+      if (nc_def_var(ncid, layer->name.c_str(), layer->datatype, 2, dims, &data_varid.back()) != NC_NOERR) {
         ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to define 'data' variable of NetCDF file.", exitcode::RUNTIME_ERR);
       }
       // Set units for the data variable
@@ -230,12 +230,26 @@ void CModel::WriteGriddedOutput()
         ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to write 'long_name' for data of NetCDF file.", exitcode::RUNTIME_ERR);
       }
       // Set _FillValue for the data variable
-      if (nc_put_att_double(ncid, data_varid.back(), "_FillValue", NC_DOUBLE, 1, &layer->na_val) != NC_NOERR) {
+      if (layer->datatype == NC_DOUBLE) {
+        if (nc_put_att_double(ncid, data_varid.back(), "_FillValue", layer->datatype, 1, &layer->na_val) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to write '_FillValue' for data of NetCDF file.", exitcode::RUNTIME_ERR);
+        }
+      } else if (layer->datatype == NC_FLOAT) { // convert to float before writing
+        float float_na = static_cast<float>(layer->na_val);
+        if (nc_put_att_float(ncid, data_varid.back(), "_FillValue", layer->datatype, 1, &float_na) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to write '_FillValue' for data of NetCDF file.", exitcode::RUNTIME_ERR);
+        }
+      }
+      if (nc_put_att_double(ncid, data_varid.back(), "_FillValue", layer->datatype, 1, &layer->na_val) != NC_NOERR) {
         ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to write '_FillValue' for data of NetCDF file.", exitcode::RUNTIME_ERR);
       }
       // Set flowprofile for the data variable
       if (nc_put_att_text(ncid, data_varid.back(), "flowprofile", layer->fp_name.size(), layer->fp_name.c_str()) != NC_NOERR) {
         ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to write 'flowprofile' for data of NetCDF file.", exitcode::RUNTIME_ERR);
+      }
+      // Enable compression for the data variable
+      if (nc_def_var_deflate(ncid, data_varid.back(), 1, 1, 4) != NC_NOERR) {
+        ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to apply compression for data of NetCDF file.", exitcode::RUNTIME_ERR);
       }
     }
 
@@ -257,8 +271,20 @@ void CModel::WriteGriddedOutput()
       }
 
       // Write the data values
-      if (nc_put_var_double(ncid, data_varid[i], layer->data) != NC_NOERR) {
-        ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to write 'data' values of NetCDF file.", exitcode::RUNTIME_ERR);
+      if (layer->datatype == NC_DOUBLE) {
+        if (nc_put_var_double(ncid, data_varid[i], layer->data) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to write 'data' values of NetCDF file.", exitcode::RUNTIME_ERR);
+        }
+      } else if (layer->datatype == NC_FLOAT) { // convert to float before writing
+        float *temp = static_cast<float *>(
+            CPLMalloc(sizeof(float) * layer->xsize * layer->ysize));
+        for (size_t i = 0; i < layer->xsize * layer->ysize; i++) {
+          temp[i] = static_cast<float>(layer->data[i]);
+        }
+        if (nc_put_var_float(ncid, data_varid[i], temp) != NC_NOERR) {
+          ExitGracefully("StandardOutput.cpp: CModel::WriteGriddedOutput: Failed to write 'data' values of NetCDF file.", exitcode::RUNTIME_ERR);
+        }
+        CPLFree(temp);
       }
     }
 
@@ -302,7 +328,7 @@ void CGriddedData::WriteToPng(std::string filepath)
   // Compute min/max values of data
   double min_val = PLACEHOLDER, max_val = PLACEHOLDER;
   for (int i = 0; i < xsize * ysize; i++) {
-    if (data[i] == na_val) {
+    if (std::isnan(data[i]) || data[i] == na_val) {
       continue;
     }
     if (data[i] < min_val || min_val == PLACEHOLDER) {
@@ -417,6 +443,14 @@ void CGriddedData::WriteToPng(std::string filepath)
 //
 void CRaster::WriteToFile(std::string filepath)
 {
+  // Set options
+  char **papszOptions = NULL;
+  papszOptions = CSLSetNameValue(papszOptions, "COMPRESS", "LZW");
+  papszOptions = CSLSetNameValue(papszOptions, "TILED", "YES");
+  papszOptions = CSLSetNameValue(papszOptions, "BLOCKXSIZE", "256");
+  papszOptions = CSLSetNameValue(papszOptions, "BLOCKYSIZE", "256");
+
+  // Create file and write data
   GDALDriver *driver = GetGDALDriverManager()->GetDriverByName("GTiff");
   ExitGracefullyIf(
       driver == nullptr,
@@ -430,24 +464,41 @@ void CRaster::WriteToFile(std::string filepath)
                    "StandardOutput.cpp: CRaster::WriteToFile: Raster "
                    "information not complete",
                    exitcode::RUNTIME_ERR);
-  GDALDataset *output_dataset = driver->Create(filepath.c_str(), xsize, ysize, 1, datatype, nullptr);
+  GDALDataset *output_dataset = driver->Create(filepath.c_str(), xsize, ysize, 1, datatype, papszOptions);
   ExitGracefullyIf(output_dataset == nullptr,
                    "StandardOutput.cpp: CRaster::WriteToFile: Failed to create "
                    "output raster file.",
                    exitcode::RUNTIME_ERR);
   GDALRasterBand *output_band = output_dataset->GetRasterBand(1);
-  output_band->RasterIO(GF_Write, 0, 0, xsize, ysize, data, xsize, ysize,
-                        GDT_Float64, 0, 0);
-  output_dataset->SetProjection(proj);
-  output_dataset->SetGeoTransform(geotrans);
-  output_band->SetNoDataValue(na_val);
+  if (output_band->SetNoDataValue(na_val) != CE_None) {
+    ExitGracefully("StandardOutput.cpp: CRaster::WriteToFile: Failed to set no data value", exitcode::RUNTIME_ERR);
+  }
+  if (output_band->RasterIO(GF_Write, 0, 0, xsize, ysize, data, xsize, ysize, GDT_Float64, 0, 0) != CE_None) {
+    ExitGracefully("StandardOutput.cpp: CRaster::WriteToFile: Failed to write raster data", exitcode::RUNTIME_ERR);
+  }
+  if (output_dataset->SetProjection(proj) != CE_None) {
+    ExitGracefully("StandardOutput.cpp: CRaster::WriteToFile: Failed to set projection", exitcode::RUNTIME_ERR);
+  }
+  if (output_dataset->SetGeoTransform(geotrans) != CE_None) {
+    ExitGracefully("StandardOutput.cpp: CRaster::WriteToFile: Failed to set geo transform", exitcode::RUNTIME_ERR);
+  }
 
+  if (output_band->FlushCache() != CE_None) {
+    ExitGracefully("StandardOutput.cpp: CRaster::WriteToFile: Failed to flush band cache", exitcode::RUNTIME_ERR);
+  }
+  if (output_dataset->FlushCache() != CE_None) {
+    ExitGracefully("StandardOutput.cpp: CRaster::WriteToFile: Failed to flush dataset cache", exitcode::RUNTIME_ERR);
+  }
+
+  // Cleanup
+  CSLDestroy(papszOptions);
   GDALClose(output_dataset);
 }
 
 //////////////////////////////////////////////////////////////////
 /// \brief Writes gridded data to netcdf file
 /// \param filepath [in] the full filepath to write gridded data to
+/// \note DEPRECATED. NOT USABLE IN CURRENT STATE. NEEDS UPDATE TO USE
 //
 void CNetCDFLayer::WriteToFile(std::string filepath) {
   int ncid;

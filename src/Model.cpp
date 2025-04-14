@@ -321,14 +321,14 @@ void CModel::ReadGISFiles() {
     }
 
     c_from_s = std::make_unique<CRaster>();
-    hand = std::make_unique<CRaster>();
-    handid = std::make_unique<CRaster>();
 
     bbopt->in_format = enum_gridded_format::RASTER;
     ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif", dynamic_cast<CRaster *>(c_from_s.get()));
     c_from_s->name = "Catchments from Streamnodes";
     if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
         bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
+      hand = std::make_unique<CRaster>();
+      handid = std::make_unique<CRaster>();
       ReadRasterFile(bbopt->gis_path + "/bb_hand.tif",  dynamic_cast<CRaster *>(hand.get()));
       hand->name = "HAND";
       if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
@@ -345,7 +345,7 @@ void CModel::ReadGISFiles() {
         if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
             bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
           dhandid.push_back(std::make_unique<CRaster>());
-          ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" + stream.str() + "m.tif", dynamic_cast<CRaster *>(dhand.back().get()));
+          ReadRasterFile(bbopt->gis_path + "/bb_dhand_pourpoint_id_depth_" + stream.str() + "m.tif", dynamic_cast<CRaster *>(dhandid.back().get()));
           dhandid.back()->name = "DHAND ID " + stream.str();
         }
       }
@@ -428,13 +428,13 @@ void CModel::ReadNetCDFFile(std::string filename) {
 
   // Read layers
   c_from_s = std::make_unique<CNetCDFLayer>();
-  hand = std::make_unique<CNetCDFLayer>();
-  handid = std::make_unique<CNetCDFLayer>();
 
   ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(c_from_s.get()), ncid, "catchments_streamnodes", x_len, y_len, x_coords, y_coords, epsg);
   c_from_s->name = "Catchments from Streamnodes";
   if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
+    hand = std::make_unique<CNetCDFLayer>();
+    handid = std::make_unique<CNetCDFLayer>();
     ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(hand.get()), ncid, "hand", x_len, y_len, x_coords, y_coords, epsg);
     hand->name = "HAND";
     if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
@@ -442,16 +442,16 @@ void CModel::ReadNetCDFFile(std::string filename) {
       handid->name = "HAND ID";
     }
   } else { // use dhand
-    for (auto d : dhand_depth_seq) {
+    for (int i = 0; i < dhand_depth_seq.size(); i++) {
       std::stringstream stream;
-      stream << std::fixed << std::setprecision(4) << d;
+      stream << std::fixed << std::setprecision(4) << dhand_depth_seq[i];
       dhand.push_back(std::make_unique<CNetCDFLayer>());
-      ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(dhand.back().get()), ncid, "dhand", x_len, y_len, x_coords, y_coords, epsg);
+      ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(dhand.back().get()), ncid, "dhand", x_len, y_len, x_coords, y_coords, epsg, i);
       dhand.back()->name = "DHAND " + stream.str();
       if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
           bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR) {
         dhandid.push_back(std::make_unique<CNetCDFLayer>());
-        ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(dhand.back().get()), ncid, "dhandid", x_len, y_len, x_coords, y_coords, epsg);
+        ReadNetCDFLayer(dynamic_cast<CNetCDFLayer *>(dhandid.back().get()), ncid, "dhandid", x_len, y_len, x_coords, y_coords, epsg, i);
         dhandid.back()->name = "DHAND ID " + stream.str();
       }
     }
@@ -470,11 +470,13 @@ void CModel::ReadNetCDFFile(std::string filename) {
 /// \param x_coords [in] x dimension data
 /// \param y_coords [in] y dimension data
 /// \param epsg [in] EPSG projection code of data
+/// \param depth_index [in] the index of dhand depth to be read, if applicable. DEFAULT VALUE = -1
 //
 void CModel::ReadNetCDFLayer(CNetCDFLayer *netcdf_obj, int ncid,
                              const std::string &var_name, int xsize, int ysize,
                              std::vector<double> x_coords,
-                             std::vector<double> y_coords, std::string epsg) {
+                             std::vector<double> y_coords, std::string epsg,
+                             int depth_index) {
   int varid;
   if (nc_inq_varid(ncid, var_name.c_str(), &varid) != NC_NOERR) {
     ExitGracefully(("Model.cpp: ReadNetCDFLayer: NetCDF file missing '" + var_name + "' variable.").c_str(),
@@ -486,14 +488,49 @@ void CModel::ReadNetCDFLayer(CNetCDFLayer *netcdf_obj, int ncid,
   netcdf_obj->x_coords = x_coords;
   netcdf_obj->y_coords = y_coords;
   netcdf_obj->epsg = epsg;
-  netcdf_obj->data = static_cast<double *>(
-      CPLMalloc(sizeof(double) * netcdf_obj->xsize * netcdf_obj->ysize));
-  nc_get_var_double(ncid, varid, netcdf_obj->data);
 
   // Read the datatype(e.g., nc_double, nc_float)
   if (nc_inq_vartype(ncid, varid, &netcdf_obj->datatype) != NC_NOERR) {
     ExitGracefully(("Model.cpp: ReadNetCDFFile: failed to read datatype of variable" + var_name).c_str(), exitcode::RUNTIME_ERR);
   }
+
+  // Read data
+  netcdf_obj->data = static_cast<double *>(
+      CPLMalloc(sizeof(double) * netcdf_obj->xsize * netcdf_obj->ysize));
+  if (netcdf_obj->datatype == NC_DOUBLE) { // reading double
+    if (depth_index < 0) { // reading 2d
+      if (nc_get_var_double(ncid, varid, netcdf_obj->data) != NC_NOERR) {
+        ExitGracefully("Model.cpp: ReadNetCDFFile: failed to read 2d data", exitcode::RUNTIME_ERR);
+      }
+    } else { // reading slice of 3d
+      size_t start[3] = {depth_index, 0, 0};
+      size_t count[3] = {1, netcdf_obj->ysize, netcdf_obj->xsize};
+      if (nc_get_vara_double(ncid, varid, start, count, netcdf_obj->data) != NC_NOERR) {
+        ExitGracefully("Model.cpp: ReadNetCDFFile: failed to read slice of 3d data", exitcode::RUNTIME_ERR);
+      }
+    }
+  } else if (netcdf_obj->datatype == NC_FLOAT) { // reading float and casting to double
+    float *temp = static_cast<float *>(
+        CPLMalloc(sizeof(float) * netcdf_obj->xsize * netcdf_obj->ysize));
+    if (depth_index < 0) { // reading 2d
+      if (nc_get_var_float(ncid, varid, temp) != NC_NOERR) {
+        ExitGracefully("Model.cpp: ReadNetCDFFile: failed to read 2d data", exitcode::RUNTIME_ERR);
+      }
+    } else { // reading slice of 3d
+      size_t start[3] = {depth_index, 0, 0};
+      size_t count[3] = {1, netcdf_obj->ysize, netcdf_obj->xsize};
+      if (nc_get_vara_float(ncid, varid, start, count, temp) != NC_NOERR) {
+        ExitGracefully("Model.cpp: ReadNetCDFFile: failed to read slice of 3d data", exitcode::RUNTIME_ERR);
+      }
+    }
+    for (size_t i = 0; i < netcdf_obj->xsize * netcdf_obj->ysize; i++) {
+      netcdf_obj->data[i] = static_cast<double>(temp[i]);
+    }
+    CPLFree(temp);
+  } else {
+    ExitGracefully("Model.cpp: ReadNetCDFLayer: unsupported datatype", exitcode::BAD_DATA);
+  }
+
   // Read _FillValue
   float fill_value;
   nc_type var_type;
@@ -1126,7 +1163,7 @@ void CModel::generate_spp_depths(int flow_ind) {
       // find max change in depth (from change in elev)
       double max_change = std::abs((seqelev_j - temp_elev) / ho_depth);
 
-      if (max_change > 0.5) {
+      if (bbopt->postproc_elev_corr_threshold != PLACEHOLDER && bbopt->postproc_elev_corr_threshold != 0 && max_change > 0.5) {
         std::string warn = "CModel.cpp: generate_spp_depths: max change >0.5 detected at streamnode nodeID=" + std::to_string(sid);
         WriteWarning(warn, bbopt->noisy_run);
       }
@@ -1181,7 +1218,7 @@ void CModel::generate_spp_depths(int flow_ind) {
       // find max change in depth (from change in elev)
       double max_change = std::abs((seqelev_j - temp_elev) / temp_depth);
 
-      if (max_change > 0.5) {
+      if (bbopt->postproc_elev_corr_threshold != PLACEHOLDER && bbopt->postproc_elev_corr_threshold != 0 && max_change > 0.5) {
         std::string warn = "CModel.cpp: generate_spp_depths: max change >0.5 detected at streamnode nodeID=" + std::to_string(sid);
         WriteWarning(warn, bbopt->noisy_run);
       }
@@ -1213,9 +1250,17 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
 
     // assigns the dhand value of the current raster cell (and dhandid value if interp method)
     if (bounds.first == bounds.second) { // "depth" is equal to some dhand depth
-      curr_dhand_val = dhand[bounds.first]->data[j];
+      if (std::isnan(dhand[bounds.first]->data[j]) || dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val) {
+        curr_dhand_val = PLACEHOLDER;
+      } else {
+        curr_dhand_val = dhand[bounds.first]->data[j];
+      }
       if (is_interp) {
-        curr_dhandid_val = dhandid[bounds.first]->data[j];
+        if (std::isnan(dhandid[bounds.first]->data[j]) || dhandid[bounds.first]->data[j] == dhandid[bounds.first]->na_val) {
+          curr_dhandid_val = PLACEHOLDER;
+        } else {
+          curr_dhandid_val = dhandid[bounds.first]->data[j];
+        }
       }
     } else {
       if (bbopt->dhand_method == enum_dh_method::INTERPOLATE) {
@@ -1226,13 +1271,13 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
                   "closest available dhand, though results should be "
                   "re-run with more dhand rasters to cover this depth",
               bbopt->noisy_run);
-          if (dhand[bounds.second]->data[j] == dhand[bounds.second]->na_val) {
+          if (std::isnan(dhand[bounds.second]->data[j]) || dhand[bounds.second]->data[j] == dhand[bounds.second]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
             curr_dhand_val = dhand[bounds.second]->data[j];
           }
           if (is_interp) {
-            if (dhandid[bounds.second]->data[j] == dhandid[bounds.second]->na_val) {
+            if (std::isnan(dhandid[bounds.second]->data[j]) || dhandid[bounds.second]->data[j] == dhandid[bounds.second]->na_val) {
               curr_dhandid_val = PLACEHOLDER;
             } else {
               curr_dhandid_val = dhandid[bounds.second]->data[j];
@@ -1245,21 +1290,21 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
                   "closest available dhand, though results should be "
                   "re-run with more dhand rasters to cover this depth",
               bbopt->noisy_run);
-          if (dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val) {
+          if (std::isnan(dhand[bounds.first]->data[j]) || dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
             curr_dhand_val = dhand[bounds.first]->data[j];
           }
           if (is_interp) {
-            if (dhandid[bounds.first]->data[j] == dhandid[bounds.first]->na_val) {
+            if (std::isnan(dhandid[bounds.first]->data[j]) || dhandid[bounds.first]->data[j] == dhandid[bounds.first]->na_val) {
               curr_dhandid_val = PLACEHOLDER;
             } else {
               curr_dhandid_val = dhandid[bounds.first]->data[j];
             }
           }
         } else { // "depth" is between 2 dhand depths
-          if (dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val ||
-              dhand[bounds.second]->data[j] == dhand[bounds.second]->na_val) {
+          if (std::isnan(dhand[bounds.first]->data[j]) || dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val ||
+              std::isnan(dhand[bounds.second]->data[j]) || dhand[bounds.second]->data[j] == dhand[bounds.second]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
             double r1 = dhand[bounds.first]->data[j];
@@ -1268,31 +1313,39 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
             double d2 = dhand_depth_seq[bounds.second];
 
             curr_dhand_val = r1 * ((d1 - curr_depth) / (d1 - d2)) +
-                              r2 * ((curr_depth - d2) / (d1 - d2));
+                             r2 * ((curr_depth - d2) / (d1 - d2));
+            if (is_interp) {
+              if (std::isnan(dhandid[bounds.first]->data[j]) || dhandid[bounds.first]->data[j] == dhandid[bounds.first]->na_val ||
+                  std::isnan(dhandid[bounds.second]->data[j]) || dhandid[bounds.second]->data[j] == dhandid[bounds.second]->na_val) {
+                curr_dhandid_val = PLACEHOLDER;
+              } else {
+                curr_dhandid_val = dhandid[bounds.first]->data[j];
+              }
+            }
           }
         }
       } else { // enum_dh_method::FLOOR
         if (bounds.first == PLACEHOLDER) {
-          if (dhand[bounds.second]->data[j] == dhand[bounds.second]->na_val) {
+          if (std::isnan(dhand[bounds.second]->data[j]) || dhand[bounds.second]->data[j] == dhand[bounds.second]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
             curr_dhand_val = dhand[bounds.second]->data[j];
           }
           if (is_interp) {
-            if (dhandid[bounds.second]->data[j] == dhandid[bounds.second]->na_val) {
+            if (std::isnan(dhandid[bounds.second]->data[j]) || dhandid[bounds.second]->data[j] == dhandid[bounds.second]->na_val) {
               curr_dhandid_val = PLACEHOLDER;
             } else {
               curr_dhandid_val = dhandid[bounds.second]->data[j];
             }
           }
         } else {
-          if (dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val) {
+          if (std::isnan(dhand[bounds.first]->data[j]) || dhand[bounds.first]->data[j] == dhand[bounds.first]->na_val) {
             curr_dhand_val = PLACEHOLDER;
           } else {
             curr_dhand_val = dhand[bounds.first]->data[j];
           }
           if (is_interp) {
-            if (dhandid[bounds.first]->data[j] == dhandid[bounds.first]->na_val) {
+            if (std::isnan(dhandid[bounds.first]->data[j]) || dhandid[bounds.first]->data[j] == dhandid[bounds.first]->na_val) {
               curr_dhandid_val = PLACEHOLDER;
             } else {
               curr_dhandid_val = dhandid[bounds.first]->data[j];
@@ -1301,7 +1354,7 @@ void CModel::generate_dhand_vals(int flow_ind, bool is_interp) {
         }
       }
     }
-    // adds dhand value of current raster cell to dhand_vals and (and current dhandid to dhandid_vals if interp method)
+    // adds dhand value of current raster cell to dhand_vals (and current dhandid to dhandid_vals if interp method)
     dhand_vals.push_back(curr_dhand_val);
     if (is_interp) {
       dhandid_vals.push_back(curr_dhandid_val);
@@ -1327,20 +1380,20 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
     // assign curr_depth based on whether post processing method is interp and/or dhand method
     if (!is_interp) {
       curr_depth =
-          c_from_s->data[j] != c_from_s->na_val
+          !std::isnan(c_from_s->data[j]) && c_from_s->data[j] != c_from_s->na_val
               ? (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s->data[j])]->depth
               : PLACEHOLDER;
     } else {
       if (!is_dhand) { // interp_hand
-        if ((handid->data[j] != handid->na_val &&
-             (handid->data[j] - 1 >= spp_depths.size() || handid->data[j] - 1 < 0))) {
+        if (!std::isnan(handid->data[j]) && handid->data[j] != handid->na_val &&
+             (handid->data[j] - 1 >= spp_depths.size() || handid->data[j] - 1 < 0)) {
           ExitGracefully(
               ("Model.cpp: postprocess_floodresults: handid specifies a "
                "pourpoint id of " + std::to_string(handid->data[j]) +
                " which does not exist in snapped pourpoints").c_str(),
               exitcode::BAD_DATA);
         }
-        curr_depth = handid->data[j] != handid->na_val
+        curr_depth = !std::isnan(handid->data[j]) && handid->data[j] != handid->na_val
                                 ? spp_depths[handid->data[j] - 1]
                                 : PLACEHOLDER;
       } else { // interp_dhand
@@ -1359,7 +1412,7 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
     }
     // assign curr_hand based on whether post processing method is dhand method
     if (!is_dhand) {
-      curr_hand = hand->data[j] != hand->na_val ? hand->data[j] : PLACEHOLDER;
+      curr_hand = !std::isnan(hand->data[j]) && hand->data[j] != hand->na_val ? hand->data[j] : PLACEHOLDER;
     } else {
       curr_hand = dhand_vals[j];
     }

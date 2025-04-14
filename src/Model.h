@@ -62,7 +62,7 @@ public:
   void ReadNetCDFFile(std::string filename);                                                                // reads specified netcdf file
   void ReadNetCDFLayer(CNetCDFLayer *netcdf_obj, int ncid, const std::string &var_name,                          // reads specified netcdf layer
                        int xsize, int ysize, std::vector<double> x_coords,
-                       std::vector<double> y_coords, std::string epsg);
+                       std::vector<double> y_coords, std::string epsg, int depth_index = -1);
   void ReadRasterFile(std::string filename, CRaster *raster_obj);                                           // reads specified raster file
   void ReadVectorFile(std::string filename, CVector &vector_obj);                                           // reads specified vector file
   void postprocess_floodresults();                                                                          // postprocesses flood results based on bbopt method

@@ -15,7 +15,7 @@ static std::string BlackbirdBuildDate(__DATE__);
 
 int main(int argc, char* argv[])
 {
-  clock_t     t0, t1;          //computational time markers
+  clock_t     t0, t1, t2;          //computational time markers
   // Initialize model
   pModel = new CModel();
   COptions*& pOptions = pModel->bbopt;
@@ -84,6 +84,8 @@ int main(int argc, char* argv[])
   // Post-process flood results with method specified by input parameter
   pModel->postprocess_floodresults();
 
+  t2 = clock();
+
   //Finished Solving----------------------------------------------------
   // Initialize test output file for writing to
   //std::ofstream TESTOUTPUT;
@@ -102,7 +104,8 @@ int main(int argc, char* argv[])
     std::cout << "======================================================" << std::endl;
     std::cout << "...Blackbird Simulation Complete: " << pOptions->run_name << std::endl;
     std::cout << "        Parsing & initialization: " << float(t1 - t0) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
-    std::cout << "                      Simulation: " << float(clock() - t1) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << "                      Simulation: " << float(t2 - t1) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << "                  Writing output: " << float(clock() - t2) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
     if (pOptions->main_output_dir != "") {
       std::cout << "  Output written to " << pOptions->main_output_dir << std::endl;
     }
