@@ -185,8 +185,8 @@ void CModel::hyd_compute_profile() {
     WriteAdvisory("The range of required peak flood times ranges from " +
                       std::to_string(peak_hrs_min) + " to " +
                       std::to_string(peak_hrs_max) + " hours for flow " +
-                      std::to_string(flow) +
-                      " within the computed streamnodes",
+                      std::to_string(flow) + "(" + fp_names[flow] +
+                      ") within the computed streamnodes",
                   bbopt->noisy_run);
     peak_hrs_min = PLACEHOLDER;
     peak_hrs_max = PLACEHOLDER;
