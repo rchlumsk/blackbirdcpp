@@ -3,7 +3,7 @@
 
 #include "BlackbirdInclude.h"
 #include "Streamnode.h"
-#include "BoundaryConditions.h"
+#include "BoundaryCondition.h"
 #include "Options.h"
 #include "GriddedData.h"
 #include "Raster.h"
@@ -16,7 +16,7 @@ class CModel {
 public:
   // Member variables
   std::vector<CStreamnode*> *bbsn;                      // A vector of Streamnode objects
-  CBoundaryConditions *bbbc;                            // A single bb_boundarycondition object
+  std::vector<CBoundaryCondition*> *bbbc;               // A vector of BoundaryCondition objects
   COptions *bbopt;                                      // A single bb_options object
   std::vector<double> dhand_depth_seq;                  // sequence of depths for dhand
   std::unique_ptr<CGriddedData> c_from_s;               // pointer to GriddedData object for catchments from streamnodes
@@ -78,12 +78,12 @@ protected:
   std::vector<int> dhandid_vals;                          // handids corresponding to dhand_vals for specific flow profile. used in postprocess_floodresults if bbopt->interpolation_postproc_method is a dhand method and interp method
 
   // Private functions
-  void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res); // helper function used in hyd_compute_profile
-  std::pair<int, int> dhand_bounding_depths(double depth);                                                 // finds nearest dhands to use in postprocess_floodresults
-  void generate_spp_depths(int flow_ind);                                                                  // generates spp_depths for the flow_ind-th profile. used in postprocess_floodresults
-  void generate_dhand_vals(int flow_ind, bool is_interp);                                                  // generates dhand_vals for the flow_ind-th profile. used in postprocess_floodresults
-  void generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand);                                  // generates an output gridded for the flow_ind-th profile. used in postprocess_floodresults
-  void initialize_out_gridded(bool is_dhand);                                                              // initializes an output gridded data instance for the flow ind-th profile. used in generate_out_gridded
+  void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res, CBoundaryCondition *&bc); // helper function used in hyd_compute_profile
+  std::pair<int, int> dhand_bounding_depths(double depth);                                                                           // finds nearest dhands to use in postprocess_floodresults
+  void generate_spp_depths(int flow_ind);                                                                                            // generates spp_depths for the flow_ind-th profile. used in postprocess_floodresults
+  void generate_dhand_vals(int flow_ind, bool is_interp);                                                                            // generates dhand_vals for the flow_ind-th profile. used in postprocess_floodresults
+  void generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand);                                                            // generates an output gridded for the flow_ind-th profile. used in postprocess_floodresults
+  void initialize_out_gridded(bool is_dhand);                                                                                        // initializes an output gridded data instance for the flow ind-th profile. used in generate_out_gridded
 };
 
 #endif

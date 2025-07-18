@@ -3,7 +3,7 @@
 
 #include "BlackbirdInclude.h"
 
-class CBoundaryConditions {
+class CBoundaryCondition {
 public:
   // Member variables
   int nodeID;
@@ -12,7 +12,7 @@ public:
   double init_WSL; // initial water surface level
 
   // Constructor
-  CBoundaryConditions();
+  CBoundaryCondition();
 
   // Functions
   void pretty_print() const; // defined in StandardOutput.cpp

@@ -169,7 +169,7 @@
   <ItemGroup>
     <ClCompile Include="BlackbirdInclude.h" />
     <ClCompile Include="BlackbirdMain.cpp" />
-    <ClCompile Include="BoundaryConditions.cpp" />
+    <ClCompile Include="BoundaryCondition.cpp" />
     <ClCompile Include="CommonFunctions.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="NetCDFLayer.cpp" />
@@ -188,7 +188,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BlackbirdMain.h" />
-    <ClInclude Include="BoundaryConditions.h" />
+    <ClInclude Include="BoundaryCondition.h" />
     <ClInclude Include="GracefulEnd.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="NetCDFLayer.h" />

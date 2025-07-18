@@ -4,7 +4,7 @@
 // Default constructor
 CModel::CModel()
   : bbsn(new std::vector<CStreamnode*>),
-  bbbc(new CBoundaryConditions),
+  bbbc(new std::vector<CBoundaryCondition*>),
   bbopt(new COptions),
   dhand_depth_seq(),
   c_from_s(nullptr),
@@ -58,7 +58,15 @@ CModel::CModel(const CModel &other)
     bbsn = nullptr;
   }
 
-  bbbc = other.bbbc ? new CBoundaryConditions(*other.bbbc) : nullptr;
+  if (other.bbbc) {
+    bbbc = new std::vector<CBoundaryCondition *>();
+    for (const auto &node : *other.bbbc) {
+      bbbc->push_back(new CBoundaryCondition(*node));
+    }
+  } else {
+    bbbc = nullptr;
+  }
+
   bbopt = other.bbopt ? new COptions(*other.bbopt) : nullptr;
 
   if (other.hyd_result) {
@@ -134,7 +142,15 @@ CModel &CModel::operator=(const CModel &other) {
     bbsn = nullptr;
   }
 
-  bbbc = other.bbbc ? new CBoundaryConditions(*other.bbbc) : nullptr;
+  if (other.bbbc) {
+    bbbc = new std::vector<CBoundaryCondition *>();
+    for (const auto &node : *other.bbbc) {
+      bbbc->push_back(new CBoundaryCondition(*node));
+    }
+  } else {
+    bbbc = nullptr;
+  }
+
   bbopt = other.bbopt ? new COptions(*other.bbopt) : nullptr;
 
   if (other.hyd_result) {
@@ -164,9 +180,13 @@ void CModel::hyd_compute_profile() {
   ExitGracefullyIf(bbopt->dx <= 0,
                    "Model.cpp: hyd_compute_profile(): dx must be greater than 0",
                    BAD_DATA);
-
+  
   // Get streamnode associated with the boundary condition
-  CStreamnode *start_streamnode = get_streamnode_by_id(bbbc->nodeID);
+  ExitGracefullyIf(
+      bbbc->empty(),
+      "Mode.cpp: hyd_compute_profile(): no boundary conditions provided",
+      BAD_DATA);
+  CStreamnode *start_streamnode = get_streamnode_by_id((*bbbc)[0]->nodeID);
 
   ExitGracefullyIf(!start_streamnode,
                    "Model.cpp: hyd_compute_profile(): boundary condition "
@@ -181,7 +201,10 @@ void CModel::hyd_compute_profile() {
   // Compute the corresponding hydraulic profile starting at the boundary condition streamnode
   for (int f = 0; f < start_streamnode->output_flows.size(); f++) {
     flow = f;
-    compute_streamnode(start_streamnode, start_streamnode, hyd_result);
+    for (auto bc : *bbbc) {
+      start_streamnode = get_streamnode_by_id(bc->nodeID);
+      compute_streamnode(start_streamnode, start_streamnode, hyd_result, bc);
+    }
     WriteAdvisory("The range of required peak flood times ranges from " +
                       std::to_string(peak_hrs_min) + " to " +
                       std::to_string(peak_hrs_max) + " hours for flow " +
@@ -710,8 +733,9 @@ void CModel::postprocess_floodresults() {
 /// \param sn [in] streamnode for which to compute hydraulic profile
 /// \param down_sn [in] streamnode one node downstream of sn
 /// \param res [in/out] object to add output to when done computing
+/// \param bc [in] boundary condition for current set of streamnodes
 //
-void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res) {
+void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res, CBoundaryCondition *&bc) {
   if (!bbopt->silent_run) {
     std::cout << "Computing profile for streamnode with node id " << sn->nodeID << std::endl;
   }
@@ -732,25 +756,25 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   sn->mm->bed_slope = sn->bed_slope;
   sn->mm->flow = sn->output_flows[flow];
 
-  if (sn->nodeID == down_sn->nodeID) { // if so, assumes this is the boundary condition streamnode
+  if (sn->nodeID == bc->nodeID) { // boundary condition streamnode
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
       sn->mm->wsl = sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt);
     } else { // bbopt->modeltype != enum_mt_method::HAND_MANNING
       // estimate first streamnode from supplied boundary conditions
-      switch (bbbc->bctype)
+      switch (bc->bctype)
       {
       case (enum_bc_type::NORMAL_DEPTH): {
-        if (bbbc->bcvalue <= 0 || bbbc->bcvalue > 1) {
+        if (bc->bcvalue <= 0 || bc->bcvalue > 1) {
           WriteWarning("Model.cpp: compute_streamnode: bcvalue may not be a "
                        "reasonable slope, please check!",
                        bbopt->noisy_run);
         }
-        sn->mm->wsl = sn->compute_normal_depth(sn->mm->flow, bbbc->bcvalue, bbbc->init_WSL, bbopt);
-        sn->mm->sf = bbbc->bcvalue; // override sf from preproc
+        sn->mm->wsl = sn->compute_normal_depth(sn->mm->flow, bc->bcvalue, bc->init_WSL, bbopt);
+        sn->mm->sf = bc->bcvalue; // override sf from preproc
         break;
       }
       case (enum_bc_type::SET_WSL): {
-        sn->mm->wsl = bbbc->bcvalue;
+        sn->mm->wsl = bc->bcvalue;
         ExitGracefullyIf(sn->mm->wsl < sn->mm->min_elev,
                          "Model.cpp: compute_streamnode: SET_WSL used as "
                          "boundary condition but value provided is less than "
@@ -759,8 +783,8 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
         break;
       }
       case (enum_bc_type::SET_DEPTH): {
-        sn->mm->wsl = bbbc->bcvalue + sn->mm->min_elev;
-        ExitGracefullyIf(bbbc->bcvalue < 0,
+        sn->mm->wsl = bc->bcvalue + sn->mm->min_elev;
+        ExitGracefullyIf(bc->bcvalue < 0,
                          "Model.cpp: compute_streamnode: SET_DEPTH used as "
                          "boundary condition, value must be >= 0",
                          BAD_DATA);
@@ -989,11 +1013,11 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   // recursively call compute_streamnode for upstream streamnodes
   CStreamnode *temp_sn = get_streamnode_by_id(sn->upnodeID1);
   if (temp_sn) {
-    compute_streamnode(temp_sn, sn, res);
+    compute_streamnode(temp_sn, sn, res, bc);
   }
   temp_sn = get_streamnode_by_id(sn->upnodeID2);
   if (temp_sn) {
-    compute_streamnode(temp_sn, sn, res);
+    compute_streamnode(temp_sn, sn, res, bc);
   }
 }
 

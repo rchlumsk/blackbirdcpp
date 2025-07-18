@@ -645,7 +645,9 @@ void CModel::WriteFullModel() const
     r->pretty_print();
   }
   this->bbopt->pretty_print();
-  this->bbbc->pretty_print();
+  for (auto bc : *bbbc) {
+    bc->pretty_print();
+  }
   for (auto sn : *bbsn) {
     if (sn->nodetype == enum_nodetype::REACH) {
       ((CReach *)sn)->pretty_print();
@@ -789,13 +791,13 @@ void COptions::pretty_print() const
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Cleanly prints CBoundaryConditions class data to testoutput
+/// \brief Cleanly prints CBoundaryCondition class data to testoutput
 //
-void CBoundaryConditions::pretty_print() const
+void CBoundaryCondition::pretty_print() const
 {
   std::ofstream TESTOUTPUT;
   TESTOUTPUT.open((g_output_directory + "Blackbird_testoutput.txt").c_str(), std::ios::app);
-  TESTOUTPUT << "\n=========== Boundary Conditions ===========" << std::endl;
+  TESTOUTPUT << "\n=========== Boundary Condition ============" << std::endl;
   TESTOUTPUT << std::left << std::setw(20) << "Node ID:" << nodeID << std::endl;
   TESTOUTPUT << std::setw(20) << "Boundary Type:" << toString(bctype) << std::endl;
   TESTOUTPUT << std::setw(20) << "Boundary Value:" << bcvalue << std::endl;

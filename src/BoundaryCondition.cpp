@@ -1,8 +1,8 @@
 #include "BlackbirdInclude.h"
-#include "BoundaryConditions.h"
+#include "BoundaryCondition.h"
 
 // Default constructor
-CBoundaryConditions::CBoundaryConditions()
+CBoundaryCondition::CBoundaryCondition()
   : nodeID(PLACEHOLDER),
   bctype(enum_bc_type::NORMAL_DEPTH),
   bcvalue(PLACEHOLDER),

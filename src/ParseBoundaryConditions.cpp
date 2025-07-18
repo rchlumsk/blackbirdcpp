@@ -16,7 +16,7 @@ void  ImproperFormatWarning(std::string command, CParser* p, bool noisy);
 bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
 {
   CStreamnode*               pSN(NULL);             //temp pointers
-  CBoundaryConditions*       pBC(NULL);
+  CBoundaryCondition*       pBC(NULL);
   bool               ended = false;
   bool               in_ifmode_statement = false;
 
@@ -114,8 +114,8 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
       if (pOptions->noisy_run) { std::cout << "Boundary conditions information begin" << std::endl; }
       if (Len != 1) { pp->ImproperFormat(s); }
       else {
-        pBC = new CBoundaryConditions();
-        pModel->bbbc = pBC;
+        pBC = new CBoundaryCondition();
+        pModel->bbbc->push_back(pBC);
       }
       break;
     }
