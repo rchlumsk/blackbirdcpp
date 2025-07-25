@@ -64,8 +64,8 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":EndIfModeEquals")) { code = -2; }//treat as comment - unused mode
     else if (!strcmp(s[0], ":RedirectToFile")) { code = -3; }//redirect to secondary file
     //--------------------MODEL OPTIONS ------------------------
-    else if (!strcmp(s[0], ":BoundaryConditions")) { code = 1; }
-    else if (!strcmp(s[0], ":EndBoundaryConditions")) { code = 2; }
+    else if (!strcmp(s[0], ":BoundaryCondition")) { code = 1; }
+    else if (!strcmp(s[0], ":EndBoundaryCondition")) { code = 2; }
     else if (!strcmp(s[0], ":nodeID")) { code = 3; }
     else if (!strcmp(s[0], ":BCType")) { code = 7; }
     else if (!strcmp(s[0], ":BCValue")) { code = 8; }
@@ -110,7 +110,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
       if (pOptions->noisy_run) { std::cout << "EOF" << std::endl; } ended = true; break;
     }
     case(1):  //----------------------------------------------
-    { /*:BoundaryConditions*/
+    { /*:BoundaryCondition*/
       if (pOptions->noisy_run) { std::cout << "Boundary condition information begin" << std::endl; }
       if (Len != 1) { pp->ImproperFormat(s); }
       else {
@@ -120,7 +120,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
       break;
     }
     case(2):  //----------------------------------------------
-    { /*:EndBoundaryConditions*/
+    { /*:EndBoundaryCondition*/
       if (pOptions->noisy_run) { std::cout << "Boundary condition information end" << std::endl; }
       if (Len != 1) { pp->ImproperFormat(s); }
       else {
