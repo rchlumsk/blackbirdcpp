@@ -111,7 +111,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
     }
     case(1):  //----------------------------------------------
     { /*:BoundaryConditions*/
-      if (pOptions->noisy_run) { std::cout << "Boundary conditions information begin" << std::endl; }
+      if (pOptions->noisy_run) { std::cout << "Boundary condition information begin" << std::endl; }
       if (Len != 1) { pp->ImproperFormat(s); }
       else {
         pBC = new CBoundaryCondition();
@@ -121,7 +121,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
     }
     case(2):  //----------------------------------------------
     { /*:EndBoundaryConditions*/
-      if (pOptions->noisy_run) { std::cout << "Boundary conditions information end" << std::endl; }
+      if (pOptions->noisy_run) { std::cout << "Boundary condition information end" << std::endl; }
       if (Len != 1) { pp->ImproperFormat(s); }
       else {
         if (pBC == NULL)
