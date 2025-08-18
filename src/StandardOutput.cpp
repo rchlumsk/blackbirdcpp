@@ -346,10 +346,31 @@ void CGriddedData::WriteToPng(std::string filepath)
     range = 1.;
   }
   for (int i = 0; i < xsize * ysize; i++) {
-    double norm = 255. * (data[i] - min_val) / range;
-    data_norm[i] = static_cast<uint8_t>(std::clamp(norm, 0., 255.));
+    if (std::isnan(data[i]) || data[i] == na_val) {
+      data_norm[i] = 0;
+    } else {
+      double norm = 255. * (data[i] - min_val) / range;
+      data_norm[i] = static_cast<uint8_t>(std::clamp(norm, 0., 255.));
+    }
   }
 
+  // Define blue palette from #eff3ffff to #08519cff
+  png_color palette[256];
+  png_byte alpha[256];
+
+  // Start/end colors (RGBA)
+  int r_start = 0xef, g_start = 0xf3, b_start = 0xff;
+  int r_end = 0x08, g_end = 0x51, b_end = 0x9c;
+
+  for (int i = 0; i < 256; i++) {
+    double t = i / 255.0; // interpolation factor
+    palette[i].red = static_cast<png_byte>(r_start + t * (r_end - r_start));
+    palette[i].green = static_cast<png_byte>(g_start + t * (g_end - g_start));
+    palette[i].blue = static_cast<png_byte>(b_start + t * (b_end - b_start));
+
+    // Alpha: 0=transparent for NA (i==0), 255 opaque otherwise
+    alpha[i] = (i == 0) ? 0 : 255;
+  }
   // Initialize PNG
   FILE *fp = nullptr;
   if (fopen_s(&fp, filepath.c_str(), "wb") != 0 || !fp) {
@@ -365,9 +386,11 @@ void CGriddedData::WriteToPng(std::string filepath)
   }
 
   png_init_io(png, fp);
-  png_set_IHDR(png, info, xsize, ysize, 8, PNG_COLOR_TYPE_GRAY,
+  png_set_IHDR(png, info, xsize, ysize, 8, PNG_COLOR_TYPE_PALETTE,
                PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT,
                PNG_FILTER_TYPE_DEFAULT);
+  png_set_PLTE(png, info, palette, 256);
+  png_set_tRNS(png, info, alpha, 256, nullptr);
   png_write_info(png, info);
 
   // Write normalized data to PNG
@@ -376,14 +399,11 @@ void CGriddedData::WriteToPng(std::string filepath)
     png_write_row(png, row);
   }
 
-  // Clean up PNG
-  png_write_end(png, nullptr);
-  png_destroy_write_struct(&png, &info);
-  fclose(fp);
-
-  // Initialized json path
-  std::string json_path = filepath.substr(0, filepath.find_last_of('.')) + ".json";
-
+  // Prepare JSON metadata
+  std::ostringstream json_stream;
+  json_stream << std::fixed << std::setprecision(6);
+  json_stream << "{\n";
+  
   // Get extents of data
   double xmin, xmax, ymin, ymax;
   OGRSpatialReference src;
@@ -393,7 +413,9 @@ void CGriddedData::WriteToPng(std::string filepath)
     ymin = self_raster->geotrans[3] + ysize * self_raster->geotrans[5];
     ymax = self_raster->geotrans[3];
     if (src.importFromWkt(self_raster->proj) != OGRERR_NONE) {
-      ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to import source projection", exitcode::RUNTIME_ERR);
+      ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to "
+                     "import source projection",
+                     exitcode::RUNTIME_ERR);
     }
   } else if (CNetCDFLayer *self_netcdf = dynamic_cast<CNetCDFLayer *>(this)) {
     xmin = self_netcdf->x_coords.front();
@@ -401,40 +423,67 @@ void CGriddedData::WriteToPng(std::string filepath)
     ymin = self_netcdf->y_coords.back();
     ymax = self_netcdf->y_coords.front();
     if (src.importFromEPSG(std::stoi(self_netcdf->epsg)) != OGRERR_NONE) {
-      ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to import source projection", exitcode::RUNTIME_ERR);
+      ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to "
+                     "import source projection",
+                     exitcode::RUNTIME_ERR);
     }
   } else {
-    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: gridded data is not a valid class", exitcode::RUNTIME_ERR);
+    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: gridded data "
+                   "is not a valid class",
+                   exitcode::RUNTIME_ERR);
   }
 
   // Convert extents to EPSG 4326
   OGRSpatialReference dst;
   if (dst.importFromEPSG(4326) != OGRERR_NONE) {
-    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to import destination projection", exitcode::RUNTIME_ERR);
+    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to "
+                   "import destination projection",
+                   exitcode::RUNTIME_ERR);
   }
-  src.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER); // ensure source uses traditional axis order
-  dst.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER); // ensure source uses traditional axis order
-  OGRCoordinateTransformation *transform = OGRCreateCoordinateTransformation(&src, &dst);
+  src.SetAxisMappingStrategy(
+      OAMS_TRADITIONAL_GIS_ORDER); // ensure source uses traditional axis order
+  dst.SetAxisMappingStrategy(
+      OAMS_TRADITIONAL_GIS_ORDER); // ensure destination uses traditional axis
+                                   // order
+  OGRCoordinateTransformation *transform =
+      OGRCreateCoordinateTransformation(&src, &dst);
   if (!transform) {
-    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to create coordinate transformation", exitcode::RUNTIME_ERR);
+    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to "
+                   "create coordinate transformation",
+                   exitcode::RUNTIME_ERR);
   }
   if (!transform->Transform(1, &xmin, &ymax)) {
-    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: coordinate transform failed for (xmin, ymax)", exitcode::RUNTIME_ERR);
+    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: coordinate "
+                   "transform failed for (xmin, ymax)",
+                   exitcode::RUNTIME_ERR);
   }
   if (!transform->Transform(1, &xmax, &ymin)) {
-    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: coordinate transform failed for (xmax, ymin)", exitcode::RUNTIME_ERR);
+    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: coordinate "
+                   "transform failed for (xmax, ymin)",
+                   exitcode::RUNTIME_ERR);
   }
   OCTDestroyCoordinateTransformation(transform);
 
   // Write metadata to json file
-  std::ofstream json(json_path);
-  json << std::fixed << std::setprecision(6);
-  json << "{\n";
-  json << "  \"extents\": [[[" << ymax << ", " << xmin << "], [" << ymin << ", " << xmax << "]]],\n";
-  json << "  \"flow_rate\": \"" << name << "\",\n";
-  json << "  \"min_depth\": " << min_val << ",\n";
-  json << "  \"max_depth\": " << max_val << ",\n";
-  json << "}\n";
+  json_stream << "  \"extents\": [[" << ymax << ", " << xmin << "], [" << ymin
+              << ", " << xmax << "]],\n";
+  json_stream << "  \"flow_rate\": \"" << name << "\",\n";
+  json_stream << "  \"min_depth\": " << min_val << ",\n";
+  json_stream << "  \"max_depth\": " << max_val << "\n";
+  json_stream << "}\n";
+
+  // Embed JSON in PNG as text chunk
+  png_text text_chunk;
+  std::string json_str = json_stream.str();
+  text_chunk.compression = PNG_TEXT_COMPRESSION_NONE;
+  text_chunk.key = const_cast<char *>("metadata");
+  text_chunk.text = const_cast<char *>(json_str.c_str());
+  png_set_text(png, info, &text_chunk, 1);
+
+  // Clean up PNG
+  png_write_end(png, info);
+  png_destroy_write_struct(&png, &info);
+  fclose(fp);
 }
 
 //////////////////////////////////////////////////////////////////
