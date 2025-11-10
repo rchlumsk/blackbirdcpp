@@ -26,6 +26,7 @@ public:
   std::vector<std::unique_ptr<CGriddedData>> dhand;     // vector of pointers to GriddedData objects for dhand
   std::vector<std::unique_ptr<CGriddedData>> dhandid;   // vector of pointers to GriddedData objects for dhand pourpoints
   std::vector<std::string> fp_names;                    // names of flowprofiles read in from .bbb
+  double flow_mult;                                     // global flow multiplier read in from .bbb
 
   // Outputs
   std::vector<hydraulic_output *> *hyd_result;                        // hydraulic outputs generated from hyd_compute_profile

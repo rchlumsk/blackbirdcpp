@@ -72,6 +72,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":InitialWSL")) { code = 9; }
     else if (!strcmp(s[0], ":SteadyFlows")) { code = 100; }
     else if (!strcmp(s[0], ":StreamnodeSourcesSinks")) { code = 101; }
+    else if (!strcmp(s[0], ":GlobalFlowMultiplier")) { code = 102; }
 
     switch (code)
     {
@@ -294,6 +295,24 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
             }
           }
         }
+      }
+      break;
+    }
+    case (102): { /*:GlobalFlowMultiplier [double flow_multiplier]*/
+      if (pOptions->noisy_run) {
+        std::cout << "GlobalFlowMultiplier" << std::endl;
+      }
+      if (Len < 2) {
+        ImproperFormatWarning(":GlobalFlowMultiplier", pp, pOptions->noisy_run);
+        break;
+      }
+      if (StringIsDouble(s[1])) {
+        pModel->flow_mult = std::stod(s[1]);
+      } else {
+        std::string error =
+            "ParseBoundaryConditions File: GlobalFlowMultiplier \"" +
+            std::string(s[1]) + "\" must be a double";
+        ExitGracefully(error.c_str(), BAD_DATA_WARN);
       }
       break;
     }

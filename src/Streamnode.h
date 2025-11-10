@@ -54,7 +54,7 @@ public:
   void add_steadyflow(double flow);
   void add_sourcesink(int index, double source, double sink);
 
-  void calc_output_flows(std::vector<double> upflows);
+  void calc_output_flows(std::vector<double> upflows, double flow_mult);
 
   void pretty_print() const; // defined in StandardOutput.cpp
 

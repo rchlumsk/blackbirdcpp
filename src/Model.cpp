@@ -20,16 +20,17 @@ CModel::CModel()
   peak_hrs_max(PLACEHOLDER),
   spp_depths(),
   dhand_vals(),
-  dhandid_vals() {
+  dhandid_vals(),
+  flow_mult(1) {
   // Default constructor implementation
 }
 
 // Copy constructor
 CModel::CModel(const CModel &other)
-    : streamnode_map(other.streamnode_map),
-      flow(other.flow), peak_hrs_min(other.peak_hrs_min),
-      peak_hrs_max(other.peak_hrs_max), spp_depths(other.spp_depths),
-      dhand_vals(other.dhand_vals), dhandid_vals(other.dhandid_vals) {
+    : streamnode_map(other.streamnode_map), flow(other.flow),
+      peak_hrs_min(other.peak_hrs_min), peak_hrs_max(other.peak_hrs_max),
+      spp_depths(other.spp_depths), dhand_vals(other.dhand_vals),
+      dhandid_vals(other.dhandid_vals), flow_mult(other.flow_mult) {
   if (other.c_from_s) {
     c_from_s = other.c_from_s->clone();
   }
@@ -132,6 +133,7 @@ CModel &CModel::operator=(const CModel &other) {
   spp_depths = other.spp_depths;
   dhand_vals = other.dhand_vals;
   dhandid_vals = other.dhandid_vals;
+  flow_mult = other.flow_mult;
 
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
@@ -260,7 +262,7 @@ void CModel::calc_output_flows() {
           upflows[j] += (*bbsn)[id_to_ind[temp_sn->upnodeID2]]->output_flows[j];
         }
       }
-      temp_sn->calc_output_flows(upflows);
+      temp_sn->calc_output_flows(upflows, flow_mult);
 
       // add node to finished_nodes
       finished_nodes.insert(temp_sn->nodeID);

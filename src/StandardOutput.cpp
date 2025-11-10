@@ -670,6 +670,7 @@ void CModel::WriteFullModel() const
     TESTOUTPUT << d << "  ";
   }
   TESTOUTPUT << std::endl;
+  TESTOUTPUT << std::setw(35) << "Global Flow Multiplier:" << flow_mult << std::endl;
   TESTOUTPUT << "===========================================\n" << std::endl;
   TESTOUTPUT.close();
   if (c_from_s->name != PLACEHOLDER_STR) {
