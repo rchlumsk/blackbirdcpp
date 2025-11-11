@@ -473,7 +473,12 @@ inline double interpolate(double new_wsl, double hydraulic_output::* f, std::vec
                    "BlackbirdInclude.h: interpolate: provided v is of size 0",
                    exitcode::RUNTIME_ERR);
   int i = 0;
-  while (i < v.size() && v[i]->wsl < new_wsl) {
+  // Loop through to find upper bound of wsl in depthdf
+  while (i < v.size() && v[i]->wsl <= new_wsl) {
+    // If wsl is equal, just return exact value of corresponding column
+    if (v[i]->wsl == new_wsl) {
+      return v[i]->*f;
+    }
     i++;
   }
   if (i == v.size() || i == 0) {

@@ -485,11 +485,11 @@ void CStreamnode::add_sourcesink(int index, double source, double sink) {
 ///
 /// \param upflows [in] flow value contributed by upstream nodes
 //
-void CStreamnode::calc_output_flows(std::vector<double> upflows, double flow_mult) {
+void CStreamnode::calc_output_flows(std::vector<double> upflows) {
   allocate_flowprofiles(upflows.size());
   for (int k = 0; k < upflows.size(); k++) {
     upstream_flows[k] = upflows[k];
-    output_flows[k] = (upflows[k] + flow_sources[k] - flow_sinks[k]) * flow_mult;
+    output_flows[k] = upflows[k] + flow_sources[k] - flow_sinks[k];
   }
 }
 

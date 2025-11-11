@@ -234,24 +234,28 @@ void CModel::calc_output_flows() {
   for (int iter = 0; finished_nodes.size() < total_nodes && iter < 1000; iter++) {
     for (int i = 0; i < total_nodes; i++) {
       CStreamnode*& temp_sn = (*bbsn)[i]; // reference to current streamnode pointer to simplify code
-
       // If first while loop iteration, add node to id_to_ind
-      if (iter == 1) {
+      if (iter == 0) {
         id_to_ind[temp_sn->nodeID] = i;
       }
 
-      // If node has been calculated, skip. If num_fp has yet to be assigned, assign it (will execute on a headwater node in first iteration)
+      // If node has been calculated, skip
       if (finished_nodes.find(temp_sn->nodeID) != finished_nodes.end()) {
-        if (num_fp == PLACEHOLDER) {
-          ExitGracefullyIf(temp_sn->upstream_flows[0] != HEADWATER,
-            "Model.cpp: ERROR initial finished node not HEADWATER", RUNTIME_ERR);
-          num_fp = temp_sn->output_flows.size();
-        }
         continue;
       }
       // If either upnodes have not been calculated already, skip
       if ( ( temp_sn->upnodeID1 != -1 && (finished_nodes.find(temp_sn->upnodeID1) == finished_nodes.end()) ) 
         || ( temp_sn->upnodeID2 != -1 && (finished_nodes.find(temp_sn->upnodeID2) == finished_nodes.end()) )) {
+        continue;
+      }
+
+      // If headwater, add to finished nodes and continue
+      if (temp_sn->upstream_flows.size() > 0 && temp_sn->upstream_flows[0] == HEADWATER) {
+        finished_nodes.insert(temp_sn->nodeID);
+        // If num_fp has yet to be assigned, assign it (will execute on a headwater node in first iteration)
+        if (num_fp == PLACEHOLDER) {
+          num_fp = temp_sn->output_flows.size();
+        }
         continue;
       }
 
@@ -262,10 +266,20 @@ void CModel::calc_output_flows() {
           upflows[j] += (*bbsn)[id_to_ind[temp_sn->upnodeID2]]->output_flows[j];
         }
       }
-      temp_sn->calc_output_flows(upflows, flow_mult);
+      temp_sn->calc_output_flows(upflows);
 
       // add node to finished_nodes
       finished_nodes.insert(temp_sn->nodeID);
+    }
+  }
+
+  // Apply global flow multiplier if applicable
+  if (flow_mult != 1) {
+    for (int i = 0; i < total_nodes; i++) {
+      CStreamnode *&temp_sn = (*bbsn)[i];
+      for (int j = 0; j < num_fp; j++) {
+        temp_sn->output_flows[j] *= flow_mult;
+      }
     }
   }
 }
