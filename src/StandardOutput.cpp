@@ -80,35 +80,6 @@ std::string CorrectForRelativePath(const std::string filename, const std::string
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Write output file headers
-/// \details Called prior to simulation (but after initialization) from CModel::Initialize()
-/// \param *&pOptions [in] Global model options information
-//
-void CModel::WriteOutputFileHeaders(COptions*const& pOptions)
-{
-  if (pOptions->noisy_run) { std::cout << "  Writing Output File Headers..." << std::endl; }
-
-  // write some output
-}
-
-//////////////////////////////////////////////////////////////////
-/// \brief Replaces the WriteOutputFileHeaders function by not requiring the Options structure as an argument
-/// \param &tt [in] Local (model) time *at the end of* the pertinent time step
-/// \param solfile [in] Name of the solution file to be written
-/// \param final [in] Whether this is the final solution file to be written
-//
-void CModel::WriteMajorOutput(std::string solfile, bool final) const
-{
-  int i, k;
-  std::string tmpFilename;
-  COptions* pOptions = this->bbopt;  // just to make the code more readable
-
-  //if (Options->output_format == OUTPUT_NONE) { return; } //:SuppressOutput is on
-
-  // write some output
-}
-
-//////////////////////////////////////////////////////////////////
 /// \brief Writes all gridded data to file(s) of the corresponding type
 //
 void CModel::WriteGriddedOutput()
@@ -300,13 +271,13 @@ void CModel::WriteGriddedOutput()
   case (enum_gridded_format::PNG):
   {
     if (!bbopt->silent_run) {
-      std::cout << "Writing output to PNG files with metadata in JSON files" << std::endl;
+      std::cout << "Writing output to PNG files embedded metadata" << std::endl;
     }
     for (int i = 0; i < out_gridded.size(); i++) {
       std::string filepath = FilenamePrepare("bb_results_depth_" + fp_names[i] + ".png");
       out_gridded[i]->WriteToPng(filepath);
       if (!bbopt->silent_run) {
-        std::cout << filepath << " and " << filepath.substr(0, filepath.find_last_of('.')) + ".json successfully written" << std::endl;
+        std::cout << filepath << " successfully written" << std::endl;
       }
     }
     break;
@@ -932,7 +903,6 @@ void CStreamnode::pretty_print() const
   TESTOUTPUT << std::setw(25) << "Expansion Coeff:" << expansion_coeff << std::endl;
   TESTOUTPUT << std::setw(25) << "Min Elevation:" << min_elev << std::endl;
   TESTOUTPUT << std::setw(25) << "Bed Slope:" << bed_slope << std::endl;
-  TESTOUTPUT << std::setw(25) << "Output Depth:" << output_depth << std::endl;
 
   TESTOUTPUT << std::setw(25) << "Upstream Flows:" << std::endl;
   for (size_t i = 0; i < upstream_flows.size(); ++i) {
@@ -952,6 +922,18 @@ void CStreamnode::pretty_print() const
   TESTOUTPUT << std::setw(25) << "Output Flows:" << std::endl;
   for (size_t i = 0; i < output_flows.size(); ++i) {
     TESTOUTPUT << std::setw(25) << "  Flow " + std::to_string(i + 1) + ":" << output_flows[i] << std::endl;
+  }
+
+  TESTOUTPUT << std::setw(25) << "Output Depths:" << std::endl;
+  for (size_t i = 0; i < output_depths.size(); ++i) {
+    TESTOUTPUT << std::setw(25) << "  Depth " + std::to_string(i + 1) + ":"
+               << output_depths[i] << std::endl;
+  }
+
+  TESTOUTPUT << std::setw(25) << "Output Water Surface Levels:" << std::endl;
+  for (size_t i = 0; i < output_wsls.size(); ++i) {
+    TESTOUTPUT << std::setw(25) << "  WSL " + std::to_string(i + 1) + ":"
+               << output_wsls[i] << std::endl;
   }
 
   if (depthdf) {
@@ -1380,4 +1362,149 @@ void CModel::hyd_result_pretty_print_csv() const
                << ho->peak_hrs_required << std::endl;
   }
   HYD_OUTPUT.close();
+}
+
+void CModel::write_catchments_from_streamnodes_json() const {
+  if (!bbopt->write_catchment_json) {
+    return;
+  }
+
+  std::cout << "Writing bb_catchments_fromstreamnodes.geojson" << std::endl;
+
+  if (bbopt->gis_path == PLACEHOLDER_STR) {
+    ExitGracefully(
+        "StandardOutput.cpp: write_catchments_from_streamnodes_json: :GISPath must be provided in .bbi file",
+        exitcode::BAD_DATA);
+  }
+
+  std::string input_path = bbopt->gis_path + "/bb_catchments_fromstreamnodes.geojson";
+  std::string output_path = FilenamePrepare("bb_catchments_fromstreamnodes.geojson");
+
+  GDALDataset *inDS = (GDALDataset *)GDALOpenEx(
+      input_path.c_str(), GDAL_OF_VECTOR | GDAL_OF_READONLY, nullptr, nullptr, nullptr);
+
+  if (!inDS) {
+    WriteWarning("StandardOutput.cpp: write_catchments_from_streamnodes_json: "
+                 "Failed to write JSON due to: Cannot open input GeoJSON: " +
+                     input_path,
+                 bbopt->noisy_run);
+    return;
+  }
+
+  OGRLayer *inLayer = inDS->GetLayer(0);
+  if (!inLayer) {
+    WriteWarning("StandardOutput.cpp: write_catchments_from_streamnodes_json: "
+                 "Failed to write JSON due to: Cannot read input GeoJSON layer",
+                 bbopt->noisy_run);
+    GDALClose(inDS);
+    return;
+  }
+
+  // Create output dataset
+  CPLSetConfigOption("OGR_GEOJSON_WRITE_NAME", "YES");
+  GDALDriver *drv = GetGDALDriverManager()->GetDriverByName("GeoJSON");
+  if (!drv) {
+    WriteWarning("StandardOutput.cpp: write_catchments_from_streamnodes_json: "
+                 "Failed to write JSON due to: GeoJSON driver not available",
+                 bbopt->noisy_run);
+    GDALClose(inDS);
+    return;
+  }
+
+  GDALDataset *outDS = drv->Create(output_path.c_str(), 0, 0, 0, GDT_Unknown, nullptr);
+  if (!outDS) {
+    WriteWarning("StandardOutput.cpp: write_catchments_from_streamnodes_json: "
+                 "Failed to write JSON due to: Failed to create output GeoJSON",
+                 bbopt->noisy_run);
+    GDALClose(inDS);
+    return;
+  }
+
+  OGRLayer *outLayer = outDS->CreateLayer(
+      inLayer->GetName(), inLayer->GetSpatialRef(), wkbUnknown, nullptr);
+
+  // Clone schema and add dynamic fields
+  OGRFeatureDefn *inDef = inLayer->GetLayerDefn();
+
+  for (int i = 0; i < inDef->GetFieldCount(); i++) {
+    outLayer->CreateField(inDef->GetFieldDefn(i));
+  }
+
+  OGRFeature *inFeature;
+  inLayer->ResetReading();
+
+  // Create fields for each flow profile
+  for (int i = 0; i < fp_names.size(); i++) {
+    if (outLayer->GetLayerDefn()->GetFieldIndex(fp_names[i].c_str()) == -1) {
+      OGRFieldDefn fld(fp_names[i].c_str(), OFTString);
+      outLayer->CreateField(&fld);
+    }
+  }
+  
+  while ((inFeature = inLayer->GetNextFeature()) != nullptr) {
+    OGRFeature *outFeature =
+        OGRFeature::CreateFeature(outLayer->GetLayerDefn());
+
+    // Copy geometry
+    outFeature->SetGeometry(inFeature->GetGeometryRef());
+
+    // Copy original fields
+    for (int i = 0; i < inDef->GetFieldCount(); i++) {
+      outFeature->SetField(i, inFeature->GetRawFieldRef(i));
+    }
+
+    // Read streamnode id and extract streamnode
+    int sid = inFeature->GetFieldAsInteger("pointid");
+    CStreamnode *sn = get_streamnode_by_id(sid);
+    if (!sn) {
+      WriteWarning(
+          "StandardOutput.cpp: write_catchments_from_streamnodes_json: "
+          "Failed to write JSON due to: Streamnode with sid " +
+              to_string(sid) + " does not exist in model streamnodes",
+          bbopt->noisy_run);
+      OGRFeature::DestroyFeature(inFeature);
+      OGRFeature::DestroyFeature(outFeature);
+      GDALClose(inDS);
+      GDALClose(outDS);
+      std::remove(output_path.c_str());
+      return;
+    }
+
+    // Assign fields for each flow profile in each feature
+    for (int i = 0; i < fp_names.size(); i++) {
+      // Create formatted JSON string
+      std::ostringstream ss;
+      ss << "{"
+         << "\"flow\": " << sn->output_flows[i] << ", "
+         << "\"depth\": " << sn->output_depths[i] << ", "
+         << "\"wsl\": " << sn->output_wsls[i] << "}";
+
+      // Assign string to corresponding field
+      outFeature->SetField(fp_names[i].c_str(), ss.str().c_str());
+    }
+
+    // Write feature
+    if (outLayer->CreateFeature(outFeature) != OGRERR_NONE) {
+      WriteWarning(
+          "StandardOutput.cpp: write_catchments_from_streamnodes_json: "
+          "Failed to write JSON due to: Failed to write feature for streamnode "
+          "with sid " +
+              to_string(sid),
+          bbopt->noisy_run);
+      OGRFeature::DestroyFeature(inFeature);
+      OGRFeature::DestroyFeature(outFeature);
+      GDALClose(inDS);
+      GDALClose(outDS);
+      std::remove(output_path.c_str());
+      return;
+    }
+
+    OGRFeature::DestroyFeature(inFeature);
+    OGRFeature::DestroyFeature(outFeature);
+  }
+
+  GDALClose(inDS);
+  GDALClose(outDS);
+
+  std::cout << output_path << " successfully written" << std::endl;
 }

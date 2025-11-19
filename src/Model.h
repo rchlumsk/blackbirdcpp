@@ -45,18 +45,17 @@ public:
   void calc_output_flows();                                       // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
 
   void add_streamnode(CStreamnode*& pSN);                         // adds streamnode to bbsn and maps
-  CStreamnode* get_streamnode_by_id(int sid);                     // returns streamnode using id map
+  CStreamnode* get_streamnode_by_id(int sid) const;                     // returns streamnode using id map
   int get_index_by_id(int id);                                    // returns streamnode index usind id map
   int get_hyd_res_index(int flow_ind, int sid);                   // returns hyd_result index
 
   // I/O Functions defined in StandardOutput.cpp
   std::string FilenamePrepare(std::string filebase) const;        // attaches main_output_dir folder and run_name to filebase
-  void WriteOutputFileHeaders(COptions*const& pOptions);
-  void WriteMajorOutput(std::string solfile, bool final) const;
   void WriteGriddedOutput();                                      // writes gridded output to files
   void WriteFullModel() const;                                    // writes full model data to testoutput
   void hyd_result_pretty_print() const;                           // writes hyd_result to testoutput
   void hyd_result_pretty_print_csv() const;                       // writes hyd_result to csv file
+  void write_catchments_from_streamnodes_json() const;            // writes data for flows, depths, and wsls for each flow profile to an existing json
 
   // GIS Functions
   void ReadGISFiles();                                                                                      // reads necessary gis files

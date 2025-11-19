@@ -28,13 +28,13 @@ int main(int argc, char* argv[])
 
   if (!pOptions->silent_run) {
     int year = std::stoi(BlackbirdBuildDate.substr(BlackbirdBuildDate.length() - 4, 4).c_str());
-    std::cout << "============================================================" << std::endl;
-    std::cout << "                        BLACKBIRD                           " << std::endl;
-    //std::cout << " a robust semi-distributed hydrological modelling framework " << std::endl;
-    //std::cout << "    Copyright 2008-" << year << ", the Raven Development Team " << std::endl;
-    std::cout << "                    Version " << pOptions->version << std::endl;
-    std::cout << "                BuildDate " << BlackbirdBuildDate << std::endl;
-    std::cout << "============================================================" << std::endl;
+    std::cout << "=================================================================" << std::endl;
+    std::cout << "                            BLACKBIRD                            " << std::endl;
+    std::cout << " a robust hydraulic modelling framework supporting flood mapping " << std::endl;
+    std::cout << "       Copyright 2025-" << year << ", the Blackbird Development Team " << std::endl;
+    std::cout << "                          Version " << pOptions->version << std::endl;
+    std::cout << "                      BuildDate " << BlackbirdBuildDate << std::endl;
+    std::cout << "=================================================================" << std::endl;
   }
   
   // Setup errors file for warnings to be logged
@@ -51,6 +51,9 @@ int main(int argc, char* argv[])
   if (!ParseInputFiles(pModel, pOptions)) {
     ExitGracefully("Main::Unable to read input file(s)", BAD_DATA);
   }
+
+  // Initialize GDAL
+  GDALAllRegister();
 
   // Read input gridded data if applicable
   if (pOptions->interpolation_postproc_method != enum_ppi_method::NONE) {
@@ -98,6 +101,7 @@ int main(int argc, char* argv[])
   //pModel->hyd_result_pretty_print(); // writes hydraulic result to test output
   pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
   pModel->WriteGriddedOutput(); // if applicable, writes raster output to raster files
+  pModel->write_catchments_from_streamnodes_json(); // if applicable, updates catchments from streamnodes json with calculated flows, depths, and wsls
 
   if (!pOptions->silent_run)
   {
@@ -233,25 +237,5 @@ void CheckForErrorWarnings(bool quiet, CModel* pModel)
 
   if (errors_found) {
     ExitGracefully("Errors found in input data. See Blackbird_errors.txt for details", BAD_DATA);
-  }
-}
-
-/////////////////////////////////////////////////////////////////
-/// \brief Checks if stopfile exists in current working directory
-/// \note called during simulation to determine whether progress should be stopped
-///
-//
-bool CheckForStopfile(const int step, CModel* pModel)
-{
-  if (step % 100 != 0) { return false; } //only check every 100th timestep
-  std::ifstream STOP;
-  STOP.open("stop");
-  if (STOP.fail()) { STOP.close(); return false; }
-  else //Stopfile found
-  {
-    STOP.close();
-    pModel->WriteMajorOutput("solution", true);
-    ExitGracefully("CheckForStopfile: simulation interrupted by user using stopfile", SIMULATION_DONE);
-    return true;
   }
 }

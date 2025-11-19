@@ -550,11 +550,3 @@ void CXSection::compute_basic_flow_properties(double flow, COptions *&bbopt) {
   mm->froude = mm->velocity / std::sqrt(GRAVITY * mm->hyd_depth);
   mm->sf = mm->k_total != 0 ? pow(mm->flow / mm->k_total, 2.) : 0;
 }
-
-//////////////////////////////////////////////////////////////////
-/// \brief Calculate flow area
-/// \return flow area
-//
-double CXSection::calculate_flow_area() {
-  return 0;
-}

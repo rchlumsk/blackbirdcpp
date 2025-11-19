@@ -27,8 +27,9 @@ public:
   std::vector<double> upstream_flows;       // combined flows from upstream nodes w/o source/sink
   std::vector<double> flow_sources;         // flow sources to be added to upstream_flows
   std::vector<double> flow_sinks;           // flow sinks to be subtracted from upstream_flows
-  double output_depth;
-  std::vector<double> output_flows;         // flow of streamnode w/ source/sink included
+  std::vector<double> output_flows;         // flows of streamnode w/ source/sink included for each flow profile
+  std::vector<double> output_depths;        // depths of streamnode for each flow profile
+  std::vector<double> output_wsls;          // water surface levels of streamnode for each flow profile
 
   // For internal use
   hydraulic_output *mm;

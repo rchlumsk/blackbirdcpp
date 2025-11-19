@@ -3,7 +3,6 @@
 #include "ParseLib.h"
 
 bool ParseMainInputFile(CModel*& pModel, COptions*& pOptions);
-//bool ParsePreprocessedTablesFile(CModel*& pModel, COptions*const& pOptions);
 bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions);
 bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions);
 void ImproperFormatWarning(std::string command, CParser* p, bool noisy);
@@ -145,6 +144,8 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":WriteNetcdfFormat")) { code = 26; }
     else if (!strcmp(s[0], ":InputNCFile")) { code = 27; }
     else if (!strcmp(s[0], ":WritePngFormat")) { code = 28; }
+    else if (!strcmp(s[0], ":WriteCatchmentJSON")) { code = 29; }
+    else if (!strcmp(s[0], ":FroudeThreshold")) { code = 30; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -386,6 +387,24 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:WritePngFormat*/
       if (pOptions->noisy_run) { std::cout << "WritePngFormat" << std::endl; }
       pOptions->out_format = enum_gridded_format::PNG;
+      break;
+    }
+    case (29): { /*:WriteCatchmentJSON*/
+      if (pOptions->noisy_run) {
+        std::cout << "WriteCatchmentJSON" << std::endl;
+      }
+      pOptions->write_catchment_json = true;
+      break;
+    }
+    case (30): { /*:FroudeThreshold [double value]*/
+      if (pOptions->noisy_run) {
+        std::cout << "FroudeThreshold" << std::endl;
+      }
+      if (Len < 2) {
+        ImproperFormatWarning(":FroudeThreshold", p, pOptions->noisy_run);
+        break;
+      }
+      pOptions->froude_threshold = std::atof(s[1]);
       break;
     }
     case(100):

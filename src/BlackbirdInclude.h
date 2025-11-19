@@ -7,7 +7,6 @@
 #define _BBNETCDF_      // if Makefile is used this will be automatically be uncommented if netCDF library is available
 #endif
 #ifdef _BBNETCDF_
-//#include <netcdf.h>
 #include <netcdf>
 #endif
 
@@ -42,7 +41,7 @@ extern std::string g_output_directory; ///< Had to be here to avoid passing Opti
 extern bool   g_suppress_warnings;///< Had to be here to avoid passing Options object around willy-nilly
 
 // Program version
-const std::string __BLACKBIRD_VERSION__ = "0.0.0";
+const std::string __BLACKBIRD_VERSION__ = "1.0.0";
 //*****************************************************************
 // Global Constants
 //*****************************************************************
@@ -183,43 +182,7 @@ struct hydraulic_output {
   double bed_slope;
   double peak_hrs_required;
 
-  // Constructor PLACEHOLDER variant
-  //hydraulic_output()
-  //    : nodeID(PLACEHOLDER), reachID(PLACEHOLDER), downnodeID(PLACEHOLDER),
-  //      upnodeID1(PLACEHOLDER), upnodeID2(PLACEHOLDER),
-  //      stationname(PLACEHOLDER_STR), station(PLACEHOLDER),
-  //      reach_length_DS(PLACEHOLDER), reach_length_US1(PLACEHOLDER),
-  //      reach_length_US2(PLACEHOLDER), flow(PLACEHOLDER), flow_lob(PLACEHOLDER),
-  //      flow_main(PLACEHOLDER), flow_rob(PLACEHOLDER), min_elev(PLACEHOLDER),
-  //      wsl(PLACEHOLDER), depth(PLACEHOLDER), hyd_depth(PLACEHOLDER),
-  //      hyd_depth_lob(PLACEHOLDER), hyd_depth_main(PLACEHOLDER),
-  //      hyd_depth_rob(PLACEHOLDER), top_width(PLACEHOLDER),
-  //      top_width_lob(PLACEHOLDER), top_width_main(PLACEHOLDER),
-  //      top_width_rob(PLACEHOLDER), velocity(PLACEHOLDER),
-  //      velocity_lob(PLACEHOLDER), velocity_main(PLACEHOLDER),
-  //      velocity_rob(PLACEHOLDER), k_total(PLACEHOLDER), k_lob(PLACEHOLDER),
-  //      k_main(PLACEHOLDER), k_rob(PLACEHOLDER), alpha(PLACEHOLDER),
-  //      area(PLACEHOLDER), area_lob(PLACEHOLDER), area_main(PLACEHOLDER),
-  //      area_rob(PLACEHOLDER), hradius(PLACEHOLDER), hradius_lob(PLACEHOLDER),
-  //      hradius_main(PLACEHOLDER), hradius_rob(PLACEHOLDER),
-  //      wet_perimeter(PLACEHOLDER), wet_perimeter_lob(PLACEHOLDER),
-  //      wet_perimeter_main(PLACEHOLDER), wet_perimeter_rob(PLACEHOLDER),
-  //      energy_total(PLACEHOLDER), velocity_head(PLACEHOLDER),
-  //      froude(PLACEHOLDER), sf(PLACEHOLDER), sf_avg(PLACEHOLDER),
-  //      sbed(PLACEHOLDER), length_effective(PLACEHOLDER),
-  //      head_loss(PLACEHOLDER), manning_lob(PLACEHOLDER),
-  //      manning_main(PLACEHOLDER), manning_rob(PLACEHOLDER),
-  //      manning_composite(PLACEHOLDER), k_total_areaconv(PLACEHOLDER),
-  //      k_total_roughconv(PLACEHOLDER), k_total_disconv(PLACEHOLDER),
-  //      alpha_areaconv(PLACEHOLDER), alpha_roughconv(PLACEHOLDER),
-  //      alpha_disconv(PLACEHOLDER), nc_equalforce(PLACEHOLDER),
-  //      nc_equalvelocity(PLACEHOLDER), nc_wavgwp(PLACEHOLDER),
-  //      nc_wavgarea(PLACEHOLDER), nc_wavgconv(PLACEHOLDER),
-  //      depth_critical(PLACEHOLDER), cp_iterations(PLACEHOLDER),
-  //      k_err(PLACEHOLDER), ws_err(PLACEHOLDER), length_energyloss(PLACEHOLDER),
-  //      length_effectiveadjusted(PLACEHOLDER), bed_slope(PLACEHOLDER), peak_hrs_required(PLACEHOLDER) {}
-
-  // Constructor 0 variant
+  // Constructor
   hydraulic_output()
       : nodeID(0), reachID(0), downnodeID(0), upnodeID1(0), upnodeID2(0),
         stationname(""), station(0.0), reach_length_DS(0.0),

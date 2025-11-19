@@ -47,6 +47,7 @@ public:
   enum_gridded_format in_format;
   enum_gridded_format out_format;
   std::string in_nc_name;
+  bool write_catchment_json;
 
   bool silent_run;
   bool noisy_run;

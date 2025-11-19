@@ -1094,10 +1094,6 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
       break;
       default:
       {
-        // TEMP CONDITIONAL TO CATCH HAND FILES
-        if (std::string(s[0]).find("hand") != std::string::npos) {
-          break;
-        }
         std::string errString = "Unrecognized command in .bbg file:\n   " + std::string(s[0]);
         ExitGracefully(errString.c_str(), BAD_DATA);//STRICT
       }

@@ -24,8 +24,9 @@ CStreamnode::CStreamnode()
   upstream_flows(),
   flow_sources(),
   flow_sinks(),
-  output_depth(PLACEHOLDER),
   output_flows(),
+  output_depths(),
+  output_wsls(),
   mm(new hydraulic_output) {
 }
 
@@ -47,11 +48,12 @@ CStreamnode::CStreamnode(const CStreamnode& other)
   min_elev(other.min_elev),
   bed_slope(other.bed_slope),
   depthdf(new std::vector<hydraulic_output*>),
-  upstream_flows(),
-  flow_sources(),
-  flow_sinks(),
-  output_depth(PLACEHOLDER),
-  output_flows(),
+  upstream_flows(other.upstream_flows),
+  flow_sources(other.flow_sources),
+  flow_sinks(other.flow_sinks),
+  output_flows(other.output_flows),
+  output_depths(other.output_depths),
+  output_wsls(other.output_wsls),
   mm(new hydraulic_output(*(other.mm))) {
   if (other.depthdf) {
     for (auto ptr : *other.depthdf) {
@@ -84,8 +86,9 @@ CStreamnode &CStreamnode::operator=(const CStreamnode &other) {
   upstream_flows = other.upstream_flows;
   flow_sources = other.flow_sources;
   flow_sinks = other.flow_sinks;
-  output_depth = other.output_depth;
   output_flows = other.output_flows;
+  output_depths = other.output_depths;
+  output_wsls = other.output_wsls;
   mm = other.mm;
 
   // Delete existing depthdf contents
@@ -251,8 +254,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
             std::to_string(mm->flow) +
             ",\nExtrapolating to continue computation.",
         bbopt->noisy_run);
-    mm->depth = wsl - mm->min_elev; // pointless?
-    mm->depth = extrapolate(wsl, &hydraulic_output::depth, *depthdf);
+    mm->depth = wsl - mm->min_elev;
     mm->k_total = extrapolate(wsl, &hydraulic_output::k_total, *depthdf);
     mm->alpha = extrapolate(wsl, &hydraulic_output::alpha, *depthdf);
     mm->area = extrapolate(wsl, &hydraulic_output::area, *depthdf);
@@ -274,8 +276,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     mm->nc_wavgarea = extrapolate(wsl, &hydraulic_output::nc_wavgarea, *depthdf);
     mm->nc_wavgconv = extrapolate(wsl, &hydraulic_output::nc_wavgconv, *depthdf);
   } else {
-    mm->depth = wsl - mm->min_elev; // pointless?
-    mm->depth = interpolate(wsl, &hydraulic_output::depth, *depthdf);
+    mm->depth = wsl - mm->min_elev;
     mm->k_total = interpolate(wsl, &hydraulic_output::k_total, *depthdf);
     mm->alpha = interpolate(wsl, &hydraulic_output::alpha, *depthdf);
     mm->area = interpolate(wsl, &hydraulic_output::area, *depthdf);
@@ -511,6 +512,12 @@ void CStreamnode::allocate_flowprofiles(int num_fp) {
   }
   while (output_flows.size() < num_fp) {
     output_flows.push_back(PLACEHOLDER);
+  }
+  while (output_depths.size() < num_fp) {
+    output_depths.push_back(PLACEHOLDER);
+  }
+  while (output_wsls.size() < num_fp) {
+    output_wsls.push_back(PLACEHOLDER);
   }
 }
 

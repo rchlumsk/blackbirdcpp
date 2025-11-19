@@ -172,8 +172,6 @@ CModel &CModel::operator=(const CModel &other) {
 /// \brief Computes the hydraulic profile for the model
 //
 void CModel::hyd_compute_profile() {
-  bbopt->froude_threshold = 0.94; // hardcoded value
-
   ExitGracefullyIf(bbopt->regimetype != enum_rt_method::SUBCRITICAL,
                    "Model.cpp: hyd_compute_profile(): only subcritical mode "
                    "with hardcoded options currently available",
@@ -298,8 +296,8 @@ void CModel::add_streamnode(CStreamnode*& pSN) {
 /// \param sid [in] id of streamnode to get index of
 /// \return streamnode with id 'sid'
 //
-CStreamnode* CModel::get_streamnode_by_id(int sid) {
-  return streamnode_map.find(sid) != streamnode_map.end() ? bbsn->at(streamnode_map[sid]) : NULL;
+CStreamnode* CModel::get_streamnode_by_id(int sid) const {
+  return streamnode_map.find(sid) != streamnode_map.end() ? bbsn->at(streamnode_map.find(sid)->second) : NULL;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -332,8 +330,6 @@ void CModel::ReadGISFiles() {
         "Model.cpp: ReadGISFiles: :GISPath must be provided in .bbi file",
         exitcode::BAD_DATA);
   }
-  
-  GDALAllRegister();
 
   // Read vector file for snapped pourpoints
   if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
@@ -673,11 +669,6 @@ void CModel::postprocess_floodresults() {
   if (bbopt->interpolation_postproc_method == enum_ppi_method::NONE) {
     return;
   }
-  if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
-      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
-      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
-    // do stuff 99
-  }
   ExitGracefullyIf(!c_from_s || !c_from_s->data,
                    "Raster.cpp: postprocess_floodresults: catchments from "
                    "streamnodes missing",
@@ -1011,6 +1002,8 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
   // assign output to its designated location
   (*res)[flow * bbsn->size() + ind] = new hydraulic_output(*(sn->mm));
+  sn->output_depths[flow] = sn->mm->depth;
+  sn->output_wsls[flow] = sn->mm->wsl;
 
   // basic checks for instabilities
   if (sn->mm->alpha != PLACEHOLDER && sn->mm->alpha > 5) {

@@ -37,12 +37,13 @@ COptions::COptions()
   roughness_multiplier(PLACEHOLDER),
   blended_conveyance_weights(PLACEHOLDER),
   blended_nc_weights(PLACEHOLDER),
-  froude_threshold(PLACEHOLDER),
+  froude_threshold(0.94),
   silent_run(false),
   noisy_run(false),
   in_format(enum_gridded_format::RASTER),
   out_format(enum_gridded_format::RASTER),
-  in_nc_name("bb_inputs.nc") {
+  in_nc_name("bb_inputs.nc"),
+  write_catchment_json(false) {
 }
 
 //////////////////////////////////////////////////////////////////
