@@ -268,15 +268,6 @@ enum enum_xsc_method
   AREAWEIGHTED_CONVEYANCE
 };
 
-// Reach conveyance method
-enum enum_rc_method
-{
-  DISCRETIZED_CONVEYANCE_R,
-  AREAWEIGHTED_CONVEYANCE_ONECALC_R,
-  ROUGHZONE_CONVEYANCE,
-  BLENDED_CONVEYANCE
-};
-
 // Reach integraton method
 enum enum_ri_method
 {
@@ -558,16 +549,6 @@ inline std::string toString(enum_xsc_method method) {
   case DISCRETIZED_CONVEYANCE_XS: return "DISCRETIZED_CONVEYANCE_XS";
   case AREAWEIGHTED_CONVEYANCE_ONECALC_XS: return "AREAWEIGHTED_CONVEYANCE_ONECALC_XS";
   case AREAWEIGHTED_CONVEYANCE: return "AREAWEIGHTED_CONVEYANCE";
-  default: return "UNKNOWN";
-  }
-}
-
-inline std::string toString(enum_rc_method method) {
-  switch (method) {
-  case DISCRETIZED_CONVEYANCE_R: return "DISCRETIZED_CONVEYANCE_R";
-  case AREAWEIGHTED_CONVEYANCE_ONECALC_R: return "AREAWEIGHTED_CONVEYANCE_ONECALC_R";
-  case ROUGHZONE_CONVEYANCE: return "ROUGHZONE_CONVEYANCE";
-  case BLENDED_CONVEYANCE: return "BLENDED_CONVEYANCE";
   default: return "UNKNOWN";
   }
 }

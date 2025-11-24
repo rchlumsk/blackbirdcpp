@@ -156,8 +156,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":ManningEnforceValues")) { code = 202; }
 
     //-------------------- REACH SPECIFIC OPTIONS ------------------------
-    else if (!strcmp(s[0], ":ReachConveyanceMethod")) { code = 300; }
-    else if (!strcmp(s[0], ":ReachIntegrationMethod")) { code = 301; }
+    else if (!strcmp(s[0], ":ReachIntegrationMethod")) { code = 300; }
 
     //-------------------- POSTPROCESSING OPTIONS ------------------------
     else if (!strcmp(s[0], ":PostprocessingInterpolationMethod")) { code = 400; }
@@ -434,23 +433,13 @@ bool ParseMainInputFile(CModel*& pModel,
       break;
     }
     case(202):
-    {/*:MannningEnforceValues [bool enforce]*/
-      if (pOptions->noisy_run) { std::cout << "MannningEnforceValues" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":MannningEnforceValues", p, pOptions->noisy_run); break; }
+    {/*:ManningEnforceValues [bool enforce]*/
+      if (pOptions->noisy_run) { std::cout << "ManningEnforceValues" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":ManningEnforceValues", p, pOptions->noisy_run); break; }
       std::istringstream(s[1]) >> pOptions->manning_enforce_values;
       break;
     }
     case(300):
-    {/*:ReachConveyanceMethod [string method]*/
-      if (pOptions->noisy_run) { std::cout << "ReachConveyanceMethod" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":ReachConveyanceMethod", p, pOptions->noisy_run); break; }
-      if (!strcmp(s[1], "DISCRETIZED_CONVEYANCE_R")) { pOptions->reach_conveyance_method = enum_rc_method::DISCRETIZED_CONVEYANCE_R; }
-      else if (!strcmp(s[1], "AREAWEIGHTED_CONVEYANCE_ONECALC_R")) { pOptions->reach_conveyance_method = enum_rc_method::AREAWEIGHTED_CONVEYANCE_ONECALC_R; }
-      else if (!strcmp(s[1], "ROUGHZONE_CONVEYANCE")) { pOptions->reach_conveyance_method = enum_rc_method::ROUGHZONE_CONVEYANCE; }
-      else if (!strcmp(s[1], "BLENDED_CONVEYANCE")) { pOptions->reach_conveyance_method = enum_rc_method::BLENDED_CONVEYANCE; }
-      break;
-    }
-    case(301):
     {/*:ReachIntegrationMethod [string method]*/
       if (pOptions->noisy_run) { std::cout << "ReachIntegrationMethod" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ReachIntegrationMethod", p, pOptions->noisy_run); break; }

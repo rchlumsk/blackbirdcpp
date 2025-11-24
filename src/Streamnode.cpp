@@ -112,14 +112,6 @@ CStreamnode &CStreamnode::operator=(const CStreamnode &other) {
   return *this;
 }
 
-
-//////////////////////////////////////////////////////////////////
-/// \brief Compute preprocessed depth object
-//
-void CStreamnode::compute_preprocessed_depthdf() {
-  // Logic to compute preprocessed depthdf
-}
-
 //////////////////////////////////////////////////////////////////
 /// \brief Compute wsl based on parameters and streamnode member variables
 ///
@@ -132,13 +124,7 @@ void CStreamnode::compute_preprocessed_depthdf() {
 double CStreamnode::compute_normal_depth(double flow, double slope, double init_wsl, COptions *bbopt) {
   CStreamnode dupe = *this;
   if (init_wsl == -99) {
-    if (dupe.nodetype == enum_nodetype::XSECTION) {
-      double area_req = flow / 3.;
-      // optimization placeholder
-      init_wsl = dupe.mm->min_elev + 1;
-    } else {
-      init_wsl = dupe.mm->min_elev + 1;
-    }
+    init_wsl = dupe.mm->min_elev + 1;
   }
   
   dupe.compute_profile(flow, init_wsl, bbopt);
@@ -229,7 +215,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
   ExitGracefullyIf(
       depthdf->size() == 0,
       "Streamnode.cpp: compute_basic_depth_properties_interpolation: depthdf "
-      "has not been computed, please run compute_preprocessed_depthdf first.",
+      "has not been computed, please include it in a bbg file.",
       exitcode::BAD_DATA);
   ExitGracefullyIf(
       mm->stationname != (*depthdf)[0]->stationname,
@@ -459,13 +445,14 @@ hydraulic_output* CStreamnode::get_depthdf_row_from_depth(double depth) {
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Add flowprofile to CStreamnode
+/// \brief Add steady flow to CStreamnode
 ///
 /// \param flow [in] flow associated with flowprofile
 //
 void CStreamnode::add_steadyflow(double flow) {
-  output_flows.push_back(flow);
-  upstream_flows.push_back(HEADWATER);
+  allocate_flowprofiles(output_flows.size() + 1);
+  output_flows.back() = flow;
+  upstream_flows.back() = HEADWATER;
 }
 
 //////////////////////////////////////////////////////////////////

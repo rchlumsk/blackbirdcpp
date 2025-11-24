@@ -23,7 +23,6 @@ public:
   double num_extrapolation_points;
   enum_fs_method friction_slope_method;
   enum_xsc_method xsection_conveyance_method;
-  enum_rc_method reach_conveyance_method;
   bool enforce_delta_Leff;
   double delta_reachlength;
   double tolerance_cp;

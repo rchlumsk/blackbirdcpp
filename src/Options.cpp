@@ -17,7 +17,6 @@ COptions::COptions()
   num_extrapolation_points(PLACEHOLDER),
   friction_slope_method(enum_fs_method::AVERAGE_CONVEYANCE),
   xsection_conveyance_method(enum_xsc_method::OVERBANK_CONVEYANCE),
-  reach_conveyance_method(enum_rc_method::DISCRETIZED_CONVEYANCE_R),
   enforce_delta_Leff(false),
   delta_reachlength(PLACEHOLDER),
   tolerance_cp(PLACEHOLDER),

@@ -122,7 +122,7 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     //  t_xx[i] = min_dist + i * bbopt->dx;
     //}
     //int n = t_xx.size();
-    ////more logic 1273-1280 approx? and manning interp method?
+    ////more logic 1273-1280 approx and manning interp method
     //
     //depth = mm->wsl - t_zz;
     //ind = depth > 0;
@@ -249,7 +249,7 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     //mm->top_width_main = len_m * bbopt->dx;
     //mm->top_width_rob = len_r * bbopt->dx;
 
-    //// assign wet perimeter logic. "wetted_perimeter" , "get_breakpoints" , etc. ? 1401
+    //// assign wet perimeter logic. "wetted_perimeter" , "get_breakpoints" , etc. 1401
 
 
     //if (t_zz.size() > 0 && mm->wsl > t_zz[0]) {
@@ -277,6 +277,15 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
   k[k < 0] = 0;
 
   if (bbopt->xsection_conveyance_method == enum_xsc_method::OVERBANK_CONVEYANCE) {
+    if (manning_LOB == PLACEHOLDER || manning_LOB == 0 ||
+        manning_main == PLACEHOLDER || manning_main == 0 ||
+        manning_ROB == PLACEHOLDER || manning_ROB == PLACEHOLDER) {
+      ExitGracefully(
+          "XSection.cpp: compute_basic_depth_properties: manning_LOB, "
+          "manning_main, and manning_ROB must be set and non 0 when using "
+          "xsection conveyance method: OVERBANK_CONVEYANCE",
+          exitcode::BAD_DATA);
+    }
     mm->k_lob = (1. / manning_LOB) * mm->area_lob * std::pow(mm->hradius_lob, 2. / 3.);
     mm->k_main = (1. / manning_main) * mm->area_main * std::pow(mm->hradius_main, 2. / 3.);
     mm->k_rob = (1. / manning_ROB) * mm->area_rob * std::pow(mm->hradius_rob, 2. / 3.);

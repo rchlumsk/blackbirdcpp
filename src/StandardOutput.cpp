@@ -271,7 +271,7 @@ void CModel::WriteGriddedOutput()
   case (enum_gridded_format::PNG):
   {
     if (!bbopt->silent_run) {
-      std::cout << "Writing output to PNG files embedded metadata" << std::endl;
+      std::cout << "Writing output to PNG files embedded with metadata" << std::endl;
     }
     for (int i = 0; i < out_gridded.size(); i++) {
       std::string filepath = FilenamePrepare("bb_results_depth_" + fp_names[i] + ".png");
@@ -784,7 +784,6 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::setw(35) << "Num Extrapolation Points:" << num_extrapolation_points << std::endl;
   TESTOUTPUT << std::setw(35) << "Friction Slope Method:" << toString(friction_slope_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "X-Section Conveyance Method:" << toString(xsection_conveyance_method) << std::endl;
-  TESTOUTPUT << std::setw(35) << "Reach Conveyance Method:" << toString(reach_conveyance_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "Enforce Delta Leff:" << (enforce_delta_Leff ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Delta Reach Length:" << delta_reachlength << std::endl;
   TESTOUTPUT << std::setw(35) << "Tolerance CP:" << tolerance_cp << std::endl;

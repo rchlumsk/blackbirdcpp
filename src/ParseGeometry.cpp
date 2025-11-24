@@ -64,9 +64,9 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":RedirectToFile")) { code = -3; }//redirect to secondary file
     //--------------------MODEL OPTIONS ------------------------
     else if (!strcmp(s[0], ":Streamnodes")) { code = 1; }
-    else if (!strcmp(s[0], ":PreprocessedHydraulicTables")) { code = -2; } //treat as comment - unnecessary marker?
+    else if (!strcmp(s[0], ":PreprocessedHydraulicTables")) { code = -2; } //treat as comment
     else if (!strcmp(s[0], ":PreprocHydTable")) { code = 2; }
-    else if (!strcmp(s[0], ":CrossSections")) { code = -2; } //treat as comment - unnecessary marker?
+    else if (!strcmp(s[0], ":CrossSections")) { code = -2; } //treat as comment
     else if (!strcmp(s[0], ":StreamnodeCrossSection")) { code = 3; }
 
     switch (code)
