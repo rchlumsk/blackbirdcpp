@@ -297,7 +297,7 @@ void CModel::add_streamnode(CStreamnode*& pSN) {
 /// \return streamnode with id 'sid'
 //
 CStreamnode* CModel::get_streamnode_by_id(int sid) const {
-  return streamnode_map.find(sid) != streamnode_map.end() ? bbsn->at(streamnode_map.find(sid)->second) : NULL;
+  return streamnode_map.find(sid) != streamnode_map.end() ? bbsn->at(streamnode_map.find(sid)->second) : nullptr;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -308,7 +308,7 @@ CStreamnode* CModel::get_streamnode_by_id(int sid) const {
 int CModel::get_index_by_id(int sid) {
   return streamnode_map.find(sid) != streamnode_map.end()
              ? streamnode_map[sid]
-             : NULL;
+             : PLACEHOLDER;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -867,10 +867,22 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                 std::cout << "setting to min error result on streamnode " << sn->nodeID << std::endl;
               }
             } else {
-              // optimization placeholder
-              double depth_critical = std::max(0.5, down_sn->mm->depth);
+              if (!bbopt->silent_run) {
+                std::cout << "need to check crit depth" << std::endl;
+              }
+              // optimization
+              double depth_critical = brent_minimize(
+                sn->mm->min_elev,
+                sn->depthdf->back()->depth,
+                [&](double x) {
+                  CStreamnode temp_sn = *sn;
+                  CStreamnode *temp_ptr = &temp_sn;
+                  return temp_ptr->get_total_energy(x, temp_ptr, down_sn->mm, bbopt);
+                }
+              );
 
-              if (true) { // if optimization worked
+              if (depth_critical >= sn->mm->min_elev &&
+                  depth_critical <= sn->depthdf->back()->depth) { // if optimization worked
                 sn->mm->depth_critical = depth_critical;
                 sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
                 sn->mm->ws_err = PLACEHOLDER;
@@ -928,11 +940,19 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
             if (!bbopt->silent_run) {
               std::cout << "need to check crit depth" << std::endl;
             }
-            // need to compute critical depth at streamnode
-            // optimization placeholder
-            double depth_critical = std::max(0.5, down_sn->mm->depth);
+            // optimization
+            double depth_critical = brent_minimize(
+              sn->mm->min_elev,
+              sn->depthdf->back()->depth,
+              [&](double x) {
+                CStreamnode temp_sn = *sn;
+                CStreamnode *temp_ptr = &temp_sn;
+                return temp_ptr->get_total_energy(x, temp_ptr, down_sn->mm, bbopt);
+              }
+            );
 
-            if (true) { // if optimization worked
+            if (depth_critical >= sn->mm->min_elev &&
+                depth_critical <= sn->depthdf->back()->depth) { // if optimization worked
               sn->mm->depth_critical = depth_critical;
               if (sn->mm->depth < sn->mm->depth_critical) {
                 if (found_supercritical) {
@@ -1094,6 +1114,39 @@ void CModel::generate_spp_depths(int flow_ind) {
   double L1 = PLACEHOLDER; // length for junction nodes
   double L2 = PLACEHOLDER; // length for junction nodes
   double L3 = PLACEHOLDER; // length for junction nodes
+
+  // throw error if there are any catchments without snapped pourpoints associated with them
+  std::vector<bool> catch_has_spp(bbsn->size());
+  for (int j = 0; j < spp.features.size(); j++) {
+    auto feat = spp.features[j];
+    int t_sid = feat->GetFieldAsInteger(spp.get_index_by_fieldname("cpointid"));
+    int t_ind = get_index_by_id(t_sid);
+    if (t_ind != PLACEHOLDER) {
+      catch_has_spp[t_ind] = true;
+    } else {
+      int t_hid = feat->GetFieldAsInteger(spp.get_index_by_fieldname("hpointid"));
+      ExitGracefully(("Model.cpp: generate_spp_depths: spp with hpointid: " +
+                      to_string(t_hid) + " is in catchment with cpointid: " +
+                      to_string(t_sid) + ", which does not exist in streamnodes list")
+                         .c_str(),
+                     exitcode::BAD_DATA);
+    }
+  }
+  if (std::any_of(catch_has_spp.begin(), catch_has_spp.end(), [](bool b) { return !b; })) {
+    std::string empty_catchments = "";
+    for (int i = 0; i < catch_has_spp.size(); i++) {
+      if (!catch_has_spp[i]) {
+        empty_catchments += ", " + to_string((*bbsn)[i]->nodeID);
+      }
+    }
+    empty_catchments.erase(0, 2);
+    ExitGracefully(
+        ("Model.cpp: generate_spp_depths: catchments with the following "
+         "catchment ids do not contain any snapped pourpoints: " +
+         empty_catchments)
+            .c_str(),
+        exitcode::BAD_DATA);
+  }
 
   // loop through each snapped pourpoint
   for (int j = 0; j < spp.features.size(); j++) {

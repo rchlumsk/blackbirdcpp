@@ -36,6 +36,7 @@ public:
   enum_mc_method manning_composite_method;
   bool manning_enforce_values;
   enum_ri_method reach_integration_method;
+  enum_le_method leff_method;
   enum_ppi_method interpolation_postproc_method;
   enum_dh_method dhand_method;
   double postproc_elev_corr_threshold;

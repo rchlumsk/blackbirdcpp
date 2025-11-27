@@ -414,14 +414,35 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
     loss_coeff = expansion_coeff;
   }
 
-  // no Leff method check? assuming us_leff (default)
-  mm->length_energyloss = mm->length_effectiveadjusted;
+  if (bbopt->leff_method == enum_le_method::AVERAGE) {
+    mm->length_energyloss = (mm->length_effectiveadjusted + down_mm->length_effectiveadjusted) / 2.;
+  } else if (bbopt->leff_method == enum_le_method::AVERAGE) {
+    mm->length_energyloss = down_mm->length_effectiveadjusted;
+  } else if (bbopt->leff_method == enum_le_method::AVERAGE) {
+    mm->length_energyloss = mm->length_effectiveadjusted;
+  } else {
+    ExitGracefully("Streamnode.cpp: compute_profile_next: unrecognized leff_method", exitcode::BAD_DATA);
+  }
 
   mm->head_loss =
       mm->length_energyloss * mm->sf_avg +
       loss_coeff *
           std::abs(((mm->alpha * std::pow(mm->velocity, 2.) / 2.) / GRAVITY) -
                    ((down_mm->alpha * std::pow(down_mm->velocity, 2.) / 2.) / GRAVITY));
+}
+
+
+//////////////////////////////////////////////////////////////////
+/// \brief Compute total energy for streamnode at junction
+///
+/// \param H [in] wsl value
+/// \param sn [in] streamnode object for getting data
+/// \param *down_mm [in] mm of downstream node
+/// \param *&bbopt [in] Global model options information
+//
+double CStreamnode::get_total_energy(double H, CStreamnode *sn, hydraulic_output *down_mm, COptions *&bbopt) {
+  compute_profile_next(sn->mm->flow, H, down_mm, bbopt);
+  return energy_calc(sn->mm->min_elev, sn->mm->depth, sn->mm->velocity, GRAVITY);
 }
 
 //////////////////////////////////////////////////////////////////

@@ -15,6 +15,7 @@
 #include <cpl_conv.h>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <fstream>
 #include <gdal_priv.h>
 #include <iomanip>
@@ -275,6 +276,14 @@ enum enum_ri_method
   REACH_LENGTH
 };
 
+// Length effective method
+enum enum_le_method
+{
+  AVERAGE,
+  DOWNSTREAM,
+  UPSTREAM
+};
+
 // Post-processing interpolation method
 enum enum_ppi_method
 {
@@ -375,6 +384,14 @@ inline double ConvCalc(double n, double A, double Rh) {
   double res = (1. / n) * A * std::pow(Rh, 2. / 3.);
   res = res < 0 ? 0 : res;
   return res;
+}
+
+///////////////////////////////////////////////////////////////////
+/// \brief Total energy calculation
+/// \return conveyance
+//
+inline double energy_calc(double Z, double y, double v, double g = GRAVITY) {
+  return Z + y + std::pow(v, 2.) / 2 / g;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -561,6 +578,15 @@ inline std::string toString(enum_ri_method method) {
   }
 }
 
+inline std::string toString(enum_le_method method) {
+  switch (method) {
+  case AVERAGE: return "AVERAGE";
+  case DOWNSTREAM: return "DOWNSTREAM";
+  case UPSTREAM: return "UPSTREAM";
+  default: return "UNKNOWN";
+  }
+}
+
 inline std::string toString(enum_ppi_method method) {
   switch (method) {
   case NONE: return "NONE";
@@ -623,6 +649,105 @@ void          SilentErrorHandler(CPLErr eErrClass, int err_no, const char *msg);
 // defined in StandardOutput.cpp
 std::string GetDirectoryName(const std::string &fname);
 std::string CorrectForRelativePath(const std::string filename, const std::string relfile);
+
+//*****************************************************************
+// Algorithms (inline)
+//*****************************************************************
+inline double brent_minimize(double ax, double bx, const std::function<double(double)> &f,
+                      double tol = 1e-8, int max_iter = 100) {
+  const double CGOLD = 0.3819660; // 1 - (1 / golden ratio)
+  const double ZEPS = std::numeric_limits<double>::epsilon() * 1e-3;
+
+  double a = ax;                    // current lower bound of the search interval
+  double b = bx;                    // current upper bound of the search interval
+  double x = a + CGOLD * (b - a);   // current best point (lowest f value) (start with golden section)
+  double w = x;                     // previous best points (used for parabolic fit)
+  double v = x;                     // previous best points (used for parabolic fit)
+
+  double fx = f(x);                 // function evaluated at x
+  double fw = fx;                   // function evaluated at w
+  double fv = fx;                   // function evaluated at v
+
+  double d = 0.0;                   // step sizes from previous iterations
+  double e = 0.0;                   // step sizes from previous iterations
+
+  for (int iter = 0; iter < max_iter; iter++) {
+    double m = 0.5 * (a + b);
+    double tol1 = tol * std::abs(x) + ZEPS;
+    double tol2 = 2.0 * tol1;
+
+    // check for convergence
+    if (std::abs(x - m) <= tol2 - 0.5 * (b - a)) {
+      return x;
+    }
+
+    double p = 0.0, q = 0.0, r = 0.0;
+
+    if (std::abs(e) > tol1) {
+      // parabolic fit
+      r = (x - w) * (fx - fv);
+      q = (x - v) * (fx - fw);
+      p = (x - v) * q - (x - w) * r;
+      q = 2.0 * (q - r);
+      if (q > 0.0) {
+        p = -p;
+      }
+      q = std::abs(q);
+
+      double etemp = e;
+      e = d;
+
+      // is parabolic step OK?
+      if (std::abs(p) < std::abs(0.5 * q * etemp) && p > q * (a - x) &&
+          p < q * (b - x)) {
+        d = p / q;
+      } else {
+        // golden-section
+        e = (x >= m) ? a - x : b - x;
+        d = CGOLD * e;
+      }
+    } else {
+      // golden-section
+      e = (x >= m) ? a - x : b - x;
+      d = CGOLD * e;
+    }
+
+    double u = x + ((std::abs(d) >= tol1) ? d : (d > 0 ? tol1 : -tol1));
+    double fu = f(u);
+
+    // Update points
+    if (fu <= fx) {
+      if (u >= x) {
+        a = x;
+      } else {
+        b = x;
+      }
+      v = w;
+      fv = fw;
+      w = x;
+      fw = fx;
+      x = u;
+      fx = fu;
+    } else {
+      if (u < x) {
+        a = u;
+      } else {
+        b = u;
+      }
+      if (fu <= fw || w == x) {
+        v = w;
+        fv = fw;
+        w = u;
+        fw = fu;
+      } else if (fu <= fv || v == x || v == w) {
+        v = u;
+        fv = fu;
+      }
+    }
+  }
+
+  return x; // best guess after max_iter iterations
+}
 
 #ifdef _WIN32
 #include <direct.h>

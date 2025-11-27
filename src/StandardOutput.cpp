@@ -797,6 +797,7 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::setw(35) << "Manning Composite Method:" << toString(manning_composite_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "Manning Enforce Values:" << (manning_enforce_values ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Reach Integration Method:" << toString(reach_integration_method) << std::endl;
+  TESTOUTPUT << std::setw(35) << "Length Effective Method:" << toString(leff_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "Interpolation Postproc Method:" << toString(interpolation_postproc_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "DHand Postproc Method:" << toString(dhand_method) << std::endl;
   TESTOUTPUT << std::setw(35) << "Postproc Elev Corr Threshold:" << postproc_elev_corr_threshold << std::endl;

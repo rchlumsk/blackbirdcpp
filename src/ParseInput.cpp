@@ -146,6 +146,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":WritePngFormat")) { code = 28; }
     else if (!strcmp(s[0], ":WriteCatchmentJSON")) { code = 29; }
     else if (!strcmp(s[0], ":FroudeThreshold")) { code = 30; }
+    else if (!strcmp(s[0], ":LeffMethod")) { code = 31; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -404,6 +405,15 @@ bool ParseMainInputFile(CModel*& pModel,
         break;
       }
       pOptions->froude_threshold = std::atof(s[1]);
+      break;
+    }
+    case(31):
+    {/*:LeffMethod [string method]*/
+      if (pOptions->noisy_run) { std::cout << "LeffMethod" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":LeffMethod", p, pOptions->noisy_run); break; }
+      if (!strcmp(s[1], "AVERAGE")) { pOptions->leff_method = enum_le_method::AVERAGE; }
+      else if (!strcmp(s[1], "DOWNSTREAM")) { pOptions->leff_method = enum_le_method::DOWNSTREAM; }
+      else if (!strcmp(s[1], "UPSTREAM")) { pOptions->leff_method = enum_le_method::UPSTREAM; }
       break;
     }
     case(100):
