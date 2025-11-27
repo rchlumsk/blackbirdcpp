@@ -8,7 +8,7 @@ Additional resources and links are available on the [Heron Hydrologic website](h
 
 If you would like to work with the active development of Blackbird, please do so on a branch and coordinate with the Blackbird development team.
 
-Please contact us if you are developoing or trying out the program!
+Please contact us if you are developing or trying out the program!
 
 ## Windows Users
 
