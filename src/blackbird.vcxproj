@@ -197,9 +197,20 @@
     <ClInclude Include="GriddedData.h" />
     <ClInclude Include="Raster.h" />
     <ClInclude Include="Reach.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Streamnode.h" />
     <ClInclude Include="Vector.h" />
     <ClInclude Include="XSection.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="blackbird.ico" />
+    <Image Include="blackbirdlogo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="blackbird.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="blackbird.aps" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
