@@ -871,19 +871,19 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                 std::cout << "need to check crit depth" << std::endl;
               }
               // optimization
-              double depth_critical = brent_minimize(
+              double wsl_critical = brent_minimize(
                 sn->mm->min_elev,
-                sn->depthdf->back()->depth,
+                sn->mm->min_elev + sn->depthdf->back()->depth,
                 [&](double x) {
                   CStreamnode temp_sn = *sn;
                   CStreamnode *temp_ptr = &temp_sn;
                   return temp_ptr->get_total_energy(x, temp_ptr, down_sn->mm, bbopt);
                 }
               );
-
-              if (depth_critical >= sn->mm->min_elev &&
-                  depth_critical <= sn->depthdf->back()->depth) { // if optimization worked
-                sn->mm->depth_critical = depth_critical;
+              
+              if (wsl_critical >= sn->mm->min_elev &&
+                  wsl_critical <= sn->depthdf->back()->depth) { // if optimization worked
+                double depth_critical = wsl_critical - sn->mm->min_elev;
                 sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
                 sn->mm->ws_err = PLACEHOLDER;
                 sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
@@ -941,9 +941,9 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               std::cout << "need to check crit depth" << std::endl;
             }
             // optimization
-            double depth_critical = brent_minimize(
+            double wsl_critical = brent_minimize(
               sn->mm->min_elev,
-              sn->depthdf->back()->depth,
+              sn->mm->min_elev + sn->depthdf->back()->depth,
               [&](double x) {
                 CStreamnode temp_sn = *sn;
                 CStreamnode *temp_ptr = &temp_sn;
@@ -951,8 +951,9 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               }
             );
 
-            if (depth_critical >= sn->mm->min_elev &&
-                depth_critical <= sn->depthdf->back()->depth) { // if optimization worked
+            if (wsl_critical >= sn->mm->min_elev &&
+                wsl_critical <= sn->depthdf->back()->depth) { // if optimization worked
+              double depth_critical = wsl_critical - sn->mm->min_elev;
               sn->mm->depth_critical = depth_critical;
               if (sn->mm->depth < sn->mm->depth_critical) {
                 if (found_supercritical) {

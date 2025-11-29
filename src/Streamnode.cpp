@@ -225,6 +225,8 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
       exitcode::BAD_DATA);
   std::vector<double> vec_depthdf_wsl = hyd_out_collect(&hydraulic_output::wsl, *depthdf);
   std::valarray<double> val_depthdf_wsl(vec_depthdf_wsl.data(), vec_depthdf_wsl.size());
+  //std::cout << wsl << " | " << val_depthdf_wsl.min() << " | "
+  //          << val_depthdf_wsl.max() << std::endl;
   if (wsl < val_depthdf_wsl.min() || wsl > val_depthdf_wsl.max()) {
     ExitGracefullyIf(
         !bbopt->extrapolate_depth_table,
@@ -284,55 +286,80 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     mm->nc_wavgarea = interpolate(wsl, &hydraulic_output::nc_wavgarea, *depthdf);
     mm->nc_wavgconv = interpolate(wsl, &hydraulic_output::nc_wavgconv, *depthdf);
   }
+  if (mm->length_effective <= 0) {
+    ExitGracefully(
+        ("Streamnode.cpp: compute_basic_depth_properties_interpolation: "
+         "length_effective for " + std::to_string(nodeID) +
+         " was computed to be non-positive. Cannot attain leff_ratio.")
+            .c_str(),
+        exitcode::BAD_DATA);
+  }
 
   mm->length_effectiveadjusted = mm->length_effective;
 
   if (bbopt->roughness_multiplier != 1) {
-    mm->k_total /= bbopt->roughness_multiplier; // check for 0?
+    if (bbopt->roughness_multiplier == PLACEHOLDER ||
+        bbopt->roughness_multiplier <= 0) {
+      ExitGracefully("Streamnode.cpp: compute_basic_depth_properties_interpolation: "
+                     "bbopt->roughness_multiplier must be a positive value.",
+                     BAD_DATA);
+    }
+    mm->k_total /= bbopt->roughness_multiplier;
     mm->manning_composite *= bbopt->roughness_multiplier;
   }
 
   double reach_length = PLACEHOLDER;
-
-  if (bbopt->enforce_delta_Leff) {
-    if (mm->reach_length_US2 != -99) {
-      reach_length = mm->reach_length_US2;
-    } else {
-      reach_length = mm->reach_length_US1;
-    }
-    if (mm->length_effective < reach_length * (1 - bbopt->delta_reachlength)) {
-      std::cout << "Enforcing Leff on node with nodeID " + std::to_string(nodeID) << std::endl;
-      mm->length_effectiveadjusted = reach_length * (1 - bbopt->delta_reachlength);
-      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective; // check for 0?
-
-      mm->area *= leff_ratio;
-      mm->wet_perimeter *= leff_ratio;
-      mm->k_total *= leff_ratio;
-      mm->top_width *= leff_ratio;
-      mm->hyd_depth *= leff_ratio;
-    } else if (mm->length_effective > reach_length * (1 + bbopt->delta_reachlength)) {
-      std::cout << "Enforcing Leff on node with nodeID " + std::to_string(nodeID) << std::endl;
-      mm->length_effectiveadjusted = reach_length * (1 + bbopt->delta_reachlength);
-      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective; // check for 0?
-
-      mm->area *= leff_ratio;
-      mm->wet_perimeter *= leff_ratio;
-      mm->k_total *= leff_ratio;
-      mm->top_width *= leff_ratio;
-      mm->hyd_depth *= leff_ratio;
-    }
-  }
-
   if (mm->reach_length_US2 != -99) {
     reach_length = mm->reach_length_US2;
   } else {
     reach_length = mm->reach_length_US1;
   }
-  mm->area *= mm->length_effective / reach_length; // check for 0?
-  mm->wet_perimeter *= mm->length_effective / reach_length;
-  mm->k_total *= mm->length_effective / reach_length;
-  mm->top_width *= mm->length_effective / reach_length;
-  mm->hyd_depth *= mm->length_effective / reach_length;
+
+  if (reach_length <= 0) {
+    ExitGracefully(
+        ("Streamnode.cpp: compute_basic_depth_properties_interpolation: "
+         "reach_length for streamnode with nodeID " +
+         std::to_string(nodeID) +
+         " is a non-positive value. Cannot obtain depth properties")
+            .c_str(),
+        exitcode::BAD_DATA);
+  }
+
+  if (bbopt->enforce_delta_Leff) {
+    if (mm->length_effective < reach_length * (1 - bbopt->delta_reachlength)) {
+      std::cout << "Enforcing Leff on node with nodeID " + std::to_string(nodeID) << std::endl;
+      mm->length_effectiveadjusted = reach_length * (1 - bbopt->delta_reachlength);
+      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective;
+
+      if (bbopt->reach_integration_method == enum_ri_method::EFFECTIVE_LENGTH) {
+        mm->area *= leff_ratio;
+        mm->wet_perimeter *= leff_ratio;
+        mm->k_total *= leff_ratio;
+        mm->top_width *= leff_ratio;
+        mm->hyd_depth *= leff_ratio;
+      }
+    } else if (mm->length_effective > reach_length * (1 + bbopt->delta_reachlength)) {
+      std::cout << "Enforcing Leff on node with nodeID " + std::to_string(nodeID) << std::endl;
+      mm->length_effectiveadjusted = reach_length * (1 + bbopt->delta_reachlength);
+      double leff_ratio = mm->length_effectiveadjusted / mm->length_effective;
+
+      if (bbopt->reach_integration_method == enum_ri_method::EFFECTIVE_LENGTH) {
+        mm->area *= leff_ratio;
+        mm->wet_perimeter *= leff_ratio;
+        mm->k_total *= leff_ratio;
+        mm->top_width *= leff_ratio;
+        mm->hyd_depth *= leff_ratio;
+      }
+    }
+  }
+
+  if (bbopt->reach_integration_method == enum_ri_method::EFFECTIVE_LENGTH) {
+    mm->area *= mm->length_effective / reach_length;
+    mm->wet_perimeter *= mm->length_effective / reach_length;
+    mm->k_total *= mm->length_effective / reach_length;
+    mm->top_width *= mm->length_effective / reach_length;
+    mm->hyd_depth *= mm->length_effective / reach_length;
+  }
 
   return;
 }
@@ -416,9 +443,9 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
 
   if (bbopt->leff_method == enum_le_method::AVERAGE) {
     mm->length_energyloss = (mm->length_effectiveadjusted + down_mm->length_effectiveadjusted) / 2.;
-  } else if (bbopt->leff_method == enum_le_method::AVERAGE) {
+  } else if (bbopt->leff_method == enum_le_method::DOWNSTREAM) {
     mm->length_energyloss = down_mm->length_effectiveadjusted;
-  } else if (bbopt->leff_method == enum_le_method::AVERAGE) {
+  } else if (bbopt->leff_method == enum_le_method::UPSTREAM) {
     mm->length_energyloss = mm->length_effectiveadjusted;
   } else {
     ExitGracefully("Streamnode.cpp: compute_profile_next: unrecognized leff_method", exitcode::BAD_DATA);

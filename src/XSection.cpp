@@ -279,7 +279,7 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
   if (bbopt->xsection_conveyance_method == enum_xsc_method::OVERBANK_CONVEYANCE) {
     if (manning_LOB == PLACEHOLDER || manning_LOB == 0 ||
         manning_main == PLACEHOLDER || manning_main == 0 ||
-        manning_ROB == PLACEHOLDER || manning_ROB == PLACEHOLDER) {
+        manning_ROB == PLACEHOLDER || manning_ROB == 0) {
       ExitGracefully(
           "XSection.cpp: compute_basic_depth_properties: manning_LOB, "
           "manning_main, and manning_ROB must be set and non 0 when using "

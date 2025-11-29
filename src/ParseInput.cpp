@@ -274,10 +274,13 @@ bool ParseMainInputFile(CModel*& pModel,
       break;
     }
     case(12):
-    {/*:ExtrapolateDepthTable [string method]*/
+    {/*:ExtrapolateDepthTable [bool extrapolate]*/
       if (pOptions->noisy_run) { std::cout << "ExtrapolateDepthTable" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ExtrapolateDepthTable", p, pOptions->noisy_run); break; }
-      std::istringstream(s[1]) >> pOptions->extrapolate_depth_table;
+      std::string t = s[1];
+      std::transform(t.begin(), t.end(), t.begin(), ::tolower);
+      std::istringstream iss(t);
+      iss >> std::boolalpha >> pOptions->extrapolate_depth_table;
       break;
     }
     case(13):
@@ -302,7 +305,10 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:EnforceDeltaLeff [bool enforce]*/
       if (pOptions->noisy_run) { std::cout << "EnforceDeltaLeff" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":EnforceDeltaLeff", p, pOptions->noisy_run); break; }
-      std::istringstream(s[1]) >> pOptions->enforce_delta_Leff;
+      std::string t = s[1];
+      std::transform(t.begin(), t.end(), t.begin(), ::tolower);
+      std::istringstream iss(t);
+      iss >> std::boolalpha >> pOptions->enforce_delta_Leff;
       break;
     }
     case(17):
@@ -328,7 +334,10 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:SilentRun [bool silent]*/
       if (pOptions->noisy_run) { std::cout << "SilentRun" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":SilentRun", p, pOptions->noisy_run); break; }
-      std::istringstream(s[1]) >> pOptions->silent_run;
+      std::string t = s[1];
+      std::transform(t.begin(), t.end(), t.begin(), ::tolower);
+      std::istringstream iss(t);
+      iss >> std::boolalpha >> pOptions->silent_run;
       break;
     }
     case(23):
@@ -446,7 +455,10 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:ManningEnforceValues [bool enforce]*/
       if (pOptions->noisy_run) { std::cout << "ManningEnforceValues" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":ManningEnforceValues", p, pOptions->noisy_run); break; }
-      std::istringstream(s[1]) >> pOptions->manning_enforce_values;
+      std::string t = s[1];
+      std::transform(t.begin(), t.end(), t.begin(), ::tolower);
+      std::istringstream iss(t);
+      iss >> std::boolalpha >> pOptions->manning_enforce_values;
       break;
     }
     case(300):
