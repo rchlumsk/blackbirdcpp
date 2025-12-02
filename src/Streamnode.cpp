@@ -218,7 +218,9 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
       "has not been computed, please include it in a bbg file.",
       exitcode::BAD_DATA);
   ExitGracefullyIf(
-      mm->stationname != (*depthdf)[0]->stationname,
+      mm->stationname != (*depthdf)[0]->stationname ||
+          mm->min_elev != (*depthdf)[0]->min_elev ||
+          mm->reach_length_US1 != (*depthdf)[0]->reach_length_US1,
       "Streamnode.cpp: compute_basic_depth_properties_interpolation: check "
       "properties in interpolation, they do not match those in the provided mm "
       "structure",
@@ -405,12 +407,12 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
 
   if (bbopt->reach_integration_method == enum_ri_method::EFFECTIVE_LENGTH) {
     double reach_length = 0;
-    if (mm->reach_length_US2 != PLACEHOLDER) {
+    if (mm->reach_length_US2 != -99) {
       reach_length = mm->reach_length_US2;
     } else {
       reach_length = mm->reach_length_US1;
     }
-    mm->sf *= std::pow(mm->length_effective / 2.0, 2.0);
+    mm->sf *= std::pow(mm->length_effective / reach_length, 2.0);
   }
 
   if (bbopt->friction_slope_method == enum_fs_method::AVERAGE_CONVEYANCE) {
@@ -463,13 +465,12 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
 /// \brief Compute total energy for streamnode at junction
 ///
 /// \param H [in] wsl value
-/// \param sn [in] streamnode object for getting data
 /// \param *down_mm [in] mm of downstream node
 /// \param *&bbopt [in] Global model options information
 //
-double CStreamnode::get_total_energy(double H, CStreamnode *sn, hydraulic_output *down_mm, COptions *&bbopt) {
-  compute_profile_next(sn->mm->flow, H, down_mm, bbopt);
-  return energy_calc(sn->mm->min_elev, sn->mm->depth, sn->mm->velocity, GRAVITY);
+double CStreamnode::get_total_energy(double H, hydraulic_output *down_mm, COptions *&bbopt) {
+  compute_profile_next(mm->flow, H, down_mm, bbopt);
+  return energy_calc(mm->min_elev, mm->depth, mm->velocity, GRAVITY);
 }
 
 //////////////////////////////////////////////////////////////////

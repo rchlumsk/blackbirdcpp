@@ -47,7 +47,7 @@ public:
   void compute_basic_depth_properties_interpolation(double wsl, COptions*& bbopt);
   void compute_profile(double flow, double wsl, COptions *bbopt);
   void compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt);
-  double get_total_energy(double H, CStreamnode *sn, hydraulic_output *down_mm, COptions *&bbopt);
+  double get_total_energy(double H, hydraulic_output *down_mm, COptions *&bbopt);
 
   void add_depthdf_row(hydraulic_output*& row);
   hydraulic_output* get_depthdf_row_from_depth(double depth);

@@ -876,8 +876,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                 sn->mm->min_elev + sn->depthdf->back()->depth,
                 [&](double x) {
                   CStreamnode temp_sn = *sn;
-                  CStreamnode *temp_ptr = &temp_sn;
-                  return temp_ptr->get_total_energy(x, temp_ptr, down_sn->mm, bbopt);
+                  return temp_sn.get_total_energy(x, down_sn->mm, bbopt);
                 }
               );
               
@@ -910,10 +909,10 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               sn->mm->wsl = proposed_wsl;
             }
           } else {
-            if (std::abs(err_diff) < 0.03 || i + 1 > bbopt->iteration_limit_cp / 2 || i >= 20) {
+            if (std::abs(err_diff) < 0.03 || i + 1 > bbopt->iteration_limit_cp / 2. || i >= 20) {
               // for small error differences, secant method can fail
               // take average of prevWSL_lag1 and prevWSL_lag2
-              double proposed_wsl = (comp_wsl + prevWSL_lag1) / 2;
+              double proposed_wsl = (comp_wsl + prevWSL_lag1) / 2.;
               // change by half of max_depth_change in direction of comp_WSL if massive swing
               if (std::abs(comp_wsl - prevWSL_lag1) > max_depth_change) {
                 proposed_wsl = prevWSL_lag1 + std::copysign(0.5*max_depth_change, comp_wsl - prevWSL_lag1);
@@ -946,8 +945,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               sn->mm->min_elev + sn->depthdf->back()->depth,
               [&](double x) {
                 CStreamnode temp_sn = *sn;
-                CStreamnode *temp_ptr = &temp_sn;
-                return temp_ptr->get_total_energy(x, temp_ptr, down_sn->mm, bbopt);
+                return temp_sn.get_total_energy(x, down_sn->mm, bbopt);
               }
             );
 

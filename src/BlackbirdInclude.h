@@ -391,7 +391,7 @@ inline double ConvCalc(double n, double A, double Rh) {
 /// \return conveyance
 //
 inline double energy_calc(double Z, double y, double v, double g = GRAVITY) {
-  return Z + y + std::pow(v, 2.) / 2 / g;
+  return Z + y + std::pow(v, 2.) / 2. / g;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -673,7 +673,7 @@ inline double brent_minimize(double ax, double bx, const std::function<double(do
 
   for (int iter = 0; iter < max_iter; iter++) {
     double m = 0.5 * (a + b);
-    double tol1 = tol * std::abs(x) + ZEPS;
+    double tol1 = ZEPS * std::abs(x) + tol;
     double tol2 = 2.0 * tol1;
 
     // check for convergence

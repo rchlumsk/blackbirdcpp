@@ -206,6 +206,7 @@ bool ParseMainInputFile(CModel*& pModel,
       if (Len < 2) { ImproperFormatWarning(":ModelType", p, pOptions->noisy_run); break; }
       if (!strcmp(s[1], "HAND_MANNING")) { pOptions->modeltype = enum_mt_method::HAND_MANNING; }
       else if (!strcmp(s[1], "STEADYFLOW")) { pOptions->modeltype = enum_mt_method::STEADYFLOW; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized ModelType. options are: HAND_MANNING and STEADYFLOW", exitcode::BAD_DATA); }
       break;
     }
     case(3):
@@ -215,6 +216,7 @@ bool ParseMainInputFile(CModel*& pModel,
       if (!strcmp(s[1], "SUBCRITICAL")) { pOptions->regimetype = enum_rt_method::SUBCRITICAL; }
       else if (!strcmp(s[1], "SUPERCRITICAL")) { pOptions->regimetype = enum_rt_method::SUPERCRITICAL; }
       else if (!strcmp(s[1], "MIXED")) { pOptions->regimetype = enum_rt_method::MIXED; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized RegimeType. options are: SUBCRITICAL, SUPERCRITICAL, and MIXED", exitcode::BAD_DATA); }
       break;
     }
     case(4):
@@ -299,6 +301,7 @@ bool ParseMainInputFile(CModel*& pModel,
       else if (!strcmp(s[1], "GEOMETRIC_FRICTION")) { pOptions->friction_slope_method = enum_fs_method::GEOMETRIC_FRICTION; }
       else if (!strcmp(s[1], "HARMONIC_FRICTION")) { pOptions->friction_slope_method = enum_fs_method::HARMONIC_FRICTION; }
       else if (!strcmp(s[1], "REACH_FRICTION")) { pOptions->friction_slope_method = enum_fs_method::REACH_FRICTION; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized FrictionSlopeMethod. options are: AVERAGE_CONVEYANCE, AVERAGE_FRICTION, GEOMETRIC_FRICTION, HARMONIC_FRICTION, and REACH_FRICTION", exitcode::BAD_DATA); }
       break;
     }
     case(16):
@@ -328,6 +331,7 @@ bool ParseMainInputFile(CModel*& pModel,
       else if (!strcmp(s[1], "WEIGHTED_AVERAGE_CONVEYANCE")) { pOptions->manning_composite_method = enum_mc_method::WEIGHTED_AVERAGE_CONVEYANCE; }
       else if (!strcmp(s[1], "EQUAL_VELOCITY")) { pOptions->manning_composite_method = enum_mc_method::EQUAL_VELOCITY; }
       else if (!strcmp(s[1], "BLENDED_NC")) { pOptions->manning_composite_method = enum_mc_method::BLENDED_NC; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized ManningCompositeMethod. options are: EQUAL_FORCE, WEIGHTED_AVERAGE_AREA, WEIGHTED_AVERAGE_WETPERIMETER, WEIGHTED_AVERAGE_CONVEYANCE, EQUAL_VELOCITY, and BLENDED_NC", exitcode::BAD_DATA); }
       break;
     }
     case(19):
@@ -423,6 +427,7 @@ bool ParseMainInputFile(CModel*& pModel,
       if (!strcmp(s[1], "AVERAGE")) { pOptions->leff_method = enum_le_method::AVERAGE; }
       else if (!strcmp(s[1], "DOWNSTREAM")) { pOptions->leff_method = enum_le_method::DOWNSTREAM; }
       else if (!strcmp(s[1], "UPSTREAM")) { pOptions->leff_method = enum_le_method::UPSTREAM; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized LeffMethod. options are: AVERAGE, DOWNSTREAM, and UPSTREAM", exitcode::BAD_DATA); }
       break;
     }
     case(100):
@@ -449,6 +454,7 @@ bool ParseMainInputFile(CModel*& pModel,
       else if (!strcmp(s[1], "DISCRETIZED_CONVEYANCE_XS")) { pOptions->xsection_conveyance_method = enum_xsc_method::DISCRETIZED_CONVEYANCE_XS; }
       else if (!strcmp(s[1], "AREAWEIGHTED_CONVEYANCE_ONECALC_XS")) { pOptions->xsection_conveyance_method = enum_xsc_method::AREAWEIGHTED_CONVEYANCE_ONECALC_XS; }
       else if (!strcmp(s[1], "AREAWEIGHTED_CONVEYANCE")) { pOptions->xsection_conveyance_method = AREAWEIGHTED_CONVEYANCE; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized XSectionConveyanceMethod. options are: OVERBANK_CONVEYANCE, DEFAULT_CONVEYANCE, COORDINATE_CONVEYANCE, DISCRETIZED_CONVEYANCE_XS, AREAWEIGHTED_CONVEYANCE_ONECALC_XS, and AREAWEIGHTED_CONVEYANCE", exitcode::BAD_DATA); }
       break;
     }
     case(202):
@@ -467,6 +473,7 @@ bool ParseMainInputFile(CModel*& pModel,
       if (Len < 2) { ImproperFormatWarning(":ReachIntegrationMethod", p, pOptions->noisy_run); break; }
       if (!strcmp(s[1], "EFFECTIVE_LENGTH")) { pOptions->reach_integration_method = enum_ri_method::EFFECTIVE_LENGTH; }
       else if (!strcmp(s[1], "REACH_LENGTH")) { pOptions->reach_integration_method = enum_ri_method::REACH_LENGTH; }
+      else {ExitGracefully("ParseMainInputFile: unrecognized ReachIntegrationMethod. options are: EFFECTIVE_LENGTH and REACH_LENGTH", exitcode::BAD_DATA); }
       break;
     }
     case(400):
@@ -479,6 +486,7 @@ bool ParseMainInputFile(CModel*& pModel,
       else if (!strcmp(s[1], "INTERP_HAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::INTERP_HAND; }
       else if (!strcmp(s[1], "INTERP_DHAND")) { pOptions->interpolation_postproc_method = enum_ppi_method::INTERP_DHAND; }
       else if (!strcmp(s[1], "INTERP_DHAND_WSLCORR")) { pOptions->interpolation_postproc_method = enum_ppi_method::INTERP_DHAND_WSLCORR; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized PostprocessingInterpolationMethod. options are: NONE, CATCHMENT_HAND, CATCHMENT_DHAND, INTERP_HAND, INTERP_DHAND, and INTERP_DHAND_WSLCORR", exitcode::BAD_DATA); }
       break;
     }
     case(401):
@@ -487,6 +495,7 @@ bool ParseMainInputFile(CModel*& pModel,
       if (Len < 2) { ImproperFormatWarning(":DHandMethod", p, pOptions->noisy_run); break; }
       if (!strcmp(s[1], "INTERPOLATE")) { pOptions->dhand_method = enum_dh_method::INTERPOLATE; }
       else if (!strcmp(s[1], "FLOOR")) { pOptions->dhand_method = enum_dh_method::FLOOR; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized DHandMethod. options are: INTERPOLATE and FLOOR", exitcode::BAD_DATA); }
       break;
     }
     case(402):
