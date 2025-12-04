@@ -218,7 +218,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
       "has not been computed, please include it in a bbg file.",
       exitcode::BAD_DATA);
   ExitGracefullyIf(
-      mm->stationname != (*depthdf)[0]->stationname ||
+      mm->nodeID != (*depthdf)[0]->nodeID ||
           mm->min_elev != (*depthdf)[0]->min_elev ||
           mm->reach_length_US1 != (*depthdf)[0]->reach_length_US1,
       "Streamnode.cpp: compute_basic_depth_properties_interpolation: check "
