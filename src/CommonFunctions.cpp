@@ -120,6 +120,7 @@ bool IsComment(const char* s, const int Len)
 /////////////////////////////////////////////////////////////////
 /// \brief writes warning to screen and to Blackbird_errors.txt file
 /// \param warn [in] warning message printed
+/// \param noisy [in] boolean for whether to also print warning to standard output
 //
 void WriteWarning(const std::string warn, bool noisy)
 {
@@ -135,6 +136,7 @@ void WriteWarning(const std::string warn, bool noisy)
 /////////////////////////////////////////////////////////////////
 /// \brief writes advisory to screen and to Blackbird_errors.txt file
 /// \param warn [in] warning message printed
+/// \param noisy [in] boolean for whether to also print warning to standard output
 //
 void WriteAdvisory(const std::string warn, bool noisy)
 {

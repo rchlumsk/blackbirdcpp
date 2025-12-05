@@ -48,15 +48,6 @@ CXSection &CXSection::operator=(const CXSection &other) {
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Compute minimum elevation
-///
-/// \return minimum elevation
-//
-double CXSection::calc_min_elev() {
-  return min_elev;
-}
-
-//////////////////////////////////////////////////////////////////
 /// \brief Compute basic depth properties
 ///
 /// \param wsl [in] water surface level to be used in computations

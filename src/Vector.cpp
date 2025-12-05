@@ -47,6 +47,8 @@ CVector& CVector::operator=(const CVector& other) {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Returns index of field with field name 'fieldname'
+/// 
+/// \param fieldname [in] name of field to get index for
 /// \return index of field with field name 'fieldname'
 //
 int CVector::get_index_by_fieldname(const char* fieldname) {
@@ -57,6 +59,9 @@ int CVector::get_index_by_fieldname(const char* fieldname) {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Adds name and ind pair to field_def_map
+///
+/// \param name [in] name of field
+/// \param ind [in] index of field
 //
 void CVector::add_to_field_def_map(const char* name, int ind) {
   field_def_map[name] = ind;

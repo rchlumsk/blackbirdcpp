@@ -1517,9 +1517,7 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
 }
 
 //////////////////////////////////////////////////////////////////
-/// \brief Generates and saves a raster based on the post processing method for the "flow_ind"-th flow
-/// \param flow_ind [in] index of the flow currently being considered
-/// \param is_interp [in] boolean indicated whether post processing method is interp method
+/// \brief Initializes an output gridded data instance for the flow ind-th profile
 /// \param is_dhand [in] boolean indicated whether post processing method is dhand method
 //
 void CModel::initialize_out_gridded(bool is_dhand) {

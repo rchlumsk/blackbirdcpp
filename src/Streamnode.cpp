@@ -467,6 +467,7 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
 /// \param H [in] wsl value
 /// \param *down_mm [in] mm of downstream node
 /// \param *&bbopt [in] Global model options information
+/// \return total energy of streamnode
 //
 double CStreamnode::get_total_energy(double H, hydraulic_output *down_mm, COptions *&bbopt) {
   compute_profile_next(mm->flow, H, down_mm, bbopt);

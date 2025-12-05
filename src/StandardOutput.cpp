@@ -13,6 +13,7 @@
 //////////////////////////////////////////////////////////////////
 /// \brief Returns filebase prepended with output directory & prefix
 /// \param filebase [in] base filename, with extension, no directory information
+/// \return filebase prepended with output directory & prefix
 //
 std::string CModel::FilenamePrepare(std::string filebase) const
 {
@@ -29,6 +30,7 @@ std::string CModel::FilenamePrepare(std::string filebase) const
 /// \brief returns directory path given filename
 ///
 /// \param fname [in] filename, e.g., C:\temp\thisfile.txt returns c:\temp
+/// \return path to directory containing file
 //
 std::string GetDirectoryName(const std::string &fname)
 {
@@ -1364,6 +1366,10 @@ void CModel::hyd_result_pretty_print_csv() const
   HYD_OUTPUT.close();
 }
 
+//////////////////////////////////////////////////////////////////
+/// \brief Modifies catchments from streamnodes json file to include depths, flows, and wsls for each flowprofile
+/// \note Useful for compliance with the expected format of BlackbirdView
+//
 void CModel::write_catchments_from_streamnodes_json() const {
   if (!bbopt->write_catchment_json) {
     return;
