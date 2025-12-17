@@ -905,6 +905,7 @@ void CStreamnode::pretty_print() const
   TESTOUTPUT << std::setw(25) << "Expansion Coeff:" << expansion_coeff << std::endl;
   TESTOUTPUT << std::setw(25) << "Min Elevation:" << min_elev << std::endl;
   TESTOUTPUT << std::setw(25) << "Bed Slope:" << bed_slope << std::endl;
+  TESTOUTPUT << std::setw(25) << "Streamnode Roughness Multiplier:" << sn_roughness_multiplier << std::endl;
 
   TESTOUTPUT << std::setw(25) << "Upstream Flows:" << std::endl;
   for (size_t i = 0; i < upstream_flows.size(); ++i) {

@@ -20,6 +20,7 @@ CStreamnode::CStreamnode()
   expansion_coeff(PLACEHOLDER),
   min_elev(PLACEHOLDER),
   bed_slope(PLACEHOLDER),
+  sn_roughness_multiplier(1.),
   depthdf(new std::vector<hydraulic_output*>),
   upstream_flows(),
   flow_sources(),
@@ -47,6 +48,7 @@ CStreamnode::CStreamnode(const CStreamnode& other)
   expansion_coeff(other.expansion_coeff),
   min_elev(other.min_elev),
   bed_slope(other.bed_slope),
+  sn_roughness_multiplier(other.sn_roughness_multiplier),
   depthdf(new std::vector<hydraulic_output*>),
   upstream_flows(other.upstream_flows),
   flow_sources(other.flow_sources),
@@ -83,6 +85,7 @@ CStreamnode &CStreamnode::operator=(const CStreamnode &other) {
   expansion_coeff = other.expansion_coeff;
   min_elev = other.min_elev;
   bed_slope = other.bed_slope;
+  sn_roughness_multiplier = other.sn_roughness_multiplier;
   upstream_flows = other.upstream_flows;
   flow_sources = other.flow_sources;
   flow_sinks = other.flow_sinks;
@@ -308,6 +311,17 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     }
     mm->k_total /= bbopt->roughness_multiplier;
     mm->manning_composite *= bbopt->roughness_multiplier;
+  }
+  
+  if (sn_roughness_multiplier != 1) {
+    if (sn_roughness_multiplier == PLACEHOLDER ||
+        sn_roughness_multiplier <= 0) {
+      ExitGracefully("Streamnode.cpp: compute_basic_depth_properties_interpolation: "
+                     "sn_roughness_multiplier must be a positive value.",
+                     BAD_DATA);
+    }
+    mm->k_total /= sn_roughness_multiplier;
+    mm->manning_composite *= sn_roughness_multiplier;
   }
 
   double reach_length = PLACEHOLDER;

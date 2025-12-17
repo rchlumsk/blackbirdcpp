@@ -23,6 +23,7 @@ public:
   double expansion_coeff;                   // expansion coefficent for use in computing streamnode properties
   double min_elev;                          // minimum elevation of streamnode
   double bed_slope;                         // bed slope of streamnode
+  double sn_roughness_multiplier;           // roughness multiplier for the individual streamnode
   std::vector<hydraulic_output*> *depthdf;  // contains data from the depthdf extracted from input files
   std::vector<double> upstream_flows;       // combined flows from upstream nodes w/o source/sink
   std::vector<double> flow_sources;         // flow sources to be added to upstream_flows

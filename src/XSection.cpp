@@ -74,6 +74,10 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     ExitGracefully("XSection.cpp: compute_basic_depth_properties: "
                    "bbopt->roughness_multiplier must be a positive value.", BAD_DATA);
   }
+  if (sn_roughness_multiplier == PLACEHOLDER || sn_roughness_multiplier <= 0) {
+    ExitGracefully("XSection.cpp: compute_basic_depth_properties: "
+                   "sn_roughness_multiplier must be a positive value.", BAD_DATA);
+  }
 
   mm->wsl = wsl;
   mm->depth = mm->wsl - mm->min_elev;
@@ -133,6 +137,9 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
 
   if (bbopt->roughness_multiplier != 1) {
     t_nn *= bbopt->roughness_multiplier;
+  }
+  if (sn_roughness_multiplier != 1) {
+    t_nn *= sn_roughness_multiplier;
   }
 
   std::valarray<double> area;
@@ -442,9 +449,9 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
   mm->length_effectiveadjusted = mm->length_effective;
 
   if (bbopt->xsection_conveyance_method == enum_xsc_method::OVERBANK_CONVEYANCE) {
-    mm->manning_lob = manning_LOB * bbopt->roughness_multiplier;
-    mm->manning_main = manning_main * bbopt->roughness_multiplier;
-    mm->manning_rob = manning_ROB * bbopt->roughness_multiplier;
+    mm->manning_lob = manning_LOB * bbopt->roughness_multiplier * sn_roughness_multiplier;
+    mm->manning_main = manning_main * bbopt->roughness_multiplier * sn_roughness_multiplier;
+    mm->manning_rob = manning_ROB * bbopt->roughness_multiplier * sn_roughness_multiplier;
 
     if (bbopt->manning_composite_method == enum_mc_method::EQUAL_FORCE) {
       mm->manning_composite =

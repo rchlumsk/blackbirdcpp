@@ -5,6 +5,8 @@
 #include "Reach.h"
 #include "XSection.h"
 
+void ImproperFormatWarning(std::string command, CParser *p, bool noisy);
+
 //////////////////////////////////////////////////////////////////
 /// \brief Parses Geometry file
 /// \details model.bbg: input file that defines geometry \n
@@ -68,6 +70,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":PreprocHydTable")) { code = 2; }
     else if (!strcmp(s[0], ":CrossSections")) { code = -2; } //treat as comment
     else if (!strcmp(s[0], ":StreamnodeCrossSection")) { code = 3; }
+    else if (!strcmp(s[0], ":StreamnodeRoughnessMultiplier")) { code = 4; }
 
     switch (code)
     {
@@ -1070,6 +1073,39 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
         xs_pSN->zz = std::valarray<double>(zz_vec.data(), zz_vec.size());
         xs_pSN->manning = std::valarray<double>(nn_vec.data(), nn_vec.size());
       }
+      break;
+    }
+    case(4):  //----------------------------------------------
+    { /*:StreamnodeRoughnessMultiplier [int sid] [double roughness_multiplier]*/
+      if (pOptions->noisy_run) {
+        std::cout << "StreamnodeRoughnessMultiplier" << std::endl;
+      }
+      if (pModel->bbsn->size() == 0) {
+        ExitGracefully("ParseGeometry File: :StreamnodeRoughnessMultiplier "
+                       "cannot be specified before :Streamnodes",
+                       exitcode::BAD_DATA);
+      }
+      if (Len < 3) {
+        ImproperFormatWarning(":StreamnodeRoughnessMultiplier", pp, pOptions->noisy_run);
+        break;
+      }
+      if (StringIsLong(s[1])) {
+        pSN = pModel->get_streamnode_by_id(std::atoi(s[1]));
+        if (StringIsDouble(s[2])) {
+          pSN->sn_roughness_multiplier = std::atof(s[2]);
+        } else {
+          std::string error =
+              "ParseGeometry File: StreamnodeRoughnessMultiplier first argument \"" +
+              std::string(s[1]) + "\" must be an int";
+          ExitGracefully(error.c_str(), BAD_DATA_WARN);
+        }
+      } else {
+        std::string error = "ParseGeometry File: StreamnodeRoughnessMultiplier "
+                            "second argument \"" +
+                            std::string(s[2]) + "\" must be a double";
+        ExitGracefully(error.c_str(), BAD_DATA_WARN);
+      }
+      pSN = NULL;
       break;
     }
     default://------------------------------------------------

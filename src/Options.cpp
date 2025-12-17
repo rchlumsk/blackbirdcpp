@@ -34,7 +34,7 @@ COptions::COptions()
   interpolation_postproc_method(enum_ppi_method::CATCHMENT_HAND),
   dhand_method(enum_dh_method::INTERPOLATE),
   postproc_elev_corr_threshold(PLACEHOLDER),
-  roughness_multiplier(PLACEHOLDER),
+  roughness_multiplier(1.),
   blended_conveyance_weights(PLACEHOLDER),
   blended_nc_weights(PLACEHOLDER),
   froude_threshold(0.94),
