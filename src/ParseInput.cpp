@@ -147,6 +147,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":WriteCatchmentJSON")) { code = 29; }
     else if (!strcmp(s[0], ":FroudeThreshold")) { code = 30; }
     else if (!strcmp(s[0], ":LeffMethod")) { code = 31; }
+    else if (!strcmp(s[0], ":EnableExhaustiveSolution")) { code = 32; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -428,6 +429,13 @@ bool ParseMainInputFile(CModel*& pModel,
       else if (!strcmp(s[1], "DOWNSTREAM")) { pOptions->leff_method = enum_le_method::DOWNSTREAM; }
       else if (!strcmp(s[1], "UPSTREAM")) { pOptions->leff_method = enum_le_method::UPSTREAM; }
       else { ExitGracefully("ParseMainInputFile: unrecognized LeffMethod. options are: AVERAGE, DOWNSTREAM, and UPSTREAM", exitcode::BAD_DATA); }
+      break;
+    }
+    case (32): { /*:EnableExhaustiveSolution*/
+      if (pOptions->noisy_run) {
+        std::cout << "EnableExhaustiveSolution" << std::endl;
+      }
+      pOptions->enable_exhaustive = true;
       break;
     }
     case(100):

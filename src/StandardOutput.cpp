@@ -807,6 +807,11 @@ void COptions::pretty_print() const
   TESTOUTPUT << std::setw(35) << "Blended Conveyance Weights:" << blended_conveyance_weights << std::endl;
   TESTOUTPUT << std::setw(35) << "Blended NC Weights:" << blended_nc_weights << std::endl;
   TESTOUTPUT << std::setw(35) << "Froude Threshold:" << froude_threshold << std::endl;
+  TESTOUTPUT << std::setw(35) << "Input Gridded Format:" << toString(in_format) << std::endl;
+  TESTOUTPUT << std::setw(35) << "Output Gridded Format:" << toString(out_format) << std::endl;
+  TESTOUTPUT << std::setw(35) << "Input NetCDF File Name:" << in_nc_name << std::endl;
+  TESTOUTPUT << std::setw(35) << "Write Catchment Json:" << (write_catchment_json ? "True" : "False") << std::endl;
+  TESTOUTPUT << std::setw(35) << "Enable Exhaustive Solution:" << (enable_exhaustive ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Silent Run:" << (silent_run ? "True" : "False") << std::endl;
   TESTOUTPUT << std::setw(35) << "Noisy Run:" << (noisy_run ? "True" : "False") << std::endl;
   TESTOUTPUT << "===========================================\n" << std::endl;

@@ -485,7 +485,7 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
 //
 double CStreamnode::get_total_energy(double H, hydraulic_output *down_mm, COptions *&bbopt) {
   compute_profile_next(mm->flow, H, down_mm, bbopt);
-  return energy_calc(mm->min_elev, mm->depth, mm->velocity, GRAVITY);
+  return energy_calc(mm->min_elev, mm->depth, mm->velocity, mm->alpha, GRAVITY);
 }
 
 //////////////////////////////////////////////////////////////////

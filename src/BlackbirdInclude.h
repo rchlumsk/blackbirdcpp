@@ -390,8 +390,8 @@ inline double ConvCalc(double n, double A, double Rh) {
 /// \brief Total energy calculation
 /// \return conveyance
 //
-inline double energy_calc(double Z, double y, double v, double g = GRAVITY) {
-  return Z + y + std::pow(v, 2.) / 2. / g;
+inline double energy_calc(double Z, double y, double v, double alpha, double g = GRAVITY) {
+  return Z + y + alpha * std::pow(v, 2.) / 2. / g;
 }
 
 ///////////////////////////////////////////////////////////////////
