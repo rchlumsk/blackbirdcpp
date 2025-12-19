@@ -23,6 +23,7 @@ CMakeFiles
 cmake_install.cmake
 CMakeCache.txt
 Makefile
+build
 
 # Runtime artifacts
 Blackbird_testoutput.txt
