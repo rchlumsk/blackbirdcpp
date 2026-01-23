@@ -868,68 +868,6 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
              proposed_wsl = PLACEHOLDER;
       bool found_supercritical = false; // reset before every i iteration, use in iteration as needed
 
-      /*
-      // temp try to compute properties the exhaustive way
-      std::vector<double> depthsv(sn->depthdf->size());
-      std::vector<double> velocities(sn->depthdf->size());
-      std::vector<double> velheads(sn->depthdf->size());
-      std::vector<double> energies(sn->depthdf->size());
-      std::vector<double> sf(sn->depthdf->size());
-      std::vector<double> sfbar(sn->depthdf->size());
-      std::vector<double> losscoeff(sn->depthdf->size());
-      std::vector<double> headloss(sn->depthdf->size());
-      std::vector<double> deptherr(sn->depthdf->size());
-      std::vector<double> fr(sn->depthdf->size());
-
-      for (std::size_t i = 0; i < sn->depthdf->size(); ++i) {
-        hydraulic_output* row = (*sn->depthdf)[i];
-        depthsv[i] = row->depth;
-        velocities[i] = std::max(sn->mm->flow / row->area, 0.0);
-        velheads[i] = std::pow(velocities[i], 2) / 2.0 / GRAVITY * row->alpha;
-        energies[i] = sn->mm->min_elev + row->depth + velheads[i];
-        sf[i] = pow(sn->mm->flow/row->k_total,2.0);
-        sfbar[i] = (sf[i] + down_sn->mm->sf) / 2.0;
-        losscoeff[i] = sn->expansion_coeff;
-        if (down_sn->mm->velocity_head > velheads[i]) {
-          losscoeff[i] = sn->contraction_coeff;
-        }
-        headloss[i] = row->length_effective * sfbar[i] +
-                      losscoeff[i] * std::abs(velheads[i]-down_sn->mm->velocity_head);
-        fr[i] = velocities[i] / std::sqrt(GRAVITY * row->depth);
-        deptherr[i] =
-            std::abs(row->depth+row->min_elev - down_sn->mm->depth - down_sn->mm->min_elev - down_sn->mm->velocity_head - headloss[i] + velheads[i]);
-      }
-
-      // determine depth with the minimum difference
-      auto it = std::min_element(
-        deptherr.begin(), deptherr.end(),
-        [](double a, double b) {
-            // Treat NaN as "always worse" so it never wins
-            if (std::isnan(a)) return false;  // a cannot be the min
-            if (std::isnan(b)) return true;   // b cannot beat a
-            return a < b;
-        }
-      );
-
-      std::size_t index = std::distance(deptherr.begin(), it);
-      double solveddepth = depthsv[index];
-      double solvedfroude = fr[index];
-
-      // determine the minimum energy and critical depth
-      auto itt = std::min_element(
-        energies.begin(), energies.end(),
-        [](double a, double b) {
-            // Treat NaN as "always worse" so it never wins
-            if (std::isnan(a)) return false;  // a cannot be the min
-            if (std::isnan(b)) return true;   // b cannot beat a
-            return a < b;
-        }
-      );
-
-      std::size_t index2 = std::distance(energies.begin(), itt);
-      double critdepth = depthsv[index2];
-      */
-
       for (int i = 0; i < bbopt->iteration_limit_cp; i++) {
         prevWSL_lag2 = prevWSL_lag1;
         prevWSL_lag1 = sn->mm->wsl;
@@ -989,8 +927,6 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               double wsl_critical = brent_minimize(
                   sn->mm->min_elev,
                   sn->mm->min_elev + sn->depthdf->back()->depth, [&](double x) {
-                    //CStreamnode temp_sn = *sn;
-                    //return temp_sn.get_total_energy(x, down_sn->mm, bbopt);
                   auto temp_sn = std::make_unique<CStreamnode>(*sn);
                   return temp_sn->get_total_energy(x, down_sn->mm, bbopt);
               });
@@ -1137,19 +1073,11 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               std::cout << "need to check crit depth" << std::endl;
             }
 
-            // iterate through the depthdf and find dc bounds based on total energy for each
-            // xxx
-            // pass these bounds to brent method
-            // check that the brent method finds solution within those bounds, otherwise take as the halfway point
-
-
             // optimization
             double wsl_critical = brent_minimize(
               sn->mm->min_elev,
               sn->mm->min_elev + sn->depthdf->back()->depth,
               [&](double x) {
-                // CStreamnode temp_sn = *sn;
-                // return temp_sn.get_total_energy(x, down_sn->mm, bbopt);
                 auto temp_sn = std::make_unique<CStreamnode>(*sn);
                 return temp_sn->get_total_energy(x, down_sn->mm, bbopt);
               }
@@ -1696,10 +1624,27 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
     double curr_depth, curr_hand;
     // assign curr_depth based on whether post processing method is interp and/or dhand method
     if (!is_interp) {
-      curr_depth =
+        double value = c_from_s->data[j];
+
+        if (!std::isnan(value) && value != c_from_s->na_val) {
+            int idx = get_hyd_res_index(flow_ind, value);
+           // check that value is in streamnode ID from bbg file
+           // idx will return -22222 if it is not
+          if (idx < 0) { 
+            curr_depth = PLACEHOLDER;
+          } else {
+            curr_depth = (*hyd_result)[idx]->depth;
+          }            
+        } else {
+            curr_depth = PLACEHOLDER;
+        }
+
+        // compact expression form
+        /* curr_depth =
           !std::isnan(c_from_s->data[j]) && c_from_s->data[j] != c_from_s->na_val
               ? (*hyd_result)[get_hyd_res_index(flow_ind, c_from_s->data[j])]->depth
               : PLACEHOLDER;
+        */
     } else {
       if (!is_dhand) { // interp_hand
         if (!std::isnan(handid->data[j]) && handid->data[j] != handid->na_val &&
