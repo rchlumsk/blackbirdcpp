@@ -225,8 +225,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
           mm->min_elev != (*depthdf)[0]->min_elev ||
           mm->reach_length_US1 != (*depthdf)[0]->reach_length_US1,
       "Streamnode.cpp: compute_basic_depth_properties_interpolation: check "
-      "properties in interpolation, they do not match those in the provided mm "
-      "structure",
+      "properties in :PreprocHydTable do not match those in :Streamnodes table",
       exitcode::BAD_DATA);
   std::vector<double> vec_depthdf_wsl = hyd_out_collect(&hydraulic_output::wsl, *depthdf);
   std::valarray<double> val_depthdf_wsl(vec_depthdf_wsl.data(), vec_depthdf_wsl.size());
@@ -291,7 +290,15 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     mm->nc_wavgarea = interpolate(wsl, &hydraulic_output::nc_wavgarea, *depthdf);
     mm->nc_wavgconv = interpolate(wsl, &hydraulic_output::nc_wavgconv, *depthdf);
   }
-  if (mm->length_effective <= 0) {
+  if (mm->length_effective == 0) {
+    ExitGracefully(
+        ("Streamnode.cpp: compute_basic_depth_properties_interpolation: "
+         "length_effective for " + std::to_string(nodeID) +
+         " was computed to be zero. Check :PreprocHydTable to ensure Length_Effective is >0.")
+            .c_str(),
+        exitcode::BAD_DATA);
+  }
+  if (mm->length_effective < 0) {
     ExitGracefully(
         ("Streamnode.cpp: compute_basic_depth_properties_interpolation: "
          "length_effective for " + std::to_string(nodeID) +
