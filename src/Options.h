@@ -18,6 +18,7 @@ public:
 
   enum_mt_method modeltype;                         // type of model. options: HAND_MANNING, STEADYFLOW
   enum_rt_method regimetype;                        // type of regime. options: SUBCRITICAL, SUPERCRITICAL, MIXED
+  enum_sm_method solvermethod;                      // method for solving for depth. options: BRENT, SECANT
   double dx;                                        // dx to use for cross section calculations
   bool extrapolate_depth_table;                     // on extrapolation beyond depth range of the table, true -> throw warning but extrapolate, false -> throw error and stop
   double num_extrapolation_points;                  // number of extrapolation points. unused?

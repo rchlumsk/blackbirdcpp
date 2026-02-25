@@ -12,6 +12,7 @@ COptions::COptions()
   gis_path(PLACEHOLDER_STR),
   modeltype(enum_mt_method::HAND_MANNING),
   regimetype(enum_rt_method::SUBCRITICAL),
+  solvermethod(enum_sm_method::BRENT),
   dx(PLACEHOLDER),
   extrapolate_depth_table(true),
   num_extrapolation_points(PLACEHOLDER),

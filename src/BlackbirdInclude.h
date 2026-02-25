@@ -237,6 +237,13 @@ enum enum_rt_method
   MIXED
 };
 
+// Solver method
+enum enum_sm_method
+{
+  BRENT,
+  SECANT
+};
+
 // Friction slope method
 enum enum_fs_method
 {
@@ -531,6 +538,14 @@ inline std::string toString(enum_rt_method method) {
   case SUBCRITICAL: return "SUBCRITICAL";
   case SUPERCRITICAL: return "SUPERCRITICAL";
   case MIXED: return "MIXED";
+  default: return "UNKNOWN";
+  }
+}
+
+inline std::string toString(enum_sm_method method) {
+  switch (method) {
+  case BRENT: return "BRENT";
+  case SECANT: return "SECANT";
   default: return "UNKNOWN";
   }
 }

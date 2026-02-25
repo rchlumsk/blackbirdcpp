@@ -148,6 +148,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":FroudeThreshold")) { code = 30; }
     else if (!strcmp(s[0], ":LeffMethod")) { code = 31; }
     else if (!strcmp(s[0], ":EnableExhaustiveSolution")) { code = 32; }
+    else if (!strcmp(s[0], ":SolverMethod")) { code = 33; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -436,6 +437,14 @@ bool ParseMainInputFile(CModel*& pModel,
         std::cout << "EnableExhaustiveSolution" << std::endl;
       }
       pOptions->enable_exhaustive = true;
+      break;
+    }
+    case (33): { /*:SolverMethod*/
+      if (pOptions->noisy_run) { std::cout << "SolverMethod" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":SolverMethod", p, pOptions->noisy_run); break; }
+      if (!strcmp(s[1], "BRENT")) { pOptions->solvermethod = enum_sm_method::BRENT; }
+      else if (!strcmp(s[1], "SECANT")) { pOptions->solvermethod = enum_sm_method::SECANT; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized SolverMethod. options are: BRENT or SECANT", exitcode::BAD_DATA); }
       break;
     }
     case(100):

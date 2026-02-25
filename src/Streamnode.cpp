@@ -496,6 +496,21 @@ double CStreamnode::get_total_energy(double H, hydraulic_output *down_mm, COptio
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Compute absolute difference in estimated WSL at streamnode
+///
+/// \param H [in] wsl value
+/// \param *down_mm [in] mm of downstream node
+/// \param *&bbopt [in] Global model options information
+/// \return absolute difference in provided and computed WSL at streamnode (>=0)
+//
+double CStreamnode::get_wsl_error(double H, hydraulic_output *down_mm, COptions *&bbopt) {
+  compute_profile_next(mm->flow, H, down_mm, bbopt);
+  return std::abs(H - (down_mm->wsl + down_mm->velocity_head + mm->head_loss -
+              mm->velocity_head));
+}
+
+
+//////////////////////////////////////////////////////////////////
 /// \brief Add row to depthdf
 ///
 /// \param row [in] row to be added
