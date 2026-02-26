@@ -71,6 +71,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":CrossSections")) { code = -2; } //treat as comment
     else if (!strcmp(s[0], ":StreamnodeCrossSection")) { code = 3; }
     else if (!strcmp(s[0], ":StreamnodeRoughnessMultiplier")) { code = 4; }
+    else if (!strcmp(s[0], ":EndPreprocessedHydraulicTables")) { code = -2; } //treat as comment
 
     switch (code)
     {

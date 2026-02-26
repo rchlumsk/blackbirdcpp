@@ -49,6 +49,7 @@ public:
   enum_gridded_format out_format;                   // format of output gridded data. options: RASTER, NETCDF, PNG
   std::string in_nc_name;                           // name of input netcdf file
   bool write_catchment_json;                        // for integration with BlackbirdView. boolean representing whether or not to modify the input catchments from streamnodes json file and write it to the output folder
+  bool write_hydraulic_output;                      // boolean representing whether or not to write hydraulic output to file (HydraulicOutput.csv). If False, this file is not written 
   bool enable_exhaustive;                           // enables using exhausting solution in compute_streamnode if secant method is producing strange results
 
   bool silent_run;                                  // true -> print less logs

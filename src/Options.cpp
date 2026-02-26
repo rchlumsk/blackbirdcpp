@@ -44,6 +44,7 @@ COptions::COptions()
   in_format(enum_gridded_format::RASTER),
   out_format(enum_gridded_format::RASTER),
   in_nc_name("bb_inputs.nc"),
+  write_hydraulic_output(true),
   write_catchment_json(false),
   enable_exhaustive(false) {
 }

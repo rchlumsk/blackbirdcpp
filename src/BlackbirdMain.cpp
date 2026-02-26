@@ -15,7 +15,7 @@ static std::string BlackbirdBuildDate(__DATE__);
 
 int main(int argc, char* argv[])
 {
-  clock_t     t0, t1, t2;          //computational time markers
+  clock_t     t0, t1, t2, t3, t4;          //computational time markers
   // Initialize model
   pModel = new CModel();
   COptions*& pOptions = pModel->bbopt;
@@ -52,18 +52,6 @@ int main(int argc, char* argv[])
     ExitGracefully("Main::Unable to read input file(s)", BAD_DATA);
   }
 
-  // Initialize GDAL
-  GDALAllRegister();
-
-  // Read input gridded data if applicable
-  if (pOptions->interpolation_postproc_method != enum_ppi_method::NONE) {
-    if (!pOptions->silent_run) {
-      std::cout << "======================================================" << std::endl;
-      std::cout << "Reading Gridded Data..." << std::endl;
-    }
-    pModel->ReadGISFiles();
-  }
-
   CheckForErrorWarnings(true, pModel);
 
   if (!pOptions->silent_run) {
@@ -84,10 +72,30 @@ int main(int argc, char* argv[])
   
   // Compute hydraulic profile for all streamnodes
   pModel->hyd_compute_profile();
-  // Post-process flood results with method specified by input parameter
-  pModel->postprocess_floodresults();
+
+  // Write hydraulic results to csv file for all streamnodes (if applicable)
+  if (pOptions->write_hydraulic_output) {
+      pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
+  }
 
   t2 = clock();
+
+  /// Reading GIS data if the postproc method is not NONE  
+  // Read input gridded data if applicable
+  if (pOptions->interpolation_postproc_method != enum_ppi_method::NONE) {
+    // Initialize GDAL
+    GDALAllRegister();
+    if (!pOptions->silent_run) {
+      std::cout << "======================================================" << std::endl;
+      std::cout << "Reading Gridded Data..." << std::endl;
+    }
+    pModel->ReadGISFiles();
+
+    // Post-process flood results with method specified by input parameter
+    pModel->postprocess_floodresults();
+  }
+ 
+  t3 = clock();
 
   //Finished Solving----------------------------------------------------
   // Initialize test output file for writing to
@@ -99,17 +107,19 @@ int main(int argc, char* argv[])
   //TESTOUTPUT.close();
   //pModel->WriteFullModel(); // writes full model to test output
   //pModel->hyd_result_pretty_print(); // writes hydraulic result to test output
-  pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
   pModel->WriteGriddedOutput(); // if applicable, writes raster output to raster files
   pModel->write_catchments_from_streamnodes_json(); // if applicable, updates catchments from streamnodes json with calculated flows, depths, and wsls
+
+  t4 = clock();
 
   if (!pOptions->silent_run)
   {
     std::cout << "======================================================" << std::endl;
     std::cout << "...Blackbird Simulation Complete: " << pOptions->run_name << std::endl;
-    std::cout << "        Parsing & initialization: " << float(t1 - t0) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
-    std::cout << "                      Simulation: " << float(t2 - t1) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
-    std::cout << "                  Writing output: " << float(clock() - t2) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << "        Parsing & Initialization: " << float(t1 - t0) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << "       Depth Simulation & Output: " << float(t2 - t1) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << " GIS Parsing and Post-Processing: " << float(t3 - t2) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << "              Additional Outputs: " << float(t4 - t3) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
     if (pOptions->main_output_dir != "") {
       std::cout << "  Output written to " << pOptions->main_output_dir << std::endl;
     }

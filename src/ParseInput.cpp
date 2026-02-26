@@ -121,34 +121,36 @@ bool ParseMainInputFile(CModel*& pModel,
     //else if (!strcmp(s[0], ":RedirectToFile")) { code = -4; }//redirect to secondary file
 
     //-------------------- GENERAL MODEL SETUP OPTIONS ------------------------
-    else if (!strcmp(s[0], ":ModelType")) { code = 2; }
-    else if (!strcmp(s[0], ":RegimeType")) { code = 3; }
-    else if (!strcmp(s[0], ":Tolerance")) { code = 4; }
-    else if (!strcmp(s[0], ":IterationLimit")) { code = 5; }
-    else if (!strcmp(s[0], ":WSLSplit")) { code = 6; }
-    else if (!strcmp(s[0], ":ToleranceNormalDepth")) { code = 7; }
-    else if (!strcmp(s[0], ":IterationLimitNormalDepth")) { code = 8; }
-    else if (!strcmp(s[0], ":WSLSplitNormalDepth")) { code = 9; }
-    else if (!strcmp(s[0], ":MaxRHRatio")) { code = 10; }
-    else if (!strcmp(s[0], ":MinRHRatio")) { code = 11; }
-    else if (!strcmp(s[0], ":ExtrapolateDepthTable")) { code = 12; }
-    else if (!strcmp(s[0], ":NumExtrapolationPoints")) { code = 13; }
-    else if (!strcmp(s[0], ":FrictionSlopeMethod")) { code = 15; }
-    else if (!strcmp(s[0], ":EnforceDeltaLeff")) { code = 16; }
-    else if (!strcmp(s[0], ":ReachLengthDelta")) { code = 17; }
-    else if (!strcmp(s[0], ":ManningCompositeMethod")) { code = 18; }
-    else if (!strcmp(s[0], ":SilentRun")) { code = 19; }
-    else if (!strcmp(s[0], ":DHANDDepthSeq")) { code = 23; }
-    else if (!strcmp(s[0], ":DHANDMaxDepth")) { code = 24; }
-    else if (!strcmp(s[0], ":DHANDDepthStep")) { code = 25; }
-    else if (!strcmp(s[0], ":WriteNetcdfFormat")) { code = 26; }
-    else if (!strcmp(s[0], ":InputNCFile")) { code = 27; }
-    else if (!strcmp(s[0], ":WritePngFormat")) { code = 28; }
-    else if (!strcmp(s[0], ":WriteCatchmentJSON")) { code = 29; }
-    else if (!strcmp(s[0], ":FroudeThreshold")) { code = 30; }
-    else if (!strcmp(s[0], ":LeffMethod")) { code = 31; }
-    else if (!strcmp(s[0], ":EnableExhaustiveSolution")) { code = 32; }
-    else if (!strcmp(s[0], ":SolverMethod")) { code = 33; }
+    else if (!strcmp(s[0], ":ModelType"))                   { code = 2; }
+    else if (!strcmp(s[0], ":RegimeType"))                  { code = 3; }
+    else if (!strcmp(s[0], ":Tolerance"))                   { code = 4; }
+    else if (!strcmp(s[0], ":IterationLimit"))              { code = 5; }
+    else if (!strcmp(s[0], ":WSLSplit"))                    { code = 6; }
+    else if (!strcmp(s[0], ":ToleranceNormalDepth"))        { code = 7; }
+    else if (!strcmp(s[0], ":IterationLimitNormalDepth"))   { code = 8; }
+    else if (!strcmp(s[0], ":WSLSplitNormalDepth"))         { code = 9; }
+    else if (!strcmp(s[0], ":MaxRHRatio"))                  { code = 10; }
+    else if (!strcmp(s[0], ":MinRHRatio"))                  { code = 11; }
+    else if (!strcmp(s[0], ":ExtrapolateDepthTable"))       { code = 12; }
+    else if (!strcmp(s[0], ":NumExtrapolationPoints"))      { code = 13; }
+    else if (!strcmp(s[0], ":FrictionSlopeMethod"))         { code = 15; }
+    else if (!strcmp(s[0], ":EnforceDeltaLeff"))            { code = 16; }
+    else if (!strcmp(s[0], ":ReachLengthDelta"))            { code = 17; }
+    else if (!strcmp(s[0], ":ManningCompositeMethod"))      { code = 18; }
+    else if (!strcmp(s[0], ":SilentRun"))                   { code = 19; }
+    else if (!strcmp(s[0], ":NoisyMode"))                   { code = 20; }
+    else if (!strcmp(s[0], ":DHANDDepthSeq"))               { code = 23; }
+    else if (!strcmp(s[0], ":DHANDMaxDepth"))               { code = 24; }
+    else if (!strcmp(s[0], ":DHANDDepthStep"))              { code = 25; }
+    else if (!strcmp(s[0], ":WriteNetcdfFormat"))           { code = 26; }
+    else if (!strcmp(s[0], ":InputNCFile"))                 { code = 27; }
+    else if (!strcmp(s[0], ":WritePngFormat"))              { code = 28; }
+    else if (!strcmp(s[0], ":WriteCatchmentJSON"))          { code = 29; }
+    else if (!strcmp(s[0], ":FroudeThreshold"))             { code = 30; }
+    else if (!strcmp(s[0], ":LeffMethod"))                  { code = 31; }
+    else if (!strcmp(s[0], ":EnableExhaustiveSolution"))    { code = 32; }
+    else if (!strcmp(s[0], ":SolverMethod"))                { code = 33; }
+    else if (!strcmp(s[0], ":DontWriteHydraulicOutput"))    { code = 34; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -346,6 +348,10 @@ bool ParseMainInputFile(CModel*& pModel,
       iss >> std::boolalpha >> pOptions->silent_run;
       break;
     }
+    case (20): { /*:NoisyMode*/
+      pOptions->noisy_run = true;
+      break;
+    }
     case(23):
     {/*:DHANDDepthSeq [std::vector<double> sequence]*/
       if (pOptions->noisy_run) { std::cout << "DHANDDepthSeq" << std::endl; }
@@ -445,6 +451,13 @@ bool ParseMainInputFile(CModel*& pModel,
       if (!strcmp(s[1], "BRENT")) { pOptions->solvermethod = enum_sm_method::BRENT; }
       else if (!strcmp(s[1], "SECANT")) { pOptions->solvermethod = enum_sm_method::SECANT; }
       else { ExitGracefully("ParseMainInputFile: unrecognized SolverMethod. options are: BRENT or SECANT", exitcode::BAD_DATA); }
+      break;
+    }
+    case (34): { /*:DontWriteHydraulicOutput*/
+      if (pOptions->noisy_run) {
+        std::cout << "DontWriteHydraulicOutput: writing HydraulicOutput.csv is disabled" << std::endl;
+      }
+      pOptions->write_hydraulic_output = false;
       break;
     }
     case(100):
