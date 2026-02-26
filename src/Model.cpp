@@ -865,7 +865,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
           // compute critical depth
           double wsl_critical = brent_minimize(
-                  sn->mm->min_elev,
+                  sn->mm->min_elev+0.01,
                   sn->mm->min_elev + sn->depthdf->back()->depth,
                   [&](double x) {
                     auto temp_sn = std::make_unique<CStreamnode>(*sn);
@@ -997,7 +997,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               }
               // optimization
               double wsl_critical = brent_minimize(
-                  sn->mm->min_elev,
+                  sn->mm->min_elev+0.01,
                   sn->mm->min_elev + sn->depthdf->back()->depth, [&](double x) {
                     auto temp_sn = std::make_unique<CStreamnode>(*sn);
                     return temp_sn->get_total_energy(x, down_sn->mm, bbopt);
@@ -1070,7 +1070,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                   depthsv[i] = row->depth;
                   velocities[i] = std::max(sn->mm->flow / row->area, 0.0);
                   velheads[i] =
-                      std::pow(velocities[i], 2) / 2.0 / GRAVITY * row->alpha;
+                      velocities[i]*velocities[i] / 2.0 / GRAVITY * row->alpha;
                   energies[i] = sn->mm->min_elev + row->depth + velheads[i];
                   sf[i] = pow(sn->mm->flow / row->k_total, 2.0);
                   sfbar[i] = (sf[i] + down_sn->mm->sf) / 2.0;
@@ -1165,7 +1165,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
 
             // optimization
             double wsl_critical = brent_minimize(
-                sn->mm->min_elev, sn->mm->min_elev + sn->depthdf->back()->depth,
+                sn->mm->min_elev+0.01, sn->mm->min_elev + sn->depthdf->back()->depth,
                 [&](double x) {
                   auto temp_sn = std::make_unique<CStreamnode>(*sn);
                   return temp_sn->get_total_energy(x, down_sn->mm, bbopt);

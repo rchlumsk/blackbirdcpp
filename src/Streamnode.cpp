@@ -477,8 +477,8 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
   mm->head_loss =
       mm->length_energyloss * mm->sf_avg +
       loss_coeff *
-          std::abs(((mm->alpha * std::pow(mm->velocity, 2.) / 2.) / GRAVITY) -
-                   ((down_mm->alpha * std::pow(down_mm->velocity, 2.) / 2.) / GRAVITY));
+          std::abs(((mm->alpha * mm->velocity*mm->velocity / 2.) / GRAVITY) -
+                   ((down_mm->alpha * down_mm->velocity*down_mm->velocity / 2.) / GRAVITY));
 }
 
 

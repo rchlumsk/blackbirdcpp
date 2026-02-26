@@ -198,7 +198,7 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
                        bbopt->noisy_run);
         }
         wet_per[i] =
-            std::sqrt(std::pow(top_width[i], 2.) +
+            std::sqrt(top_width[i]*top_width[i] +
                       std::pow(mm->wsl - std::min(t_zz[i], t_zz[i + 1]), 2.));
       }
     }
@@ -456,9 +456,9 @@ void CXSection::compute_basic_depth_properties(double wsl, COptions *&bbopt) {
     if (bbopt->manning_composite_method == enum_mc_method::EQUAL_FORCE) {
       mm->manning_composite =
           std::sqrt((1. / mm->wet_perimeter) *
-                    (mm->wet_perimeter_lob * std::pow(mm->manning_lob, 2.) +
-                     mm->wet_perimeter_main * std::pow(mm->manning_main, 2.) +
-                     mm->wet_perimeter_rob * std::pow(mm->manning_rob, 2.)));
+                    (mm->wet_perimeter_lob * mm->manning_lob*mm->manning_lob +
+                     mm->wet_perimeter_main * mm->manning_main*mm->manning_main +
+                     mm->wet_perimeter_rob * mm->manning_rob*mm->manning_rob));
     } else if (bbopt->manning_composite_method == enum_mc_method::WEIGHTED_AVERAGE_AREA) {
       mm->manning_composite = (mm->area_lob * mm->manning_lob +
                                mm->area_main * mm->manning_main +
@@ -552,7 +552,7 @@ void CXSection::compute_basic_flow_properties(double flow, COptions *&bbopt) {
                          ? mm->flow_rob / mm->area_rob
                          : 0;
 
-  mm->velocity_head = (mm->alpha * pow(mm->velocity, 2.) / 2.) / GRAVITY;
+  mm->velocity_head = (mm->alpha * mm->velocity*mm->velocity / 2.) / GRAVITY;
   mm->energy_total = mm->velocity_head + mm->wsl;
   mm->froude = mm->velocity / std::sqrt(GRAVITY * mm->hyd_depth);
   mm->sf = mm->k_total != 0 ? pow(mm->flow / mm->k_total, 2.) : 0;
