@@ -151,6 +151,10 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":EnableExhaustiveSolution"))    { code = 32; }
     else if (!strcmp(s[0], ":SolverMethod"))                { code = 33; }
     else if (!strcmp(s[0], ":DontWriteHydraulicOutput"))    { code = 34; }
+    else if (!strcmp(s[0], ":EnableSpillFlow"))             { code = 35; }
+    else if (!strcmp(s[0], ":IterationLimitSpillFlow"))     { code = 36; }
+    else if (!strcmp(s[0], ":ToleranceSpillFlows"))         { code = 37; }
+    else if (!strcmp(s[0], ":SpillFlowCoefficient"))        { code = 38; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -460,6 +464,32 @@ bool ParseMainInputFile(CModel*& pModel,
       pOptions->write_hydraulic_output = false;
       break;
     }
+    case (35): { /*:EnableSpillFlow*/
+      if (pOptions->noisy_run) {
+        std::cout << "EnableSpillFlow: spill flow calculations are enabled" << std::endl;
+      }
+      pOptions->enable_spill_flows = true;
+      break;
+    }
+    case(36): {/*:IterationLimitSpillFlow [int limit]*/
+      if (pOptions->noisy_run) { std::cout << "IterationLimitSpillFlow" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":IterationLimitSpillFlow", p, pOptions->noisy_run); break; }
+      pOptions->iteration_limit_spillflows = std::atoi(s[1]);
+      break;
+    }
+    case(37):
+    {/*:ToleranceSpillFlows [double tolerance]*/
+      if (pOptions->noisy_run) { std::cout << "ToleranceSpillFlows" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":ToleranceSpillFlows", p, pOptions->noisy_run); break; }
+      pOptions->tolerance_spillflows = std::atof(s[1]);
+      break;
+    }
+    case(38): {/*:SpillFlowCoefficient [double coeff]*/
+      if (pOptions->noisy_run) { std::cout << "SpillFlowCoefficient" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":SpillFlowCoefficient", p, pOptions->noisy_run); break; }
+      pOptions->kspillflows = std::atof(s[1]);
+      break;
+    }    
     case(100):
     {/*:RoughnessMultiplier [double mult]*/
       if (pOptions->noisy_run) { std::cout << "RoughnessMultiplier" << std::endl; }

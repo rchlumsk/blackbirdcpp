@@ -21,7 +21,8 @@ CModel::CModel()
   spp_depths(),
   dhand_vals(),
   dhandid_vals(),
-  flow_mult(1) {
+  flow_mult(1),
+  snconntbl(new std::vector<streamnodeconn*>) {
   // Default constructor implementation
 }
 
@@ -30,7 +31,8 @@ CModel::CModel(const CModel &other)
     : streamnode_map(other.streamnode_map), flow(other.flow),
       peak_hrs_min(other.peak_hrs_min), peak_hrs_max(other.peak_hrs_max),
       spp_depths(other.spp_depths), dhand_vals(other.dhand_vals),
-      dhandid_vals(other.dhandid_vals), flow_mult(other.flow_mult) {
+      dhandid_vals(other.dhandid_vals), flow_mult(other.flow_mult),
+      snconntbl(other.snconntbl) {
   if (other.c_from_s) {
     c_from_s = other.c_from_s->clone();
   }
@@ -78,6 +80,17 @@ CModel::CModel(const CModel &other)
   } else {
     hyd_result = nullptr;
   }
+
+  if (other.snconntbl) {
+    snconntbl = new std::vector<streamnodeconn *>();
+    for (const auto &res : *other.snconntbl) {
+      snconntbl->push_back(new streamnodeconn(*res));
+    }
+  } else {
+    snconntbl = nullptr;
+  }
+
+  
 }
 
 // Copy assignment operator
@@ -124,6 +137,13 @@ CModel &CModel::operator=(const CModel &other) {
     delete hyd_result;
     hyd_result = nullptr;
   }
+  if (snconntbl) {
+    for (auto ptr : *snconntbl) {
+      delete ptr;
+    }
+    delete snconntbl;
+    snconntbl = nullptr;
+  }
 
   dhand_depth_seq = other.dhand_depth_seq;
   streamnode_map = other.streamnode_map;
@@ -134,6 +154,7 @@ CModel &CModel::operator=(const CModel &other) {
   dhand_vals = other.dhand_vals;
   dhandid_vals = other.dhandid_vals;
   flow_mult = other.flow_mult;
+  snconntbl = other.snconntbl;
 
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
@@ -163,6 +184,16 @@ CModel &CModel::operator=(const CModel &other) {
     }
   } else {
     hyd_result = nullptr;
+  }
+
+  if (other.snconntbl) {
+    snconntbl = new std::vector<streamnodeconn *>();
+    for (const auto &res : *other.snconntbl) {
+      snconntbl->push_back(
+          new streamnodeconn(*res));
+    }
+  } else {
+    snconntbl = nullptr;
   }
 
   return *this;
@@ -325,6 +356,75 @@ void CModel::calc_output_flows() {
   }
 }
 
+
+//////////////////////////////////////////////////////////////////
+/// \brief Update sources and sinks based on spill flow calculations
+//
+double CModel::update_spill_flows() {
+  // std::set<int> finished_nodes;             // sorted list of nodes where output_flows has been calculated
+  // std::unordered_map<int, int> id_to_ind;   // maps nodeID to index in bbsn
+  // int total_nodes = bbsn->size();           // number of nodes in bbsn
+  // int num_fp = PLACEHOLDER;                 // number of flow profiles
+  double max_deltaQ = 0.0;                  // max exchange in flow between streamnodes
+
+  for (int i = 0; i < snconntbl->size(); i++) {
+
+      // get streamnode references
+      streamnodeconn *row = (*snconntbl)[i];
+      int ind1 = get_index_by_id(row->nodeID);
+      int ind2 = get_index_by_id(row->adjnodeID);
+      CStreamnode*& temp_sn1 = (*bbsn)[ind1]; 
+      CStreamnode*& temp_sn2 = (*bbsn)[ind2]; 
+
+      // get depths at each node from hydraulic results
+      hydraulic_output *depthrow1 = (*hyd_result)[ind1];
+      hydraulic_output *depthrow2 = (*hyd_result)[ind2];
+
+      // calculate q12, where qtransfer > 0 implies water moving from streamnode1 -> streamnode2
+     //  double maxqtransfer = 2.0; // xxx to be parametrized later
+      // double qtransfer = 0.0;
+      // double qtransfer1 = std::max(bbopt->kspillflows * (depthrow1->depth - row->minhand1), 0.0);
+      //double qtransfer = std::max(std::max(bbopt->kspillflows * (depthrow1->depth - row->minhand1), 0.0), maxqtransfer) - std::max(std::max(bbopt->kspillflows * (depthrow2->depth - row->minhand2), 0.0),maxqtransfer);
+      double qtransfer = std::max(bbopt->kspillflows * (depthrow1->depth - row->minhand1), 0.0) - std::max(bbopt->kspillflows * (depthrow2->depth - row->minhand2), 0.0);
+
+      // std::cout << "qtransfer at node " << std::to_string(row->nodeID)
+      //          << " is " + std::to_string(qtransfer) << std::endl;
+
+      if (std::abs(qtransfer) > 0) {
+        // update max qtransfer
+        if (std::abs(qtransfer) > max_deltaQ) {
+            max_deltaQ = std::abs(qtransfer);
+        }
+
+        // update flow sources (treat as positive or negative)
+        /// positive qtransfer implies taking water from streamnode1 and moving into streamnode2
+        /// xxx currently assumes 1 flow profile, need to update to handle multiple flow profiles and change index from 0
+        
+        // limit qtransfer rate to ensure flows stay positive
+        if ((depthrow1->flow - qtransfer) < 0 ||
+            (depthrow2->flow + qtransfer) < 0) {
+
+            if (qtransfer > 0) {
+              qtransfer = std::min(depthrow1->flow, qtransfer);
+            } else {
+              qtransfer = std::max(qtransfer, depthrow2->flow * (-1));
+            }
+        }
+        // update flow sources
+        temp_sn1->flow_sources[0] = temp_sn1->flow_sources[0] - qtransfer;
+        temp_sn2->flow_sources[0] = temp_sn2->flow_sources[0] + qtransfer;    
+
+        if ((depthrow1->flow + temp_sn1->flow_sources[0]) < 0) {
+          WriteWarning("Spill Flows calcs: Flow less than zero from flow sources",bbopt->noisy_run);
+        }
+        if ((depthrow2->flow + temp_sn2->flow_sources[0]) < 0) {
+          WriteWarning("Spill Flows calcs: Flow less than zero from flow sources",bbopt->noisy_run);
+        }
+      }
+  }
+  return max_deltaQ; // return max change in flow rate to eval against threshold for spill flows
+}
+
 //////////////////////////////////////////////////////////////////
 /// \brief Add streamnode to model and map
 /// \param pSN [in] pointer reference to CStreamnode being added
@@ -362,6 +462,15 @@ int CModel::get_index_by_id(int sid) {
 //
 int CModel::get_hyd_res_index(int flow_ind, int sid) {
   return flow_ind * bbsn->size() + get_index_by_id(sid);
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Add row to snconntbl
+///
+/// \param row [in] row to be added
+//
+void CModel::add_snconntbl_row(streamnodeconn *&row) {
+  snconntbl->push_back(row);
 }
 
 //////////////////////////////////////////////////////////////////
@@ -1756,18 +1865,38 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
         */
     } else {
       if (!is_dhand) { // interp_hand
-        if (!std::isnan(handid->data[j]) && handid->data[j] != handid->na_val &&
+
+          // need to update to look for max index of pointid, not use spp_depths.size()
+        /* if (!std::isnan(handid->data[j]) &&
+                   handid->data[j] != handid->na_val &&
              (handid->data[j] - 1 >= spp_depths.size() || handid->data[j] - 1 < 0)) {
-          ExitGracefully(
+             ExitGracefully(
               ("Model.cpp: postprocess_floodresults: handid specifies a "
                "pourpoint id of " + std::to_string(handid->data[j]) +
                " which does not exist in snapped pourpoints").c_str(),
               exitcode::BAD_DATA);
-        }
-        curr_depth = !std::isnan(handid->data[j]) && handid->data[j] != handid->na_val
+         */
+
+        // remove check for handid in spp_depths size for now, should replace with a check that it is in the spp IDs though
+          // make this a warning for now
+        if (!std::isnan(handid->data[j]) &&
+                           handid->data[j] != handid->na_val) {
+          WriteWarning(
+              ("Model.cpp: postprocess_floodresults: handid specifies a "
+               "pourpoint id of " + std::to_string(handid->data[j]) +
+               " which does not exist in snapped pourpoints. Depths will not be computed for this hand node.").c_str(),
+                   bbopt->noisy_run);  
+          curr_depth = PLACEHOLDER;
+        } else {
+            curr_depth = !std::isnan(handid->data[j]) && handid->data[j] != handid->na_val
                                 ? spp_depths[handid->data[j] - 1]
                                 : PLACEHOLDER;
+        }
+        
       } else { // interp_dhand
+
+          // need to update to look for max index of pointid, not use spp_depths.size()
+          // commenting check out for now
         if ((dhandid_vals[j] != PLACEHOLDER &&
              (dhandid_vals[j] - 1 >= spp_depths.size() || dhandid_vals[j] - 1 < 0))) {
           ExitGracefully(

@@ -564,6 +564,10 @@ void CStreamnode::calc_output_flows(std::vector<double> upflows) {
   for (int k = 0; k < upflows.size(); k++) {
     upstream_flows[k] = upflows[k];
     output_flows[k] = upflows[k] + flow_sources[k] - flow_sinks[k];
+    if (output_flows[k] < 0) {
+      WriteWarning("Setting flows to zero, possible flow conservation issues in model",true);
+        output_flows[k] = 0.0;
+    }
   }
 }
 

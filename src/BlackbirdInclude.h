@@ -104,6 +104,8 @@ inline void ExitGracefullyIf(bool condition, const char* statement, exitcode cod
 //*****************************************************************
 //Structures
 //*****************************************************************
+
+// structure for hydraulic output, stores and later outputs all hydraulic property results for streamnodes
 struct hydraulic_output {
   int nodeID;
   int reachID;
@@ -209,8 +211,23 @@ struct hydraulic_output {
 
   // Copy Constructor
   hydraulic_output(const hydraulic_output &other) = default;
+
+  
 };
 
+// structure for streamnode connections, used in recurrent flow calculations
+struct streamnodeconn {
+  int nodeID;
+  int adjnodeID;
+  double minhand1;
+  double minhand2;
+
+  // Constructor
+  streamnodeconn() : nodeID(0), adjnodeID(0), minhand1(0), minhand2(0) {}
+
+  // Copy Constructor
+  streamnodeconn(const streamnodeconn &other) = default;
+};
 
 //*****************************************************************
 //Enumerables

@@ -27,6 +27,8 @@ public:
   std::vector<std::unique_ptr<CGriddedData>> dhandid;   // vector of pointers to GriddedData objects for dhand pourpoints
   std::vector<std::string> fp_names;                    // names of flowprofiles read in from .bbb
   double flow_mult;                                     // global flow multiplier read in from .bbb
+  std::vector<streamnodeconn*> *snconntbl;                // contains data from the snconntbl extracted from bbg files
+  
 
   // Outputs
   std::vector<hydraulic_output *> *hyd_result;                        // hydraulic outputs generated from hyd_compute_profile
@@ -43,11 +45,14 @@ public:
   // Functions
   void hyd_compute_profile();                                     // computes hydraulic profile for all streamnodes
   void calc_output_flows();                                       // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
+  double update_spill_flows();                                    // updates spill flows via sources and sinks, and returns the max change in flow
 
   void add_streamnode(CStreamnode*& pSN);                         // adds streamnode to bbsn and maps
   CStreamnode* get_streamnode_by_id(int sid) const;                     // returns streamnode using id map
   int get_index_by_id(int id);                                    // returns streamnode index usind id map
   int get_hyd_res_index(int flow_ind, int sid);                   // returns hyd_result index
+  void add_snconntbl_row(streamnodeconn*& row);                   // add streamnodeconn row to snconntbl
+  
 
   // I/O Functions defined in StandardOutput.cpp
   std::string FilenamePrepare(std::string filebase) const;        // attaches main_output_dir folder and run_name to filebase

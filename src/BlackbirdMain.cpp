@@ -73,6 +73,50 @@ int main(int argc, char* argv[])
   // Compute hydraulic profile for all streamnodes
   pModel->hyd_compute_profile();
 
+  // if spill flows, iterate on computing profiles and computing flows
+  if (pOptions->enable_spill_flows) {
+
+      double spillthresh = -99;
+      double minspilliterations = 5.0;
+
+      std::cout << "Initiating Spill Flow Calculations..." << std::endl;
+
+      if (pModel->fp_names.size() > 1) {
+        ExitGracefully("Unable to run spill flows for multiple flow profiles "
+                       "at this time, spill flows will not be compited.",
+                       BAD_DATA);
+      }
+
+      int kk = 0; // counter for spillflows iterations
+
+      while (kk <= pOptions->iteration_limit_spillflows) {
+          // compute spill flows for each node in snconntable and update flows
+          spillthresh = pModel->update_spill_flows();
+
+          // recalculate flows
+          pModel->calc_output_flows();
+
+          // re-run hyd_compute_profile
+          pModel->hyd_compute_profile();
+
+          if ( (spillthresh < pOptions->tolerance_spillflows && kk >= minspilliterations) || spillthresh==0.0) {
+            WriteAdvisory("Spill flow calculations converged after " +
+                              std::to_string(kk + 1) +
+                              " iterations with a spillthresh of " +
+                              std::to_string(spillthresh),
+                          pOptions->noisy_run);
+              break;      
+          } else {
+              kk = kk+1;
+          }
+      }
+      if (kk >= pOptions->iteration_limit_spillflows) {
+       WriteWarning("Spill flow calculations exiting after max number of iterations and a spill_thresh of " + std::to_string(spillthresh),
+                          pOptions->noisy_run);
+      }
+      WriteAdvisory("Spill flow calculations complete!", pOptions->noisy_run);
+  }
+
   // Write hydraulic results to csv file for all streamnodes (if applicable)
   if (pOptions->write_hydraulic_output) {
       pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv

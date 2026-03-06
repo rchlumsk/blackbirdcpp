@@ -32,6 +32,10 @@ public:
   double tolerance_nd;                              // tolerance error in metres for normal depth calculations
   double iteration_limit_nd;                        // iteration limit for normal depth calculations
   double next_WSL_split_nd;                         // wsl split for normal depth calculations. unused?
+  bool enable_spill_flows;							// boolean for whether to enable spill flow calculations between streamnodes
+  double iteration_limit_spillflows;				// iteration limit for spill flow calculations
+  double tolerance_spillflows;						// tolerance error (cms) for spill flows
+  double kspillflows;								// coefficient (m^2/s) used in computing spill flows between streamnodes
   double max_RHSQ_ratio;                            // unused?
   double min_RHSQ_ratio;                            // unused?
   enum_mc_method manning_composite_method;          // manning composite method. options: EQUAL_FORCE, WEIGHTED_AVERAGE_AREA, WEIGHTED_AVERAGE_WETPERIMETER, WEIGHTED_AVERAGE_CONVEYANCE, EQUAL_VELOCITY, BLENDED_NC
