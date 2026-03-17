@@ -1329,7 +1329,7 @@ void CModel::hyd_result_pretty_print_csv() const
              << "ncEqualVelocity" << "," << "ncWavgwp" << "," << "ncWavgArea"
              << "," << "ncWavgConv" << "," << "criticalDepth" << ","
              << "cpIterations" << "," << "kErr" << "," << "wsErr" << ","
-             << "lengthEnergyloss" << "," << "lengthEffectiveAdjusted" << "peakHoursRequired"
+             << "lengthEnergyloss" << "," << "lengthEffectiveAdjusted" <<  "," << "peakHoursRequired"
              << std::endl;
   // Iterate over all hydraulic_output objects in depthdf and print them
   for (const auto &ho : *(this->hyd_result)) {
