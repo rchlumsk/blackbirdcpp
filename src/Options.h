@@ -32,6 +32,7 @@ public:
   double tolerance_nd;                              // tolerance error in metres for normal depth calculations
   double iteration_limit_nd;                        // iteration limit for normal depth calculations
   double next_WSL_split_nd;                         // wsl split for normal depth calculations. unused?
+  bool explicit_flows;								// boolean for whether to compute flows explicitly at each streamnode (as opposed to computing accumulated flows from headwaters)
   bool enable_spill_flows;							// boolean for whether to enable spill flow calculations between streamnodes
   double iteration_limit_spillflows;				// iteration limit for spill flow calculations
   double tolerance_spillflows;						// tolerance error (cms) for spill flows

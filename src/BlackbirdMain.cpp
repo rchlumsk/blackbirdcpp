@@ -76,7 +76,10 @@ int main(int argc, char* argv[])
   // if spill flows, iterate on computing profiles and computing flows
   if (pOptions->enable_spill_flows) {
 
-      double spillthresh = -99;
+      // xxx add warning here for spill mult
+      // ExitGracefullyIf(flow_mult != 1, "Spill flow calculations are not compatabile with a global flow multiplier",BAD_DATA);
+
+      double spilldelta = -99;
       double minspilliterations = 5.0;
 
       std::cout << "Initiating Spill Flow Calculations..." << std::endl;
@@ -89,9 +92,16 @@ int main(int argc, char* argv[])
 
       int kk = 0; // counter for spillflows iterations
 
+      // manually compute an appropriate threshold
+      /// run as 1/kspillflows?
+      pOptions->tolerance_spillflows = pOptions->kspillflows * 0.2; // water transferred from a differential of 0.2m
+
       while (kk <= pOptions->iteration_limit_spillflows) {
+
+          std::cout << "Spill Flow Iteration " << std::to_string(kk) << " === " << std::endl;
+
           // compute spill flows for each node in snconntable and update flows
-          spillthresh = pModel->update_spill_flows();
+          spilldelta = pModel->update_spill_flows();
 
           // recalculate flows
           pModel->calc_output_flows();
@@ -99,11 +109,11 @@ int main(int argc, char* argv[])
           // re-run hyd_compute_profile
           pModel->hyd_compute_profile();
 
-          if ( (spillthresh < pOptions->tolerance_spillflows && kk >= minspilliterations) || spillthresh==0.0) {
+          if ( (spilldelta < pOptions->tolerance_spillflows && kk >= minspilliterations) || spilldelta==0.0) {
             WriteAdvisory("Spill flow calculations converged after " +
                               std::to_string(kk + 1) +
-                              " iterations with a spillthresh of " +
-                              std::to_string(spillthresh),
+                              " iterations with a spilldelta of " +
+                              std::to_string(spilldelta),
                           pOptions->noisy_run);
               break;      
           } else {
@@ -111,7 +121,7 @@ int main(int argc, char* argv[])
           }
       }
       if (kk >= pOptions->iteration_limit_spillflows) {
-       WriteWarning("Spill flow calculations exiting after max number of iterations and a spill_thresh of " + std::to_string(spillthresh),
+       WriteWarning("Spill flow calculations exiting after max number of iterations and a spill_thresh of " + std::to_string(spilldelta),
                           pOptions->noisy_run);
       }
       WriteAdvisory("Spill flow calculations complete!", pOptions->noisy_run);
