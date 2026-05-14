@@ -1,4 +1,4 @@
-#include "Model.h"
+﻿#include "Model.h"
 #include "XSection.h"
 
 // Default constructor
@@ -299,144 +299,296 @@ void CModel::hyd_compute_profile() {
 /// \brief Calculate output flows of all streamnodes
 //
 void CModel::calc_output_flows() {
-  int total_nodes = bbsn->size();           // number of nodes in bbsn
-  int num_fp = PLACEHOLDER;                 // number of flow profiles
-  
-  if (bbopt->explicit_flows == false) {
-    // update flows based on accumulated flows in each reach
-    std::set<int> finished_nodes;             // sorted list of nodes where output_flows has been calculated
-    std::unordered_map<int, int> id_to_ind;   // maps nodeID to index in bbsn
-  
-    for (int iter = 0; finished_nodes.size() < total_nodes && iter < 1000; iter++) {
-        for (int i = 0; i < total_nodes; i++) {
-            CStreamnode*& temp_sn = (*bbsn)[i]; // reference to current streamnode pointer to simplify code
-            // If first while loop iteration, add node to id_to_ind
-            if (iter == 0) {
-            id_to_ind[temp_sn->nodeID] = i;
-            }
+    int total_nodes = bbsn->size();           // number of nodes in bbsn
+    int num_fp = PLACEHOLDER;                 // number of flow profiles
 
-            // If node has been calculated, skip
-            if (finished_nodes.find(temp_sn->nodeID) != finished_nodes.end()) {
-            continue;
-            }
-            // If either upnodes have not been calculated already, skip
-            if ( ( temp_sn->upnodeID1 != -1 && (finished_nodes.find(temp_sn->upnodeID1) == finished_nodes.end()) ) 
-            || ( temp_sn->upnodeID2 != -1 && (finished_nodes.find(temp_sn->upnodeID2) == finished_nodes.end()) )) {
-            continue;
-            }
+    if (bbopt->explicit_flows == false) {
+        // update flows based on accumulated flows in each reach
+        std::set<int> finished_nodes;             // sorted list of nodes where output_flows has been calculated
+        std::unordered_map<int, int> id_to_ind;   // maps nodeID to index in bbsn
 
-            // If headwater, add to finished nodes and continue
-            if (temp_sn->upstream_flows.size() > 0 && temp_sn->upstream_flows[0] == HEADWATER) {
-            finished_nodes.insert(temp_sn->nodeID);
-            // If num_fp has yet to be assigned, assign it (will execute on a headwater node in first iteration)
-            if (num_fp == PLACEHOLDER) {
-                num_fp = temp_sn->output_flows.size();
-            }
-            continue;
-            }
+        for (int iter = 0; finished_nodes.size() < total_nodes && iter < 1000; iter++) {
+            for (int i = 0; i < total_nodes; i++) {
+                CStreamnode*& temp_sn = (*bbsn)[i]; // reference to current streamnode pointer to simplify code
+                // If first while loop iteration, add node to id_to_ind
+                if (iter == 0) {
+                    id_to_ind[temp_sn->nodeID] = i;
+                }
 
-            // Calculate total upstream flow to send into calc_output_flows function
-            std::vector<double> upflows = (*bbsn)[id_to_ind[temp_sn->upnodeID1]]->output_flows;
-            if (temp_sn->upnodeID2 != -1) {
-            for (int j = 0; j < num_fp; j++) {
-                upflows[j] += (*bbsn)[id_to_ind[temp_sn->upnodeID2]]->output_flows[j];
-            }
-            }
-            temp_sn->calc_output_flows(upflows);
+                // If node has been calculated, skip
+                if (finished_nodes.find(temp_sn->nodeID) != finished_nodes.end()) {
+                    continue;
+                }
+                // If either upnodes have not been calculated already, skip
+                if ((temp_sn->upnodeID1 != -1 && (finished_nodes.find(temp_sn->upnodeID1) == finished_nodes.end()))
+                    || (temp_sn->upnodeID2 != -1 && (finished_nodes.find(temp_sn->upnodeID2) == finished_nodes.end()))) {
+                    continue;
+                }
 
-            // add node to finished_nodes
-            finished_nodes.insert(temp_sn->nodeID);
+                // If headwater, add to finished nodes and continue
+                if (temp_sn->upstream_flows.size() > 0 && temp_sn->upstream_flows[0] == HEADWATER) {
+                    // finished_nodes.insert(temp_sn->nodeID);
+                    // If num_fp has yet to be assigned, assign it (will execute on a headwater node in first iteration)
+                    if (num_fp == PLACEHOLDER) {
+                        num_fp = temp_sn->output_flows.size();
+                    }
+
+                    temp_sn->calc_output_flows_headwaternode();
+                    finished_nodes.insert(temp_sn->nodeID);
+                    continue;
+                }
+
+                // Calculate total upstream flow to send into calc_output_flows function
+                std::vector<double> upflows = (*bbsn)[id_to_ind[temp_sn->upnodeID1]]->output_flows;
+                if (temp_sn->upnodeID2 != -1) {
+                    for (int j = 0; j < num_fp; j++) {
+                        upflows[j] += (*bbsn)[id_to_ind[temp_sn->upnodeID2]]->output_flows[j];
+                    }
+                }
+                temp_sn->calc_output_flows(upflows);
+
+                // add node to finished_nodes
+                finished_nodes.insert(temp_sn->nodeID);
+            }
         }
     }
-  } else {
-    // flows are explicitly defined
-    // error check the inputs to ensure that each node has a defined flow
-    // xxx to do
-  }
-
-  // Apply global flow multiplier if applicable
-  if (flow_mult != 1) {
-    for (int i = 0; i < total_nodes; i++) {
-      CStreamnode *&temp_sn = (*bbsn)[i];
-      for (int j = 0; j < num_fp; j++) {
-        temp_sn->output_flows[j] *= flow_mult;
-      }
+    else {
+        // flows are explicitly defined
+        // error check the inputs to ensure that each node has a defined flow
+        // xxx to do
     }
-  }
+
+    // Apply global flow multiplier if applicable
+    if (flow_mult != 1) {
+        for (int i = 0; i < total_nodes; i++) {
+            CStreamnode*& temp_sn = (*bbsn)[i];
+            for (int j = 0; j < num_fp; j++) {
+                temp_sn->output_flows[j] *= flow_mult;
+            }
+        }
+    }
+
+    if (bbopt->debug_run) {
+        double totalQ = 0.0;
+        for (int i = 0; i < bbsn->size(); ++i) {
+            totalQ += (*bbsn)[i]->output_flows[0];
+        }
+        std::cout << "Total Q after spill iteration = " << totalQ << std::endl;
+
+        double sum_sources = 0.0;
+        for (int i = 0; i < bbsn->size(); ++i) {
+            for (double s : (*bbsn)[i]->flow_sources) {
+                sum_sources += s;
+            }
+        }
+        std::cout << "Sum of flow_sources = " << sum_sources << std::endl;
+    }
 }
 
+//////////////////////////////////////////////////////////////////
+/// \brief Sets all flow sources and sinks to zero before proceeding with spill flow calculations to update them based on spill flow calculations
+//
+void CModel::zero_flow_sources() {
+    for (int i = 0; i < bbsn->size(); i++) {
+        CStreamnode*& sn = (*bbsn)[i];
+        for (double &src : sn->flow_sources) {
+            src = 0.0;
+        }
+        for (double &snk : sn->flow_sinks) {
+            snk = 0.0;
+        }
+    }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Bound the transfer rate in spill flows based on inputs
+/// \param cumqtransfer [in] cumulative flow transfer calculated based on spill height difference and kspillflows for a given streamnode connection (can be positive or negative based on direction of flow transfer)
+/// \param Q1 [in] flow at node 1 (donor if cumqtransfer is positive, receiver if cumqtransfer is negative)
+/// \param Q2 [in] flow at node 2 (receiver if cumqtransfer is positive, donor if cumqtransfer is negative)
+/// \param minQ1 [in] minimum flow to maintain at node 1 (donor if cumqtransfer is positive, receiver if cumqtransfer is negative) after transfer based on coeff_min_flow
+/// \param minQ2 [in] minimum flow to maintain at node 2 (receiver if cumqtransfer is positive, donor if cumqtransfer is negative) after transfer based on coeff_min_flow
+/// \param maxChange1 [in] maximum change allowed in flow at node 1 (donor if cumqtransfer is positive, receiver if cumqtransfer is negative) based on coeff_qi_rate to avoid large changes in flow each iteration
+/// \param maxChange2 [in] maximum change allowed in flow at node 2 (receiver if cumqtransfer is positive, donor if cumqtransfer is negative) based on coeff_qi_rate to avoid large changes in flow each iteration
+//
+double clamp_transfer(double cumqtransfer,
+                      double Q1, double Q2,
+                      double minQ1, double minQ2,
+                      double maxChange1, double maxChange2)
+{
+    // Direction of transfer
+    double sign = (cumqtransfer >= 0.0 ? 1.0 : -1.0);
+    double amount = std::abs(cumqtransfer);
+
+    // Donor limits
+    double donor_limit;
+    if (sign > 0) {
+        // Flow from node1 → node2
+        donor_limit = Q1 - minQ1;
+        donor_limit = std::min(donor_limit, maxChange1);
+    } else {
+        // Flow from node2 → node1
+        donor_limit = Q2 - minQ2;
+        donor_limit = std::min(donor_limit, maxChange2);
+    }
+
+    // Receiver limits
+    double receiver_limit = (sign > 0 ? maxChange2 : maxChange1);
+
+    // Final allowed transfer
+    double allowed = std::min({ amount, donor_limit, receiver_limit });
+
+    return sign * allowed;
+}
 
 //////////////////////////////////////////////////////////////////
 /// \brief Update sources and sinks based on spill flow calculations
 //
 double CModel::update_spill_flows() {
-  // std::set<int> finished_nodes;             // sorted list of nodes where output_flows has been calculated
-  // std::unordered_map<int, int> id_to_ind;   // maps nodeID to index in bbsn
-  // int total_nodes = bbsn->size();           // number of nodes in bbsn
-  // int num_fp = PLACEHOLDER;                 // number of flow profiles
-  double max_deltaQ = 0.0;                  // max exchange in flow between streamnodes
+    double max_deltaQ = 0.0;                  // max exchange in flow between streamnodes
+    double max_spillheightdiff = 0.0;             // max difference in spill height between streamnodes (used to compute flow transfer rate)
+    double cumqtransfer = 0.0;
 
-  for (int i = 0; i < snconntbl->size(); i++) {
+    double coeff_qi_rate = bbopt->spillflowsmaxqrate; // computes max flow rate change based on coeff_qi_rate*Q for each iteration [0..1]
+    // e.g., coeff_qi_rate = 0.9, max flow rate change is 90% of the current flow rate
 
-      // get streamnode references
-      streamnodeconn *row = (*snconntbl)[i];
-      int ind1 = get_index_by_id(row->nodeID);
-      int ind2 = get_index_by_id(row->adjnodeID);
-      CStreamnode*& temp_sn1 = (*bbsn)[ind1]; 
-      CStreamnode*& temp_sn2 = (*bbsn)[ind2]; 
+    double coeff_min_flow = bbopt->spillflowsminq; // minimum flow to maintain in streamnodes from original, computed as coeff_min_flow*Q [0..1]
+    // e.g., coeff_min_flow = 0.1, flow will not reduce below 10% of original flow from previous solution
 
+    for (int i = 0; i < snconntbl->size(); i++) {
+        // get streamnode references
+        streamnodeconn* row = (*snconntbl)[i];
+        int ind1 = get_index_by_id(row->nodeID);
+        int ind2 = get_index_by_id(row->adjnodeID);
+        CStreamnode*& temp_sn1 = (*bbsn)[ind1];
+        CStreamnode*& temp_sn2 = (*bbsn)[ind2];
+        bool setqtransfer = false;
+        
+        // conditons to end qtransfer calc or not
+        if (i == snconntbl->size() - 1) {
+          setqtransfer = true; // ended due to end of file
+        } else {
+            // end if the next row has a change in the pairing of cid & adjid OR if the reachID changes
+            streamnodeconn *nextrow = (*snconntbl)[i+1];
+            int ind3 = get_index_by_id(nextrow->adjnodeID);
+            if (ind3 != ind2 || nextrow->reachID != row->reachID) { 
+              setqtransfer = true;
+            }
+        }
+        
       // get depths at each node from hydraulic results
       hydraulic_output *depthrow1 = (*hyd_result)[ind1];
       hydraulic_output *depthrow2 = (*hyd_result)[ind2];
 
-      // calculate q12, where qtransfer > 0 implies water moving from streamnode1 -> streamnode2
-     //  double maxqtransfer = 2.0; // xxx to be parametrized later
-      // double qtransfer = 0.0;
-      // double qtransfer1 = std::max(bbopt->kspillflows * (depthrow1->depth - row->minhand1), 0.0);
-      //double qtransfer = std::max(std::max(bbopt->kspillflows * (depthrow1->depth - row->minhand1), 0.0), maxqtransfer) - std::max(std::max(bbopt->kspillflows * (depthrow2->depth - row->minhand2), 0.0),maxqtransfer);
-      double qtransfer = std::max(bbopt->kspillflows * (depthrow1->depth - row->minhand1), 0.0) - std::max(bbopt->kspillflows * (depthrow2->depth - row->minhand2), 0.0);
+      // compute difference in transfer elevation (absolute value)
+      double spillheightdiff = (std::max(depthrow1->depth - row->minhand1,0.0)+row->minelev1) - 
+                               (std::max(depthrow2->depth - row->minhand2,0.0)+row->minelev2);    
 
-      std::cout << "qtransfer computed for streamnode ID "
-                << std::to_string(row->nodeID) << " and adjacent streamnode ID "
-                << std::to_string(row->adjnodeID)
-                << " is " + std::to_string(qtransfer) << std::endl;
-
-      // std::cout << "qtransfer at node " << std::to_string(row->nodeID)
-      //          << " is " + std::to_string(qtransfer) << std::endl;
-
-      if (std::abs(qtransfer) > 0) {
-        // update max qtransfer
-        if (std::abs(qtransfer) > max_deltaQ) {
-            max_deltaQ = std::abs(qtransfer);
-        }
-
-        // update flow sources (treat as positive or negative)
-        /// positive qtransfer implies taking water from streamnode1 and moving into streamnode2
-        /// xxx currently assumes 1 flow profile, need to update to handle multiple flow profiles and change index from 0
-        
-        // limit qtransfer rate to ensure flows stay positive
-        if ((depthrow1->flow - qtransfer) < 0 ||
-            (depthrow2->flow + qtransfer) < 0) {
-
-            if (qtransfer > 0) {
-              qtransfer = std::min(depthrow1->flow, qtransfer);
-            } else {
-              qtransfer = std::max(qtransfer, depthrow2->flow * (-1));
-            }
-        }
-        // update flow sources
-        temp_sn1->flow_sources[0] = temp_sn1->flow_sources[0] - qtransfer;
-        temp_sn2->flow_sources[0] = temp_sn2->flow_sources[0] + qtransfer;    
-
-        if ((depthrow1->flow + temp_sn1->flow_sources[0]) < 0) {
-          WriteWarning("Spill Flows calcs: Flow less than zero from flow sources",bbopt->noisy_run);
-        }
-        if ((depthrow2->flow + temp_sn2->flow_sources[0]) < 0) {
-          WriteWarning("Spill Flows calcs: Flow less than zero from flow sources",bbopt->noisy_run);
+      if (std::abs(spillheightdiff) > 0) {
+        // update max spillheightdiff
+        if (std::abs(spillheightdiff) > max_spillheightdiff) {
+          max_spillheightdiff = std::abs(spillheightdiff);
         }
       }
+      
+      double qtransfer = spillheightdiff * bbopt->kspillflows;
+      cumqtransfer = cumqtransfer + qtransfer;
+
+      if (setqtransfer) {
+
+        // limit qtransfer based on receiving body's flow rate, avoid a 50% increase in flows
+        /* if (cumqtransfer > 0) {
+          if (cumqtransfer > depthrow2->flow*coeff_qi_rate) {
+            cumqtransfer = depthrow2->flow * coeff_qi_rate;
+          }
+        } else {
+          if (abs(cumqtransfer) > depthrow1->flow * coeff_qi_rate) {
+            cumqtransfer = depthrow1->flow * (-coeff_qi_rate);
+          }
+        }
+        */
+
+
+        // clamp the transfer rate with bounds
+        double Q1 = temp_sn1->output_flows[0];
+        double Q2 = temp_sn2->output_flows[0];
+
+        double minQ1 = depthrow1->flow * coeff_min_flow;
+        double minQ2 = depthrow2->flow * coeff_min_flow;
+
+        double maxChange1 = Q1 * coeff_qi_rate;
+        double maxChange2 = Q2 * coeff_qi_rate;
+
+        cumqtransfer = clamp_transfer(cumqtransfer,
+                                      Q1, Q2,
+                                      minQ1, minQ2,
+                                      maxChange1, maxChange2);
+
+        /*
+        // limits on cumqtransfer based on change in each iteration (coeff_qi_rate)
+        if (cumqtransfer > 0 && temp_sn1->output_flows[0] * coeff_qi_rate - cumqtransfer < 0) {
+          cumqtransfer = temp_sn1->output_flows[0] * (1-coeff_qi_rate);
+        }
+
+        if (cumqtransfer < 0 && temp_sn2->output_flows[0] * coeff_qi_rate - std::abs(cumqtransfer) < 0) {
+          cumqtransfer = (temp_sn2->output_flows[0] * (1-coeff_qi_rate))*(-1);
+        }
+
+        // limits on cumqtransfer based on minimum flow to maintain in streamnodes (coeff_min_flow)
+        if (cumqtransfer > 0 && temp_sn1->output_flows[0] - cumqtransfer < depthrow1->flow * coeff_min_flow) {
+          cumqtransfer = std::max(0.0,temp_sn1->output_flows[0] - depthrow1->flow * coeff_min_flow); 
+        }
+
+        if (cumqtransfer < 0 && temp_sn2->output_flows[0] - std::abs(cumqtransfer) < depthrow2->flow * coeff_min_flow) {
+          cumqtransfer = std::max(0.0,temp_sn2->output_flows[0] - depthrow2->flow * coeff_min_flow)*(-1); 
+        }
+        */
+
+        // update flow sources
+        //temp_sn1->flow_sources[0] = temp_sn1->flow_sources[0] - cumqtransfer;
+        //temp_sn2->flow_sources[0] = temp_sn2->flow_sources[0] + cumqtransfer;  
+
+        temp_sn1->flow_sources[0] += cumqtransfer*(-1);
+        temp_sn2->flow_sources[0] += cumqtransfer;
+        
+        // recalculate all flows based on updated sources and sinks to ensure 
+        /// they are reflected in the iterative flow changes along reaches
+        //calc_output_flows();
+
+        if (bbopt->noisy_run || bbopt->debug_run) {
+          std::cout << "qtransfer computed: streamnode ID "
+                    << std::to_string(row->nodeID) << " - "
+                    << std::to_string(row->adjnodeID) 
+                    << ", qtransfer = " << std::to_string(qtransfer)
+                    << std::endl;
+
+          /*
+          std::cout << "-- qtransfer = " + std::to_string(cumqtransfer)
+                    << ", cid node original flow = "
+                    << std::to_string(depthrow1->flow) << ", updated flow = "
+                    << std::to_string(temp_sn1->output_flows[0])
+                    << ", adjid node original flow = "
+                    << std::to_string(depthrow2->flow) << ", updated flow = "
+                    << std::to_string(temp_sn2->output_flows[0]) << std::endl;
+          */
+        }
+
+        // reset cumulative flow transfer calculation for next streamnode
+        cumqtransfer = 0.0; 
+      }
+      
   }
-  return max_deltaQ; // return max change in flow rate to eval against threshold for spill flows
+
+  if (bbopt->debug_run) {
+    double sum_sources = 0.0;
+    for (int i = 0; i < bbsn->size(); ++i) {
+        for (double s : (*bbsn)[i]->flow_sources) {
+            sum_sources += s;
+        }
+    }
+    std::cout << "Sum of flow_sources = " << sum_sources << std::endl;
+  }
+
+  return max_spillheightdiff; // return max spill height diff to evaluate against threshold
 }
 
 //////////////////////////////////////////////////////////////////
@@ -1342,10 +1494,14 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                 std::size_t index2 = std::distance(energies.begin(), itt);
                 double critdepth = depthsv[index2];
 
-                std::cout << "exhaustive solution at streamnode " << std::to_string(sn->nodeID)
-                          << " is depth " << std::to_string(solveddepth)
+                /* std::cout
+                    << "exhaustive solution at streamnode "
+                    << std::to_string(sn->nodeID)
+                          << " is depth " << std::to_string(solveddepth) << " is flow "
+                          << std::to_string(sn->mm->flow)
                           << " with froude number " << std::to_string(solvedfroude)
                           << " and critical depth is " << std::to_string(critdepth) << std::endl;
+                          */
 
                 if (solvedfroude >= bbopt->froude_threshold) {
                   sn->mm->wsl = sn->mm->min_elev + solveddepth;

@@ -79,8 +79,9 @@ int main(int argc, char* argv[])
       // xxx add warning here for spill mult
       // ExitGracefullyIf(flow_mult != 1, "Spill flow calculations are not compatabile with a global flow multiplier",BAD_DATA);
 
-      double spilldelta = -99;
-      double minspilliterations = 5.0;
+      double spilldepth = -99;
+      // double minspilliterations = 5.0;
+      double spilldepthprev = -99;
 
       std::cout << "Initiating Spill Flow Calculations..." << std::endl;
 
@@ -92,16 +93,17 @@ int main(int argc, char* argv[])
 
       int kk = 0; // counter for spillflows iterations
 
-      // manually compute an appropriate threshold
-      /// run as 1/kspillflows?
-      pOptions->tolerance_spillflows = pOptions->kspillflows * 0.2; // water transferred from a differential of 0.2m
-
       while (kk <= pOptions->iteration_limit_spillflows) {
 
-          std::cout << "Spill Flow Iteration " << std::to_string(kk) << " === " << std::endl;
+          if (!pOptions->silent_run) {
+            std::cout << "Spill Flow Iteration " << std::to_string(kk+1) << " === " << std::endl;
+          }
+
+          // zero sources before computing spill flows
+          pModel->zero_flow_sources();
 
           // compute spill flows for each node in snconntable and update flows
-          spilldelta = pModel->update_spill_flows();
+          spilldepth = pModel->update_spill_flows();
 
           // recalculate flows
           pModel->calc_output_flows();
@@ -109,19 +111,19 @@ int main(int argc, char* argv[])
           // re-run hyd_compute_profile
           pModel->hyd_compute_profile();
 
-          if ( (spilldelta < pOptions->tolerance_spillflows && kk >= minspilliterations) || spilldelta==0.0) {
-            WriteAdvisory("Spill flow calculations converged after " +
-                              std::to_string(kk + 1) +
-                              " iterations with a spilldelta of " +
-                              std::to_string(spilldelta),
-                          pOptions->noisy_run);
+          if ( (spilldepth < pOptions->tolerance_spillflows) || spilldepth==0.0 || (kk>1 && std::abs(spilldepth-spilldepthprev)<pOptions->spilldepthchangetol)) {
+            WriteAdvisory("Spill flow calculations converged after " + std::to_string(kk + 1) +
+                              " iterations with a spilldepth of " + std::to_string(spilldepth) + 
+                              " and a change in spilldepth of " + std::to_string(std::abs(spilldepth-spilldepthprev)),
+                          pOptions->noisy_run || pOptions->debug_run);
               break;      
           } else {
-              kk = kk+1;
+            kk = kk+1;
+            spilldepthprev = spilldepth;
           }
       }
       if (kk >= pOptions->iteration_limit_spillflows) {
-       WriteWarning("Spill flow calculations exiting after max number of iterations and a spill_thresh of " + std::to_string(spilldelta),
+       WriteWarning("Spill flow calculations exiting after max number of iterations and a spilldpeth of " + std::to_string(spilldepth),
                           pOptions->noisy_run);
       }
       WriteAdvisory("Spill flow calculations complete!", pOptions->noisy_run);

@@ -46,6 +46,7 @@ public:
   void hyd_compute_profile();                                     // computes hydraulic profile for all streamnodes
   void calc_output_flows();                                       // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
   double update_spill_flows();                                    // updates spill flows via sources and sinks, and returns the max change in flow
+  void zero_flow_sources();									      // sets flow of all source streamnodes to zero. used in iterative process of updating spill flows via sources and sinks
 
   void add_streamnode(CStreamnode*& pSN);                         // adds streamnode to bbsn and maps
   CStreamnode* get_streamnode_by_id(int sid) const;                     // returns streamnode using id map

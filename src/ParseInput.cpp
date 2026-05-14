@@ -138,7 +138,9 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":ReachLengthDelta"))            { code = 17; }
     else if (!strcmp(s[0], ":ManningCompositeMethod"))      { code = 18; }
     else if (!strcmp(s[0], ":SilentRun"))                   { code = 19; }
-    else if (!strcmp(s[0], ":NoisyMode"))                   { code = 20; }
+    else if (!strcmp(s[0], ":NoisyRun"))                    { code = 20; }
+    else if (!strcmp(s[0], ":DebugRun"))                    { code = 21; }
+
     else if (!strcmp(s[0], ":DHANDDepthSeq"))               { code = 23; }
     else if (!strcmp(s[0], ":DHANDMaxDepth"))               { code = 24; }
     else if (!strcmp(s[0], ":DHANDDepthStep"))              { code = 25; }
@@ -152,9 +154,13 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":SolverMethod"))                { code = 33; }
     else if (!strcmp(s[0], ":DontWriteHydraulicOutput"))    { code = 34; }
     else if (!strcmp(s[0], ":EnableSpillFlow"))             { code = 35; }
-    else if (!strcmp(s[0], ":IterationLimitSpillFlow"))     { code = 36; }
-    else if (!strcmp(s[0], ":ToleranceSpillFlows"))         { code = 37; }
+    else if (!strcmp(s[0], ":SpillFlowIterationLimit"))     { code = 36; }
+    else if (!strcmp(s[0], ":SpillFlowToleranceDepth"))     { code = 37; }
     else if (!strcmp(s[0], ":SpillFlowCoefficient"))        { code = 38; }
+    else if (!strcmp(s[0], ":SpillFlowMinFlowPercent"))     { code = 39; }
+    else if (!strcmp(s[0], ":SpillFlowMaxDeltaFlow"))       { code = 40; }
+    else if (!strcmp(s[0], ":SpillFlowDeltaThreshold"))     { code = 41; }
+
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -238,7 +244,7 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:IterationLimit [int limit]*/
       if (pOptions->noisy_run) { std::cout << "IterationLimit" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":IterationLimit", p, pOptions->noisy_run); break; }
-      pOptions->iteration_limit_cp = std::atoi(s[1]);
+      pOptions->iteration_limit_cp = std::atoi(s[1])-1; // minus one for cpp indexing
       break;
     }
     case(6):
@@ -259,7 +265,7 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:IterationLimitNormalDepth [int limit]*/
       if (pOptions->noisy_run) { std::cout << "IterationLimitNormalDepth" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":IterationLimitNormalDepth", p, pOptions->noisy_run); break; }
-      pOptions->iteration_limit_nd = std::atoi(s[1]);
+      pOptions->iteration_limit_nd = std::atoi(s[1])-1; // minus one for cpp indexing
       break;
     }
     case(9):
@@ -352,8 +358,12 @@ bool ParseMainInputFile(CModel*& pModel,
       iss >> std::boolalpha >> pOptions->silent_run;
       break;
     }
-    case (20): { /*:NoisyMode*/
+    case (20): { /*:NoisyRun*/
       pOptions->noisy_run = true;
+      break;
+    }
+    case (21): { /*:DebugRun*/
+      pOptions->debug_run = true;
       break;
     }
     case(23):
@@ -471,16 +481,16 @@ bool ParseMainInputFile(CModel*& pModel,
       pOptions->enable_spill_flows = true;
       break;
     }
-    case(36): {/*:IterationLimitSpillFlow [int limit]*/
-      if (pOptions->noisy_run) { std::cout << "IterationLimitSpillFlow" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":IterationLimitSpillFlow", p, pOptions->noisy_run); break; }
-      pOptions->iteration_limit_spillflows = std::atoi(s[1]);
+    case(36): {/*:SpillFlowIterationLimit [int limit]*/
+      if (pOptions->noisy_run) { std::cout << "SpillFlowIterationLimit" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":SpillFlowIterationLimit", p, pOptions->noisy_run); break; }
+      pOptions->iteration_limit_spillflows = std::atoi(s[1])-1; // minus one for cpp indexing
       break;
     }
     case(37):
-    {/*:ToleranceSpillFlows [double tolerance]*/
-      if (pOptions->noisy_run) { std::cout << "ToleranceSpillFlows" << std::endl; }
-      if (Len < 2) { ImproperFormatWarning(":ToleranceSpillFlows", p, pOptions->noisy_run); break; }
+    {/*:SpillFlowToleranceDepth [double tolerance]*/
+      if (pOptions->noisy_run) { std::cout << "SpillFlowToleranceDepth" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":SpillFlowToleranceDepth", p, pOptions->noisy_run); break; }
       pOptions->tolerance_spillflows = std::atof(s[1]);
       break;
     }
@@ -489,7 +499,25 @@ bool ParseMainInputFile(CModel*& pModel,
       if (Len < 2) { ImproperFormatWarning(":SpillFlowCoefficient", p, pOptions->noisy_run); break; }
       pOptions->kspillflows = std::atof(s[1]);
       break;
+    }   
+    case(39): {/*:SpillFlowMinFlowPercent [double coeff]*/
+      if (pOptions->noisy_run) { std::cout << "SpillFlowMinFlowPercent" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":SpillFlowMinFlowPercent", p, pOptions->noisy_run); break; }
+      pOptions->spillflowsminq = std::atof(s[1]);
+      break;
     }    
+    case(40): {/*:SpillFlowMaxDeltaFlow [double coeff]*/
+      if (pOptions->noisy_run) { std::cout << "SpillFlowMaxDeltaFlow" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":SpillFlowMaxDeltaFlow", p, pOptions->noisy_run); break; }
+      pOptions->spillflowsmaxqrate = std::atof(s[1]);
+      break;
+    }    
+    case(41): {/*:SpillFlowDeltaThreshold [double coeff]*/
+      if (pOptions->noisy_run) { std::cout << "SpillFlowDeltaThreshold" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":SpillFlowDeltaThreshold", p, pOptions->noisy_run); break; }
+      pOptions->spilldepthchangetol = std::atof(s[1]);
+      break;
+    } 
     case(100):
     {/*:RoughnessMultiplier [double mult]*/
       if (pOptions->noisy_run) { std::cout << "RoughnessMultiplier" << std::endl; }

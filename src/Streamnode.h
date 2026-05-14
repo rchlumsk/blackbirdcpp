@@ -58,6 +58,7 @@ public:
   void add_sourcesink(int index, double source, double sink);                                         // add source and sink pair to streamnode
 
   void calc_output_flows(std::vector<double> upflows);                                                // calculate output flows of streamnode
+  void calc_output_flows_headwaternode();															  // calculate output flows of headwater streamnode
 
   void pretty_print() const; // defined in StandardOutput.cpp
 

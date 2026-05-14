@@ -35,8 +35,11 @@ public:
   bool explicit_flows;								// boolean for whether to compute flows explicitly at each streamnode (as opposed to computing accumulated flows from headwaters)
   bool enable_spill_flows;							// boolean for whether to enable spill flow calculations between streamnodes
   double iteration_limit_spillflows;				// iteration limit for spill flow calculations
-  double tolerance_spillflows;						// tolerance error (cms) for spill flows
+  double tolerance_spillflows;						// tolerance depth error (m) for spill flows before stopping iterations
   double kspillflows;								// coefficient (m^2/s) used in computing spill flows between streamnodes
+  double spillflowsmaxqrate;						// maximum flow rate change (%) allowed for spill flows between streamnodes, ensures that max flow change is this much in the iteration
+  double spillflowsminq;							// minimum flow rate reserved (%) for streamnode with spill flows, ensures that at least this percentage is left each iteration
+  double spilldepthchangetol;						// tolerance depth change (m) for spill flows between streamnodes, ensures that flow iterations continue until depth change is less than this value (or less than threshold)
   double max_RHSQ_ratio;                            // unused?
   double min_RHSQ_ratio;                            // unused?
   enum_mc_method manning_composite_method;          // manning composite method. options: EQUAL_FORCE, WEIGHTED_AVERAGE_AREA, WEIGHTED_AVERAGE_WETPERIMETER, WEIGHTED_AVERAGE_CONVEYANCE, EQUAL_VELOCITY, BLENDED_NC
@@ -59,6 +62,7 @@ public:
 
   bool silent_run;                                  // true -> print less logs
   bool noisy_run;                                   // true -> print more logs
+  bool debug_run;									// true -> print debug logs and outputs
 
   // Constructor
   COptions();

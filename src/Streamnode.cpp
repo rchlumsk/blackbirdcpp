@@ -564,7 +564,23 @@ void CStreamnode::calc_output_flows(std::vector<double> upflows) {
   for (int k = 0; k < upflows.size(); k++) {
     upstream_flows[k] = upflows[k];
     output_flows[k] = upflows[k] + flow_sources[k] - flow_sinks[k];
-    if (output_flows[k] < 0) {
+    if (output_flows[k] <= 0) {
+      WriteWarning("Setting flows to zero, possible flow conservation issues in model.\nIf running spill flows, consider reducing value of :SpillFlowCoefficient and/or adjusting other parameters.",true);
+        output_flows[k] = 0.0;
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Calculates the output flows of headwater node with sources and sinks included
+///
+/// \param upflows [in] flow value contributed by upstream nodes
+//
+void CStreamnode::calc_output_flows_headwaternode() {
+  allocate_flowprofiles(output_flows.size());
+  for (int k = 0; k < output_flows.size(); k++) {
+    output_flows[k] = output_flows[k] + flow_sources[k] - flow_sinks[k];
+    if (output_flows[k] <= 0) {
       WriteWarning("Setting flows to zero, possible flow conservation issues in model",true);
         output_flows[k] = 0.0;
     }

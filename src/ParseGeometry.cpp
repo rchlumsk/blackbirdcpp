@@ -1147,7 +1147,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
           else
           {
             row++;
-            if (Len < 4) { pp->ImproperFormat(s); }
+            if (Len < 5) { pp->ImproperFormat(s); }
             pSC = NULL;
             pSC = new streamnodeconn();
             ExitGracefullyIf(pSC == NULL, "ParseStreamnodeConnectionsTable", OUT_OF_MEMORY);
@@ -1184,7 +1184,34 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
                 pSC->minhand2 = std::stod(s[3]);
               }
               else {
-                error = "ParseGeometry File: minhand(s) \"" + std::string(s[2]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a double";
+                error = "ParseGeometry File: minhand(s) \"" + std::string(s[3]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[4], "NA")) {
+              if (StringIsDouble(s[4])) {
+                pSC->minelev1 = std::stod(s[4]);
+              }
+              else {
+                error = "ParseGeometry File: elev(s) \"" + std::string(s[4]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[5], "NA")) {
+              if (StringIsDouble(s[5])) {
+                pSC->minelev2 = std::stod(s[5]);
+              }
+              else {
+                error = "ParseGeometry File: elev(s) \"" + std::string(s[5]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[6], "NA")) {
+              if (StringIsLong(s[6])) {
+                pSC->reachID = std::stoi(s[6]);
+              }
+              else {
+                error = "ParseGeometry File: reachID \"" + std::string(s[6]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a unique integer or long integer";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
             }

@@ -221,9 +221,12 @@ struct streamnodeconn {
   int adjnodeID;
   double minhand1;
   double minhand2;
+  double minelev1;
+  double minelev2;
+  int reachID;
 
   // Constructor
-  streamnodeconn() : nodeID(0), adjnodeID(0), minhand1(0), minhand2(0) {}
+  streamnodeconn() : nodeID(0), adjnodeID(0), minhand1(0), minhand2(0), minelev1(0), minelev2(0), reachID(0) {}
 
   // Copy Constructor
   streamnodeconn(const streamnodeconn &other) = default;
