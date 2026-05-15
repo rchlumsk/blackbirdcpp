@@ -43,6 +43,7 @@ public:
   CModel &operator=(const CModel &other);
 
   // Functions
+  void create_raven_profiles();                                   // creates raven profiles for all streamnodes based on normal depth and preprocessed tables
   void hyd_compute_profile();                                     // computes hydraulic profile for all streamnodes
   void calc_output_flows();                                       // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
   double update_spill_flows();                                    // updates spill flows via sources and sinks, and returns the max change in flow

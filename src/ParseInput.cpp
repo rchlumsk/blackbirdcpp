@@ -162,6 +162,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":SpillFlowDeltaThreshold"))     { code = 41; }
 
 
+
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
 
@@ -177,6 +178,9 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":PostprocessingInterpolationMethod")) { code = 400; }
     else if (!strcmp(s[0], ":DHandMethod")) { code = 401; }
     else if (!strcmp(s[0], ":GISPath")) { code = 402; }
+
+    //-------------------- OTHER SPECIAL OPTIONS ------------------------
+    else if (!strcmp(s[0], ":CreateRavenProfiles")) { code = 500; }
 
     switch (code)
     {
@@ -591,6 +595,12 @@ bool ParseMainInputFile(CModel*& pModel,
       if (pOptions->noisy_run) { std::cout << "GISPath" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":GISPath", p, pOptions->noisy_run); break; }
       pOptions->gis_path = s[1];
+      break;
+    }
+    case(500):
+    {/*:CreateRavenProfiles*/
+      if (pOptions->noisy_run) { std::cout << "Writing Raven Profiles file (channel_properties_blackbird.rvp)" << std::endl; }
+      pOptions->create_raven_profiles = true;
       break;
     }
     default://----------------------------------------------

@@ -55,7 +55,8 @@ COptions::COptions()
   in_nc_name("bb_inputs.nc"),
   write_hydraulic_output(true),
   write_catchment_json(false),
-  enable_exhaustive(false) {
+  enable_exhaustive(false),
+  create_raven_profiles(false){
 }
 
 //////////////////////////////////////////////////////////////////

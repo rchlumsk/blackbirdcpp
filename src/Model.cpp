@@ -200,6 +200,67 @@ CModel &CModel::operator=(const CModel &other) {
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Computes the Raven-style profile and generates the channel_properties_blackbird.rvp file
+// output file will look like:
+/* :ChannelRatingCurves[name]
+     :Bedslope [slope]
+     :StageRelations
+        [depth, area, top_width, discharge, perimeter] x (number of rating curve points)
+     :EndStageRelations
+   :EndChannelRatingCurves
+*/
+//
+void CModel::create_raven_profiles() {
+
+    int total_nodes = bbsn->size();
+    CStreamnode *start_streamnode = get_streamnode_by_id((*bbbc)[0]->nodeID);
+    int nrowdepthdf = start_streamnode->depthdf->size();
+
+    std::string tmpFilename = FilenamePrepare("channel_properties_blackbird.rvp");
+    std::ofstream RVNPROFILE_OUTPUT(tmpFilename.c_str());
+
+    if (RVNPROFILE_OUTPUT.fail()) {
+        ExitGracefully(
+            ("CModel::channel_properties_blackbird.rvp: Unable to open output file " +
+             tmpFilename + " for writing.").c_str(),
+            FILE_OPEN_ERR);
+
+    }
+
+    RVNPROFILE_OUTPUT 
+        << "## Channel Properties written by Blackbird for use in Raven model\n"
+        << "## Profiles determined from pre-processed reach data and flows calculated using a normal depth assumption\n\n";
+
+    for (int i = 0; i < total_nodes; i++) {
+    CStreamnode *&temp_sn = (*bbsn)[i];
+
+    RVNPROFILE_OUTPUT
+        << ":ChannelRatingCurves profile_" << std::setw(5) << std::setfill('0') << temp_sn->nodeID << "\n" // write in %05d format
+        << "  :BedSlope " <<  std::fixed << std::setprecision(4) << temp_sn->bed_slope << "\n" // write in %.4f format
+        << "  :StageRelations" 
+        << "  # [depth, area, top_width, discharge, perimeter]" 
+        << "\n";
+
+    for (int j = 0; j < nrowdepthdf; j++) {
+        hydraulic_output *row = (*temp_sn->depthdf)[j];
+        // Q = (1/n)*A*R^(2/3)*S^(1/2) rearranged to solve for flow using manning composite n, bed slope, and depth df outputs to get rating curve points for each depth df row
+        double tempflow = (1/row->manning_composite)*std::pow(row->hradius,2/3)*std::sqrt(temp_sn->bed_slope)*row->area; 
+        RVNPROFILE_OUTPUT << "    " 
+                            << std::fixed << std::setprecision(2)
+                            << row->depth << ", " 
+                            << std::fixed << std::setprecision(3)
+                            << row->area << ", "
+                            << row->top_width << ", " << tempflow << ", "
+                            << row->wet_perimeter << "\n"; // write in %.3f format
+    }
+
+        RVNPROFILE_OUTPUT << "  :EndStageRelations" << "\n";
+        RVNPROFILE_OUTPUT << ":EndChannelRatingCurves" << "\n\n";
+    }
+    RVNPROFILE_OUTPUT.close();
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Computes the hydraulic profile for the model
 //
 void CModel::hyd_compute_profile() {

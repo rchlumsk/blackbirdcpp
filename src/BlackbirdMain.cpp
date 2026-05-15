@@ -63,6 +63,17 @@ int main(int argc, char* argv[])
 
   CheckForErrorWarnings(false, pModel);
 
+  // create profiles if option was specified
+  if (pOptions->create_raven_profiles) {
+    if (!pOptions->silent_run) {
+      std::cout << "======================================================" << std::endl;
+      std::cout << "Writing Raven Profiles..." << std::endl;
+    }
+    pModel->create_raven_profiles();
+    ExitGracefully("Generated Raven Profiles", SIMULATION_DONE);
+    return 0;
+  }
+
   if (!pOptions->silent_run) {
     std::cout << std::endl << "======================================================" << std::endl;
     std::cout << "Simulation Start..." << std::endl;
