@@ -1,4 +1,4 @@
-#include "BlackbirdInclude.h"
+﻿#include "BlackbirdInclude.h"
 #include "Model.h"
 #include "Streamnode.h"
 #include<string>
@@ -129,6 +129,13 @@ double CStreamnode::compute_normal_depth(double flow, double slope, double init_
   if (init_wsl == -99) {
     init_wsl = dupe.mm->min_elev + 1;
   }
+
+  static constexpr double FLOW_TOL = 1e-6; // xxx to do make global
+
+  if (flow < FLOW_TOL || (bbopt->skip_headwater && mm->upnodeID1==-1 )) {
+    // for zero flow, return the min elev
+    return dupe.mm->min_elev;
+  }
   
   dupe.compute_profile(flow, init_wsl, bbopt);
   dupe.mm->sf = slope;
@@ -227,6 +234,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
       "Streamnode.cpp: compute_basic_depth_properties_interpolation: check "
       "properties in :PreprocHydTable do not match those in :Streamnodes table",
       exitcode::BAD_DATA);
+  static constexpr double DEPTH_TOL = 1e-6; // xxx to do make global
   std::vector<double> vec_depthdf_wsl = hyd_out_collect(&hydraulic_output::wsl, *depthdf);
   std::valarray<double> val_depthdf_wsl(vec_depthdf_wsl.data(), vec_depthdf_wsl.size());
   //std::cout << wsl << " | " << val_depthdf_wsl.min() << " | "
@@ -247,6 +255,32 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
             ",\nExtrapolating to continue computation.",
         bbopt->noisy_run);
     mm->depth = wsl - mm->min_elev;
+        if (mm->depth <= DEPTH_TOL || (bbopt->skip_headwater && mm->upnodeID1==-1 ) ) { // || bbopt->skipheadwater
+        mm->depth = 0.0;
+        mm->k_total = 0.0;
+        mm->alpha = 0.0;
+        mm->area = 0.0;
+        mm->hradius = 0.0;
+        mm->wet_perimeter = 0.0;
+        mm->manning_composite = 0.0;
+        mm->length_effective = 0.0;
+        mm->hyd_depth = 0.0;
+        mm->top_width = 0.0;
+        mm->k_total_areaconv = 0.0;
+        mm->k_total_disconv = 0.0;
+        mm->k_total_roughconv = 0.0;
+        mm->alpha_areaconv = 0.0;
+        mm->alpha_disconv = 0.0;
+        mm->alpha_roughconv = 0.0;
+        mm->nc_equalforce = 0.0;
+        mm->nc_equalvelocity = 0.0;
+        mm->nc_wavgwp = 0.0;
+        mm->nc_wavgarea = 0.0;
+        mm->nc_wavgconv = 0.0;
+        mm->length_effectiveadjusted = 0.0;
+
+        return;
+    }
     mm->k_total = extrapolate(wsl, &hydraulic_output::k_total, *depthdf);
     mm->alpha = extrapolate(wsl, &hydraulic_output::alpha, *depthdf);
     mm->area = extrapolate(wsl, &hydraulic_output::area, *depthdf);
@@ -269,6 +303,33 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     mm->nc_wavgconv = extrapolate(wsl, &hydraulic_output::nc_wavgconv, *depthdf);
   } else {
     mm->depth = wsl - mm->min_elev;
+    // --- Zero‑depth tolerance rule ---
+    if (mm->depth <= DEPTH_TOL || (bbopt->skip_headwater && mm->upnodeID1==-1 )) {
+        mm->depth = 0.0;
+        mm->k_total = 0.0;
+        mm->alpha = 0.0;
+        mm->area = 0.0;
+        mm->hradius = 0.0;
+        mm->wet_perimeter = 0.0;
+        mm->manning_composite = 0.0;
+        mm->length_effective = 0.0;
+        mm->hyd_depth = 0.0;
+        mm->top_width = 0.0;
+        mm->k_total_areaconv = 0.0;
+        mm->k_total_disconv = 0.0;
+        mm->k_total_roughconv = 0.0;
+        mm->alpha_areaconv = 0.0;
+        mm->alpha_disconv = 0.0;
+        mm->alpha_roughconv = 0.0;
+        mm->nc_equalforce = 0.0;
+        mm->nc_equalvelocity = 0.0;
+        mm->nc_wavgwp = 0.0;
+        mm->nc_wavgarea = 0.0;
+        mm->nc_wavgconv = 0.0;
+        mm->length_effectiveadjusted = 0.0;
+
+        return;
+    }
     mm->k_total = interpolate(wsl, &hydraulic_output::k_total, *depthdf);
     mm->alpha = interpolate(wsl, &hydraulic_output::alpha, *depthdf);
     mm->area = interpolate(wsl, &hydraulic_output::area, *depthdf);
@@ -576,13 +637,21 @@ void CStreamnode::calc_output_flows(std::vector<double> upflows) {
 ///
 /// \param upflows [in] flow value contributed by upstream nodes
 //
-void CStreamnode::calc_output_flows_headwaternode() {
+void CStreamnode::calc_output_flows_headwaternode(COptions *&bbopt) {
   allocate_flowprofiles(output_flows.size());
-  for (int k = 0; k < output_flows.size(); k++) {
-    output_flows[k] = output_flows[k] + flow_sources[k] - flow_sinks[k];
-    if (output_flows[k] <= 0) {
-      WriteWarning("Setting flows to zero, possible flow conservation issues in model",true);
+  if (bbopt->skip_headwater) {
+    for (int k = 0; k < output_flows.size(); k++) {
+      output_flows[k] = 0.0;
+    }
+  } else {
+    for (int k = 0; k < output_flows.size(); k++) {
+      output_flows[k] = output_flows[k] + flow_sources[k] - flow_sinks[k];
+      if (output_flows[k] <= 0) {
+        WriteWarning(
+            "Setting flows to zero, possible flow conservation issues in model",
+            true);
         output_flows[k] = 0.0;
+      }
     }
   }
 }

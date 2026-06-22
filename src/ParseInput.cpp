@@ -140,7 +140,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":SilentRun"))                   { code = 19; }
     else if (!strcmp(s[0], ":NoisyRun"))                    { code = 20; }
     else if (!strcmp(s[0], ":DebugRun"))                    { code = 21; }
-
+    else if (!strcmp(s[0], ":SkipHeadwaterNodes"))          { code = 22; }
     else if (!strcmp(s[0], ":DHANDDepthSeq"))               { code = 23; }
     else if (!strcmp(s[0], ":DHANDMaxDepth"))               { code = 24; }
     else if (!strcmp(s[0], ":DHANDDepthStep"))              { code = 25; }
@@ -354,12 +354,15 @@ bool ParseMainInputFile(CModel*& pModel,
     }
     case(19):
     {/*:SilentRun [bool silent]*/
-      if (pOptions->noisy_run) { std::cout << "SilentRun" << std::endl; }
+      /* if (pOptions->noisy_run) {std::cout << "SilentRun" << std::endl;}
       if (Len < 2) { ImproperFormatWarning(":SilentRun", p, pOptions->noisy_run); break; }
       std::string t = s[1];
       std::transform(t.begin(), t.end(), t.begin(), ::tolower);
       std::istringstream iss(t);
       iss >> std::boolalpha >> pOptions->silent_run;
+      */
+      pOptions->silent_run = true;
+      pOptions->noisy_run = false;
       break;
     }
     case (20): { /*:NoisyRun*/
@@ -368,6 +371,10 @@ bool ParseMainInputFile(CModel*& pModel,
     }
     case (21): { /*:DebugRun*/
       pOptions->debug_run = true;
+      break;
+    }
+    case (22): { /*:SkipHeadwaterNodes*/
+      pOptions->skip_headwater = true;
       break;
     }
     case(23):

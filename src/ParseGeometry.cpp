@@ -1147,7 +1147,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
           else
           {
             row++;
-            if (Len < 5) { pp->ImproperFormat(s); }
+            if (Len < 6) { pp->ImproperFormat(s); }
             pSC = NULL;
             pSC = new streamnodeconn();
             ExitGracefullyIf(pSC == NULL, "ParseStreamnodeConnectionsTable", OUT_OF_MEMORY);
@@ -1212,6 +1212,18 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
               }
               else {
                 error = "ParseGeometry File: reachID \"" + std::string(s[6]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a unique integer or long integer";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[7], "NA")) {
+              if (StringIsLong(s[7])) {
+                pSC->transfer = std::stoi(s[7]);
+                  ExitGracefullyIf(pSC->transfer != -1 && pSC->transfer != 0 && pSC->transfer != 1, 
+                      "ParseGeometry File: transfer in :StreamnodeConnectionsTable must be one of -1, 0, or 1",
+                      BAD_DATA);
+              }
+              else {
+                error = "ParseGeometry File: transfer \"" + std::string(s[7]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a unique integer or long integer";
                 ExitGracefully(error.c_str(), BAD_DATA_WARN);
               }
             }

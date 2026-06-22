@@ -60,6 +60,7 @@ public:
   bool write_hydraulic_output;                      // boolean representing whether or not to write hydraulic output to file (HydraulicOutput.csv). If False, this file is not written 
   bool enable_exhaustive;                           // enables using exhausting solution in compute_streamnode if secant method is producing strange results
   bool create_raven_profiles;						// boolean representing whether or not to create Raven profiles for each streamnode. If True, Raven profiles are created in the output folder
+  bool skip_headwater;								// boolean representing whether or not to skip headwater basins in mapping. If true, hwadwater basins receive a flow of zero and are skipped in mapping
 
   bool silent_run;                                  // true -> print less logs
   bool noisy_run;                                   // true -> print more logs

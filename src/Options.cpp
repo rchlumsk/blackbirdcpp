@@ -56,7 +56,8 @@ COptions::COptions()
   write_hydraulic_output(true),
   write_catchment_json(false),
   enable_exhaustive(false),
-  create_raven_profiles(false){
+  create_raven_profiles(false),
+  skip_headwater(false){
 }
 
 //////////////////////////////////////////////////////////////////
