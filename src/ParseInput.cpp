@@ -475,6 +475,7 @@ bool ParseMainInputFile(CModel*& pModel,
       if (Len < 2) { ImproperFormatWarning(":SolverMethod", p, pOptions->noisy_run); break; }
       if (!strcmp(s[1], "BRENT")) { pOptions->solvermethod = enum_sm_method::BRENT; }
       else if (!strcmp(s[1], "SECANT")) { pOptions->solvermethod = enum_sm_method::SECANT; }
+      else if (!strcmp(s[1], "EXHAUSTIVE")) { pOptions->solvermethod = enum_sm_method::EXHAUSTIVE; }
       else { ExitGracefully("ParseMainInputFile: unrecognized SolverMethod. options are: BRENT or SECANT", exitcode::BAD_DATA); }
       break;
     }

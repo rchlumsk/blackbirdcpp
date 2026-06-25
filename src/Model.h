@@ -86,6 +86,10 @@ protected:
 
   // Private functions
   void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res, CBoundaryCondition *&bc); // helper function used in hyd_compute_profile
+  double solve_critical_wsl_brent(const CStreamnode* sn_up, const CStreamnode* sn_down);                             // solver for critical wsl using brent method. used in hyd_compute_profile
+  double solve_wsl_standard_step_brent(const CStreamnode* sn_up, const CStreamnode* sn_down,  double wsl_critical ); // solver for estimated wsl using brent method. used in hyd_compute_profile
+  ExhaustiveWSLResult solve_wsl_exhaustive(const CStreamnode* sn_up, const CStreamnode* sn_down); // solver for estimated wsl using exhaustive search. used in hyd_compute_profile
+
   std::pair<int, int> dhand_bounding_depths(double depth);                                                                           // finds nearest dhands to use in postprocess_floodresults
   void generate_spp_depths(int flow_ind);                                                                                            // generates spp_depths for the flow_ind-th profile. used in postprocess_floodresults
   void generate_dhand_vals(int flow_ind, bool is_interp);                                                                            // generates dhand_vals for the flow_ind-th profile. used in postprocess_floodresults

@@ -245,7 +245,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
         "Streamnode.cpp: compute_basic_depth_properties_interpolation: wsl "
         "provided is outside of the range in depthdf",
         exitcode::RUNTIME_ERR);
-    WriteWarning(
+    /* WriteWarning(
         "Streamnode.cpp: compute_basic_depth_properties_interpolation: wsl "
         "provided (" +
             std::to_string(wsl) + ") is outside of the range in depthdf [" +
@@ -253,9 +253,9 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
             std::to_string(val_depthdf_wsl.max()) + "] in calculating flow " +
             std::to_string(mm->flow) +
             ",\nExtrapolating to continue computation.",
-        bbopt->noisy_run);
+        bbopt->noisy_run);*/
     mm->depth = wsl - mm->min_elev;
-        if (mm->depth <= DEPTH_TOL || (bbopt->skip_headwater && mm->upnodeID1==-1 ) ) { // || bbopt->skipheadwater
+        if (mm->depth <= DEPTH_TOL || (bbopt->skip_headwater && mm->upnodeID1==-1 ) ) {
         mm->depth = 0.0;
         mm->k_total = 0.0;
         mm->alpha = 0.0;
@@ -327,7 +327,6 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
         mm->nc_wavgarea = 0.0;
         mm->nc_wavgconv = 0.0;
         mm->length_effectiveadjusted = 0.0;
-
         return;
     }
     mm->k_total = interpolate(wsl, &hydraulic_output::k_total, *depthdf);
@@ -568,6 +567,28 @@ double CStreamnode::get_wsl_error(double H, hydraulic_output *down_mm, COptions 
   compute_profile_next(mm->flow, H, down_mm, bbopt);
   return std::abs(H - (down_mm->wsl + down_mm->velocity_head + mm->head_loss -
               mm->velocity_head));
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Compute residual in the WSL calculation with Brent root finding method
+/// 
+/// note: unused in current configuration, may be removed in future versions
+///
+/// \param H [in] wsl value
+/// \param *down_mm [in] mm of downstream node
+/// \param *&bbopt [in] Global model options information
+/// \return difference in provided and computed WSL at streamnode (>=0)
+//
+double CStreamnode::get_wsl_residual(double H, hydraulic_output *down_mm, COptions *&bbopt){
+    // Update hydraulic state at this node for water surface level H
+    compute_profile_next(mm->flow, H, down_mm, bbopt);
+    // Compute the target WSL based on downstream hydraulics
+    double H_target = down_mm->wsl
+                    + down_mm->velocity_head
+                    + mm->head_loss
+                    - mm->velocity_head;
+    // SIGNED residual (not absolute value)
+    return H - H_target;
 }
 
 

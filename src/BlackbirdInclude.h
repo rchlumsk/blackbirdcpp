@@ -233,6 +233,12 @@ struct streamnodeconn {
   streamnodeconn(const streamnodeconn &other) = default;
 };
 
+// structure for exhaustive WSL calculation
+struct ExhaustiveWSLResult {
+    double wsl_critical;   // min-energy WSL
+    double wsl_estimated;  // chosen WSL based on Froude threshold
+};
+
 //*****************************************************************
 //Enumerables
 //*****************************************************************
@@ -262,7 +268,8 @@ enum enum_rt_method
 enum enum_sm_method
 {
   BRENT,
-  SECANT
+  SECANT,
+  EXHAUSTIVE
 };
 
 // Friction slope method
@@ -792,11 +799,10 @@ inline double brent_minimize(double ax, double bx, double mx, const std::functio
   return x; // best guess after max_iter iterations
 }
 
-inline double brent_root(double a, double b, const std::function<double(double)> &f,
+inline double brent_root2(double a, double b, const std::function<double(double)> &f,
              double tolerance = 1e-8, int maxIter = 1000)
 {
     double t = std::numeric_limits<double>::epsilon();
-    // double tolerance = 1e-10;
 
     double m = 0.0;
     double p = 0.0;
@@ -908,6 +914,78 @@ inline double brent_root(double a, double b, const std::function<double(double)>
 
     return b1;
 }
+
+// old version of the brent_root finding algorithm, kept for reference, but not
+// used in the codebase anymore. Use brent_root2 instead.
+/*
+inline double brent_root(double a, double b,
+                         const std::function<double(double)> &f,
+                         double tol = 1e-8, int maxIter = 100)
+{
+    double fa = f(a);
+    double fb = f(b);
+
+    if (fa * fb >= 0.0)
+        throw std::runtime_error("Root is not bracketed");
+
+    double c = a, fc = fa;
+    double d = b - a, e = d;
+
+    for (int iter = 0; iter < maxIter; ++iter)
+    {
+        if (std::fabs(fc) < std::fabs(fb)) {
+            std::swap(a, b); std::swap(b, c);
+            std::swap(fa, fb); std::swap(fb, fc);
+        }
+
+        double tol1 = 2 * std::numeric_limits<double>::epsilon() * std::fabs(b) + 0.5 * tol;
+        double m = 0.5 * (c - b);
+
+        if (std::fabs(m) <= tol1 || fb == 0.0)
+            return b;
+
+        double p, q;
+        if (std::fabs(e) < tol1 || std::fabs(fa) <= std::fabs(fb)) {
+            d = e = m;
+        } else {
+            double s = fb / fa;
+            if (a == c) {
+                p = 2 * m * s;
+                q = 1 - s;
+            } else {
+                double q1 = fa / fc;
+                double r = fb / fc;
+                p = s * (2 * m * q1 * (q1 - r) - (b - a) * (r - 1));
+                q = (q1 - 1) * (r - 1) * (s - 1);
+            }
+            if (p > 0) q = -q; else p = -p;
+
+            if (2 * p < 3 * m * q - std::fabs(tol1 * q) &&
+                p < std::fabs(0.5 * e * q))
+            {
+                e = d;
+                d = p / q;
+            } else {
+                d = e = m;
+            }
+        }
+
+        a = b;
+        fa = fb;
+        b += (std::fabs(d) > tol1 ? d : (m > 0 ? tol1 : -tol1));
+        fb = f(b);
+
+        if ((fb > 0 && fc > 0) || (fb < 0 && fc < 0)) {
+            c = a;
+            fc = fa;
+            d = e = b - a;
+        }
+    }
+
+    throw std::runtime_error("Brent root finder: max iterations exceeded");
+}
+*/
+
 
 #ifdef _WIN32
 #include <direct.h>
