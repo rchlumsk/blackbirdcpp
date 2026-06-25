@@ -212,6 +212,8 @@ CModel &CModel::operator=(const CModel &other) {
 //
 void CModel::create_raven_profiles() {
 
+    // xxx add functionality to write out the rvh file for :Subbasin and :HRUs table as well
+
     int total_nodes = bbsn->size();
     CStreamnode *start_streamnode = get_streamnode_by_id((*bbbc)[0]->nodeID);
     int nrowdepthdf = start_streamnode->depthdf->size();
@@ -242,14 +244,14 @@ void CModel::create_raven_profiles() {
 
         if (temp_sn->bed_slope < 0.01) {
           RVNPROFILE_OUTPUT
-            << "  :BedSlope " <<  std::fixed << std::setprecision(4) << 0.01 << "\n"; // write in %.4f format
+            << "  :Bedslope " <<  std::fixed << std::setprecision(4) << 0.01 << "\n"; // write in %.4f format
         } else {
           RVNPROFILE_OUTPUT
-            << "  :BedSlope " <<  std::fixed << std::setprecision(4) << temp_sn->bed_slope << "\n"; // write in %.4f format
+            << "  :Bedslope " <<  std::fixed << std::setprecision(4) << temp_sn->bed_slope << "\n"; // write in %.4f format
         }
 
         RVNPROFILE_OUTPUT
-        // << "  :BedSlope " <<  std::fixed << std::setprecision(4) << std::max(temp_sn->bed_slope,0.01) << "\n" // write in %.4f format
+        // << "  :Bedslope " <<  std::fixed << std::setprecision(4) << std::max(temp_sn->bed_slope,0.01) << "\n" // write in %.4f format
         << "  :StageRelations" 
         << "  # [depth, area, top_width, discharge, perimeter]" 
         << "\n";
