@@ -214,6 +214,8 @@ void CModel::create_raven_profiles() {
 
     // xxx add functionality to write out the rvh file for :Subbasin and :HRUs table as well
 
+    // add a default profile that is used for headwaters instead (one time for all headwaters)
+
     int total_nodes = bbsn->size();
     CStreamnode *start_streamnode = get_streamnode_by_id((*bbbc)[0]->nodeID);
     int nrowdepthdf = start_streamnode->depthdf->size();
@@ -235,6 +237,9 @@ void CModel::create_raven_profiles() {
 
     for (int i = 0; i < total_nodes; i++) {
     CStreamnode *&temp_sn = (*bbsn)[i];
+
+
+   
 
       if (bbopt->skip_headwater && temp_sn->upnodeID1 == -1) {
         continue;    
@@ -2492,6 +2497,12 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
     } else {
       result->data[j] = result->na_val;
     }
+
+    // convert all zero depths to NaN
+    if (std::abs(result->data[j]) < 1e-9) {
+        result->data[j] = std::numeric_limits<double>::quiet_NaN();
+    }
+
   }
 
   // Transpose data if writing to NetCDF
