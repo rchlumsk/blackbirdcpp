@@ -284,8 +284,9 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
           pSN = NULL;
           pSN = pModel->get_streamnode_by_id(std::stoi(s[1]));
           if (pSN == NULL) {
-            error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" after :PreprocHydTable does not exist in streamnodes object";
-            ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" after :PreprocHydTable does not exist in streamnodes object. Ignoring streamnode PreprocHydTable.";
+            // ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            WriteWarning(error.c_str(), pOptions->noisy_run);
           } else if (pSN->nodetype != enum_nodetype::REACH) {
             error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" is not of nodetype REACH and cannot have a :PreprocHydTable block";
             ExitGracefully(error.c_str(), BAD_DATA_WARN);

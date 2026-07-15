@@ -1264,7 +1264,8 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               }*/
 
               // compute critical depth
-              double wsl_critical = solve_critical_wsl_brent(sn, down_sn);
+              // double wsl_critical = solve_critical_wsl_brent(sn, down_sn);
+              double wsl_critical = solve_critical_wsl_brent_analytical(sn, down_sn);
 
               // convert to depth
               double depth_critical = wsl_critical - sn->mm->min_elev;
@@ -1800,7 +1801,7 @@ ExhaustiveWSLResult CModel::solve_wsl_exhaustive(
 
 //////////////////////////////////////////////////////////////////
 /// \brief Solver for critical depth using brent method
-/// \note used in the compute_streamnode for BRENT method
+/// \note used in the compute_streamnode for BRENT method (superseded)
 /// \param sn_up [in] streamnode for which to compute hydraulic profile
 /// \param sn_down [in] streamnode one node downstream of sn
 /// \output wsl_critical [out] estimated water surface level at sn_up that satisfies energy balance with sn_down
@@ -1829,13 +1830,142 @@ double CModel::solve_critical_wsl_brent(
     };
 
     // Bounds for root search
-    double lower = bed + 0.01;                         // slightly above bed
-    double upper = bed + sn_up->depthdf->back()->depth;   // max tabulated depth
+    double lower = bed + 0.001;                         // slightly above bed
+    //double upper = bed + sn_up->depthdf->back()->depth;   // max tabulated depth
+    double upper = bed + std::min(sn_up->depthdf->back()->depth, 5.0); // set max as 5m
 
     // Solve dE/dH = 0
     double wsl_critical = brent_root2(lower, upper, dEdx, 1e-8, 100);
 
     return wsl_critical;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Solver for critical depth using brent method with analytical derivative
+/// \note used in the compute_streamnode for BRENT method
+/// \param sn_up [in] streamnode for which to compute hydraulic profile
+/// \param sn_down [in] streamnode one node downstream of sn
+/// \output wsl_critical [out] estimated water surface level at sn_up that satisfies energy balance with sn_down
+//
+double CModel::solve_critical_wsl_brent_analytical(
+    const CStreamnode* sn_up,
+    const CStreamnode* sn_down
+)
+{
+    const double bed = sn_up->mm->min_elev;
+    const double Q   = sn_up->mm->flow;      // discharge
+    const double g   = GRAVITY;
+
+    // --- Analytical derivative of specific energy ---
+    // dE/dH = 1 - (Q^2 / (g * A^3)) * (dA/dH)
+    // where dA/dH = topwidth(H)
+    auto dEdx = [&](double H)
+    {
+        double A  = sn_up->get_area(H);        // cross-sectional area at depth H
+        double Tw = sn_up->get_topwidth(H);    // top width at depth H (dA/dH)
+
+        double term = (Q * Q) / (g * A * A * A);
+        return 1.0 - term * Tw;
+    };
+
+    // --- Bracketing ---
+    double lower = bed + 0.001;   // slightly above bed
+    double upper = bed + sn_up->depthdf->back()->depth;  // full tabulated depth
+
+    // --- Monotonicity check ---
+    double dE_lower = dEdx(lower);
+    double dE_upper = dEdx(upper);
+
+    // If derivative does NOT change sign, no critical depth exists
+    if (dE_lower * dE_upper > 0.0)
+    {
+        // Specific-energy curve is monotonic → no critical point
+        // Return a small default critical depth (0.1m default)
+        return bed + 0.1;
+    }
+
+    // --- Solve dE/dH = 0 using Brent ---
+    double wsl_critical = brent_root2(lower, upper, dEdx, 1e-8, 100);
+
+    return wsl_critical;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Linearly interpolates to get the cross-sectional area at a given
+/// water surface level H
+/// \note used in the CModel::solve_critical_wsl_brent_analytical
+/// \param H [in] water surface level to compute property for
+/// \output area [out] linearly interpolated cross-sectional area at water surface level H
+//
+double CStreamnode::get_area(double H) const
+{
+    double depth = H - mm->min_elev;
+    if (depth <= 0.0)
+        return 0.0;
+
+    const auto& df = *depthdf;   
+
+    // Below lowest tabulated depth
+    if (depth <= df.front()->depth)
+        return df.front()->area;
+
+    // Above highest tabulated depth
+    if (depth >= df.back()->depth)
+        return df.back()->area;
+
+    // Linear interpolation
+    for (size_t i = 0; i < df.size() - 1; ++i)
+    {
+        const auto& d1 = df[i];
+        const auto& d2 = df[i+1];
+        if (depth >= d1->depth && depth <= d2->depth)
+        {
+            double t = (depth - d1->depth) / (d2->depth - d1->depth);
+            return d1->area + t * (d2->area - d1->area);
+        }
+    }
+    return df.back()->area; // fallback
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Linearly interpolates to get the top width at a given
+/// water surface level H
+/// \note used in the CModel::solve_critical_wsl_brent_analytical
+/// \param H [in] water surface level to compute property for
+/// \output area [out] linearly interpolated top width at water surface level H
+//
+double CStreamnode::get_topwidth(double H) const
+{
+    double depth = H - mm->min_elev;
+    if (depth <= 0.0)
+        return 0.0;
+
+    // depthdf is a POINTER → dereference it once
+    const auto& df = *depthdf;   // df is now a reference to the vector
+
+    // Below lowest tabulated depth
+    if (depth <= df.front()->depth)
+        return df.front()->top_width;
+
+    // Above highest tabulated depth
+    if (depth >= df.back()->depth)
+        return df.back()->top_width;
+
+    // Linear interpolation
+    for (size_t i = 0; i < df.size() - 1; ++i)
+    {
+        const auto& d1 = df[i];
+        const auto& d2 = df[i+1];
+
+        if (depth >= d1->depth && depth <= d2->depth)
+        {
+            double t = (depth - d1->depth) / (d2->depth - d1->depth);
+            return d1->top_width + t * (d2->top_width - d1->top_width);
+        }
+    }
+
+    // Fallback (should never happen)
+    return df.back()->top_width;
 }
 
 //////////////////////////////////////////////////////////////////

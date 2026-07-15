@@ -51,6 +51,9 @@ public:
   double get_total_energy(double H, hydraulic_output *down_mm, COptions *&bbopt);                     // compute total energy for streamnode at junction
   double get_wsl_error(double H, hydraulic_output *down_mm, COptions *&bbopt);						  // compute wsl error for given wsl input
   double get_wsl_residual(double H, hydraulic_output *down_mm, COptions *&bbopt);					  // compute wsl residual for given wsl input
+    
+  double get_area(double H) const;                  
+  double get_topwidth(double H) const;  
 
   void add_depthdf_row(hydraulic_output*& row);                                                       // add hydraulic_output row to depthdf
   hydraulic_output* get_depthdf_row_from_depth(double depth);                                         // get row of depthdf using the depth of the row
