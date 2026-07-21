@@ -86,8 +86,9 @@ protected:
 
   // Private functions
   void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res, CBoundaryCondition *&bc); // helper function used in hyd_compute_profile
-  double solve_critical_wsl_brent(const CStreamnode* sn_up, const CStreamnode* sn_down);                             // solver for critical wsl using brent method. used in hyd_compute_profile
-  double solve_critical_wsl_brent_analytical(const CStreamnode* sn_up, const CStreamnode* sn_down);                  // solver for critical wsl using brent method. used in hyd_compute_profile              
+  double solve_critical_wsl_brent(const CStreamnode* sn_up, const CStreamnode* sn_down);                             // solver for critical wsl using brent method. 
+  double solve_critical_wsl_exhaustive(const CStreamnode* sn_up, const CStreamnode* sn_down);                             // solver for critical wsl using refined exhaustive search.
+  double solve_critical_wsl_brent_analytical(const CStreamnode* sn_up, const CStreamnode* sn_down);                  // solver for critical wsl using brent method.          
   
   double solve_wsl_standard_step_brent(const CStreamnode* sn_up, const CStreamnode* sn_down,  double wsl_critical ); // solver for estimated wsl using brent method. used in hyd_compute_profile
   ExhaustiveWSLResult solve_wsl_exhaustive(const CStreamnode* sn_up, const CStreamnode* sn_down); // solver for estimated wsl using exhaustive search. used in hyd_compute_profile

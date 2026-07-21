@@ -1302,8 +1302,11 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
               }*/
 
               // compute critical depth
+              // // xxx to resolve - cannot seem to get the derivative version of critical_wsl_brent working in any way. Reverting to exhaustive search for now.
               // double wsl_critical = solve_critical_wsl_brent(sn, down_sn);
-              double wsl_critical = solve_critical_wsl_brent_analytical(sn, down_sn);
+              // double wsl_critical = solve_critical_wsl_brent_analytical(sn, down_sn);
+              // double wsl_critical = solve_critical_wsl_brent(sn, down_sn);   
+              double wsl_critical = solve_critical_wsl_exhaustive(sn, down_sn);                         
 
               // convert to depth
               double depth_critical = wsl_critical - sn->mm->min_elev;
@@ -1943,6 +1946,90 @@ double CModel::solve_critical_wsl_brent_analytical(
 
     // Convert depth → water surface elevation
     double wsl_critical = bed + depth_critical;
+
+    return wsl_critical;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Solver for critical depth using iterative exhaustive search
+/// \note used in the compute_streamnode for BRENT method
+/// \param sn_up [in] streamnode for which to compute hydraulic profile
+/// \param sn_down [in] streamnode one node downstream of sn
+/// \output wsl_critical [out] estimated water surface level at sn_up that satisfies energy balance with sn_down
+//
+double CModel::solve_critical_wsl_exhaustive(
+    const CStreamnode* sn_up,
+    const CStreamnode* sn_down
+)
+{
+    const double bed = sn_up->mm->min_elev;
+    const double Q   = sn_up->mm->flow;
+
+    const auto& df = *sn_up->depthdf;   // preprocessed depth table
+    if (df.empty())
+        return bed + 0.1;
+
+    // ---------------------------------------------------------
+    // Specific energy function E(depth)
+    // ---------------------------------------------------------
+    auto E = [&](double depth)
+    {
+        if (depth <= 0.0)
+            return std::numeric_limits<double>::infinity();
+
+        double A     = sn_up->get_area(depth);
+        // double Tw    = sn_up->get_topwidth(depth);
+        double alpha = sn_up->get_alpha(depth);
+        double v  = Q / A;
+        double ke = alpha * v * v / (2.0 * GRAVITY);
+        return depth + ke;   // E = y + α v² / (2g)
+    };
+
+    // ---------------------------------------------------------
+    // Step 1: Find first local minimum in depthdf
+    // ---------------------------------------------------------
+    double best_depth = df.front()->depth;
+    double best_E     = E(best_depth);
+
+    for (size_t i = 1; i < df.size(); ++i)
+    {
+        double d  = df[i]->depth;
+        double Ei = E(d);
+
+        if (Ei < best_E)
+        {
+            best_E     = Ei;
+            best_depth = d;
+        }
+        else
+        {
+            // Energy increased → stop scanning
+            break;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Step 2: Manual refinement around the minimum
+    // ---------------------------------------------------------
+    double refine_step = 0.01;   // 1 cm refinement
+    double search_lo   = std::max(0.001, best_depth - 0.20);
+    double search_hi   = best_depth + 0.20;
+
+    for (double depth = search_lo; depth <= search_hi; depth += refine_step)
+    {
+        double Ei = E(depth);
+        if (Ei < best_E)
+        {
+            best_E     = Ei;
+            best_depth = depth;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Final critical depth → convert to WSL
+    // ---------------------------------------------------------
+    double depth_critical = std::max(best_depth, 0.03); // prevent zero critical depth
+    double wsl_critical   = bed + depth_critical;
 
     return wsl_critical;
 }
