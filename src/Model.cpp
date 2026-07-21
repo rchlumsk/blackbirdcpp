@@ -1,5 +1,6 @@
 ﻿#include "Model.h"
 #include "XSection.h"
+#include <unordered_set>
 
 // Default constructor
 CModel::CModel()
@@ -746,6 +747,43 @@ void CModel::ReadGISFiles() {
     bbopt->in_format = enum_gridded_format::RASTER;
     ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif", dynamic_cast<CRaster *>(c_from_s.get()));
     c_from_s->name = "Catchments from Streamnodes";
+
+    if (bbopt->extrachecks) {
+
+      // -------------------------------------------------------------
+      // Collect unique IDs from catchment_from_streamnodes raster
+      // -------------------------------------------------------------
+      std::unordered_set<int> catchment_ids;
+
+      for (int j = 0; j < c_from_s->xsize * c_from_s->ysize; ++j) {
+        double v = c_from_s->data[j];
+        if (!std::isnan(v) && v != c_from_s->na_val) {
+          catchment_ids.insert(static_cast<int>(v));
+        }
+      }
+
+      // -------------------------------------------------------------
+      // Collect actual streamnode IDs from the model
+      // -------------------------------------------------------------
+      std::unordered_set<int> streamnode_ids;
+
+      for (const auto &sn : *bbsn) { // adjust if your container differs
+        streamnode_ids.insert(sn->nodeID);
+      }
+
+      // -------------------------------------------------------------
+      // Warn if any catchment IDs do not correspond to a real streamnode
+      // -------------------------------------------------------------
+      for (int id : catchment_ids) {
+        if (streamnode_ids.find(id) == streamnode_ids.end()) {
+          std::string msg = "Catchment raster contains streamnode ID " +
+                            std::to_string(id) +
+                            " which does not exist in the model streamnodes.";
+          WriteWarning(msg.c_str(), bbopt->noisy_run);
+        }
+      }
+    }
+
     if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
         bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
       hand = std::make_unique<CRaster>();
@@ -1853,39 +1891,58 @@ double CModel::solve_critical_wsl_brent_analytical(
 )
 {
     const double bed = sn_up->mm->min_elev;
-    const double Q   = sn_up->mm->flow;      // discharge
-    const double g   = GRAVITY;
+    const double Q   = sn_up->mm->flow;
 
-    // --- Analytical derivative of specific energy ---
-    // dE/dH = 1 - (Q^2 / (g * A^3)) * (dA/dH)
-    // where dA/dH = topwidth(H)
-    auto dEdx = [&](double H)
+    // ---------------------------------------------------------
+    // Derivative of specific energy with respect to DEPTH
+    // ---------------------------------------------------------
+    auto dEdx = [&](double depth)
     {
-        double A  = sn_up->get_area(H);        // cross-sectional area at depth H
-        double Tw = sn_up->get_topwidth(H);    // top width at depth H (dA/dH)
-
-        double term = (Q * Q) / (g * A * A * A);
-        return 1.0 - term * Tw;
+        if (depth <= 0.0)
+            return 1.0;   // derivative positive near bed
+        double A     = sn_up->get_area(depth);
+        double Tw    = sn_up->get_topwidth(depth);
+        double alpha = sn_up->get_alpha(depth);
+        double term = alpha * (Q * Q * Tw) / (GRAVITY * A * A * A);
+        return 1.0 - term;
     };
 
-    // --- Bracketing ---
-    double lower = bed + 0.001;   // slightly above bed
-    double upper = bed + sn_up->depthdf->back()->depth;  // full tabulated depth
-
-    // --- Monotonicity check ---
+    // ---------------------------------------------------------
+    // Lower bound (depth above bed)
+    // ---------------------------------------------------------
+    double lower = 0.001;   // depth, not elevation
     double dE_lower = dEdx(lower);
-    double dE_upper = dEdx(upper);
 
-    // If derivative does NOT change sign, no critical depth exists
-    if (dE_lower * dE_upper > 0.0)
+    // ---------------------------------------------------------
+    // Find smallest upper bound where sign changes
+    // ---------------------------------------------------------
+    const double step      = 0.05;
+    double upper = lower + step;
+    double dE_upper = dEdx(upper);
+    const double max_upper = 6.0;   // max depth to search
+
+    while (dE_lower * dE_upper > 0.0 && upper < max_upper)
     {
-        // Specific-energy curve is monotonic → no critical point
-        // Return a small default critical depth (0.1m default)
-        return bed + 0.1;
+        upper += step;
+        dE_upper = dEdx(upper);
     }
 
-    // --- Solve dE/dH = 0 using Brent ---
-    double wsl_critical = brent_root2(lower, upper, dEdx, 1e-8, 100);
+    // If no sign change found → monotonic specific energy curve
+    if (dE_lower * dE_upper > 0.0)
+    {
+        return bed + 0.1;   // fallback WSL
+    }
+
+    // ---------------------------------------------------------
+    // Solve using Brent on the minimal bracket (depth)
+    // ---------------------------------------------------------
+    double depth_critical = brent_root2(lower, upper, dEdx, 1e-8, 100);
+
+    // Avoid zero depth
+    depth_critical = std::max(depth_critical, 0.03);
+
+    // Convert depth → water surface elevation
+    double wsl_critical = bed + depth_critical;
 
     return wsl_critical;
 }
@@ -1897,12 +1954,8 @@ double CModel::solve_critical_wsl_brent_analytical(
 /// \param H [in] water surface level to compute property for
 /// \output area [out] linearly interpolated cross-sectional area at water surface level H
 //
-double CStreamnode::get_area(double H) const
+double CStreamnode::get_area(double depth) const
 {
-    double depth = H - mm->min_elev;
-    if (depth <= 0.0)
-        return 0.0;
-
     const auto& df = *depthdf;   
 
     // Below lowest tabulated depth
@@ -1934,11 +1987,8 @@ double CStreamnode::get_area(double H) const
 /// \param H [in] water surface level to compute property for
 /// \output area [out] linearly interpolated top width at water surface level H
 //
-double CStreamnode::get_topwidth(double H) const
+double CStreamnode::get_topwidth(double depth) const
 {
-    double depth = H - mm->min_elev;
-    if (depth <= 0.0)
-        return 0.0;
 
     // depthdf is a POINTER → dereference it once
     const auto& df = *depthdf;   // df is now a reference to the vector
@@ -1969,6 +2019,41 @@ double CStreamnode::get_topwidth(double H) const
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Linearly interpolates to get the velocity correction
+///        coefficient alpha at a given water surface level H
+/// \note  Same pattern as get_area(), used in critical‑depth calcs
+/// \param H [in] water surface level
+/// \return alpha [out] interpolated velocity‑correction coefficient
+//
+double CStreamnode::get_alpha(double depth) const
+{
+    const auto& df = *depthdf;
+
+    // Below lowest tabulated depth
+    if (depth <= df.front()->depth)
+        return df.front()->alpha;
+
+    // Above highest tabulated depth
+    if (depth >= df.back()->depth)
+        return df.back()->alpha;
+
+    // Linear interpolation
+    for (size_t i = 0; i < df.size() - 1; ++i)
+    {
+        const auto& d1 = df[i];
+        const auto& d2 = df[i+1];
+
+        if (depth >= d1->depth && depth <= d2->depth)
+        {
+            double t = (depth - d1->depth) / (d2->depth - d1->depth);
+            return d1->alpha + t * (d2->alpha - d1->alpha);
+        }
+    }
+
+    return df.back()->alpha; // fallback
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Robust WSL solver considers monotonicity and expands domain if needed
 /// \note used in the compute_streamnode for BRENT method
 /// \param sn_up [in] streamnode for which to compute hydraulic profile
@@ -1994,7 +2079,7 @@ double CModel::solve_wsl_standard_step_brent(
     const double Htab_max = bed_elev + sn_up->depthdf->back()->depth;
 
     // Start with a conservative search interval
-    double L = std::max(bed_elev + 1e-6, Hc);   // never below bed
+    double L = bed_elev + 1e-3;  // set to bound from 0m+tol in case it is critical
     double U = Htab_max;
 
     // Sample residual at a few points to infer monotonicity
@@ -2100,6 +2185,15 @@ double CModel::solve_wsl_standard_step_brent(
     update_best(L, fL);
     update_best(M, fM);
     update_best(U, fU);
+
+    if (best_H < bed_elev + 1e-6) {
+      best_H = Hc;
+      std::string msg =
+        "WSL solver returned a depth below bed for streamnode " +
+        std::to_string(sn_up->nodeID) +
+        "; using critical depth instead";
+      WriteWarning(msg.c_str(), bbopt->noisy_run);
+    }
 
     return best_H;
 }

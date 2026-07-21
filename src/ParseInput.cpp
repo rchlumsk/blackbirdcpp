@@ -181,6 +181,7 @@ bool ParseMainInputFile(CModel*& pModel,
 
     //-------------------- OTHER SPECIAL OPTIONS ------------------------
     else if (!strcmp(s[0], ":CreateRavenProfiles")) { code = 500; }
+    else if (!strcmp(s[0], ":SkipExtraChecks"))     { code = 501; }
 
     switch (code)
     {
@@ -609,6 +610,12 @@ bool ParseMainInputFile(CModel*& pModel,
     {/*:CreateRavenProfiles*/
       if (pOptions->noisy_run) { std::cout << "Writing Raven Profiles file (channel_properties_blackbird.rvp)" << std::endl; }
       pOptions->create_raven_profiles = true;
+      break;
+    }
+    case(501):
+    {/*:SkipExtraChecks*/
+      if (pOptions->noisy_run) { std::cout << "Skipping extra checks in Blackbird to reduce runtime" << std::endl; }
+      pOptions->extrachecks = false;
       break;
     }
     default://----------------------------------------------

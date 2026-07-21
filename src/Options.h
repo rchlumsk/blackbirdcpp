@@ -65,6 +65,7 @@ public:
   bool silent_run;                                  // true -> print less logs
   bool noisy_run;                                   // true -> print more logs
   bool debug_run;									// true -> print debug logs and outputs
+  bool extrachecks;									// true -> perform extra checks on the model and print warnings if any issues are found
 
   // Constructor
   COptions();
