@@ -42,7 +42,7 @@ extern std::string g_output_directory; ///< Had to be here to avoid passing Opti
 extern bool   g_suppress_warnings;///< Had to be here to avoid passing Options object around willy-nilly
 
 // Program version
-const std::string __BLACKBIRD_VERSION__ = "1.0.0";
+const std::string __BLACKBIRD_VERSION__ = "1.1.0";
 //*****************************************************************
 // Global Constants
 //*****************************************************************
