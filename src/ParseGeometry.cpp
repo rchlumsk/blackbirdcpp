@@ -19,6 +19,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
 {
   CStreamnode*     pSN(NULL);             //temp pointers
   hydraulic_output *pHO(NULL);
+  streamnodeconn   *pSC(NULL);
   bool             ended = false;
   bool             in_ifmode_statement = false;
 
@@ -71,6 +72,9 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":CrossSections")) { code = -2; } //treat as comment
     else if (!strcmp(s[0], ":StreamnodeCrossSection")) { code = 3; }
     else if (!strcmp(s[0], ":StreamnodeRoughnessMultiplier")) { code = 4; }
+    else if (!strcmp(s[0], ":EndPreprocessedHydraulicTables")) { code = -2; } //treat as comment
+    else if (!strcmp(s[0], ":StreamnodeConnectionsTable")) { code = 5; }
+    else if (!strcmp(s[0], ":EndStreamnodeConnectionsTable")) { code = -2; } //treat as comment
 
     switch (code)
     {
@@ -280,8 +284,9 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
           pSN = NULL;
           pSN = pModel->get_streamnode_by_id(std::stoi(s[1]));
           if (pSN == NULL) {
-            error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" after :PreprocHydTable does not exist in streamnodes object";
-            ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" after :PreprocHydTable does not exist in streamnodes object. Ignoring streamnode PreprocHydTable.";
+            // ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            WriteWarning(error.c_str(), pOptions->noisy_run);
           } else if (pSN->nodetype != enum_nodetype::REACH) {
             error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" is not of nodetype REACH and cannot have a :PreprocHydTable block";
             ExitGracefully(error.c_str(), BAD_DATA_WARN);
@@ -1106,6 +1111,127 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
         ExitGracefully(error.c_str(), BAD_DATA_WARN);
       }
       pSN = NULL;
+      break;
+    }
+    case(5):  //----------------------------------------------
+    { /*:StreamnodeConnectionsTable*/
+      if (pOptions->noisy_run) { std::cout << "Streamnode connections table..." << std::endl; }
+      ExitGracefullyIf(pModel->bbsn->size() == 0, "ParseGeometry File: :Streamnodes must come before :StreamnodeConnectionsTable", exitcode::BAD_DATA);
+      bool done = false;
+      int row = 0;
+      if (Len < 1) { pp->ImproperFormat(s); }
+      else {
+        std::string error;
+        /*
+        std::string error;
+        if (StringIsLong(s[1])) {
+          pSN = NULL;
+          pSN = pModel->get_streamnode_by_id(std::stoi(s[1]));
+          if (pSN == NULL) {
+            error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" after :PreprocHydTable does not exist in streamnodes object";
+            ExitGracefully(error.c_str(), BAD_DATA_WARN);
+          } else if (pSN->nodetype != enum_nodetype::REACH) {
+            error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" is not of nodetype REACH and cannot have a :PreprocHydTable block";
+            ExitGracefully(error.c_str(), BAD_DATA_WARN);
+          }
+        } else {
+          error = "ParseGeometry File: nodeID \"" + std::string(s[1]) + "\" after :PreprocHydTable must be unique integer or long integer";
+          ExitGracefully(error.c_str(), BAD_DATA_WARN);
+        }
+        */
+        while ((!done) && (!end_of_file))
+        {
+          end_of_file = pp->Tokenize(s, Len);
+          if (IsComment(s[0], Len)) {}//comment line
+          else if (!strcmp(s[0], ":Attributes")) {}//ignored by Blackbird - needed for GUIs
+          else if (!strcmp(s[0], ":EndStreamnodeConnectionsTable")) { done = true; }
+          else
+          {
+            row++;
+            if (Len < 6) { pp->ImproperFormat(s); }
+            pSC = NULL;
+            pSC = new streamnodeconn();
+            ExitGracefullyIf(pSC == NULL, "ParseStreamnodeConnectionsTable", OUT_OF_MEMORY);
+
+            if (strcmp(s[0], "NA")) {
+              if (StringIsLong(s[0])) {
+                pSC->nodeID = std::stoi(s[0]);
+              }
+              else {
+                error = "ParseGeometry File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a unique integer or long integer";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[1], "NA")) {
+              if (StringIsLong(s[1])) {
+                pSC->adjnodeID = std::stoi(s[1]);
+              }
+              else {
+                error = "ParseGeometry File: adjnodeID \"" + std::string(s[1]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a unique integer or long integer";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[2], "NA")) {
+              if (StringIsDouble(s[2])) {
+                pSC->minhand1 = std::stod(s[2]);
+              }
+              else {
+                error = "ParseGeometry File: minhand(s) \"" + std::string(s[2]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[3], "NA")) {
+              if (StringIsDouble(s[3])) {
+                pSC->minhand2 = std::stod(s[3]);
+              }
+              else {
+                error = "ParseGeometry File: minhand(s) \"" + std::string(s[3]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[4], "NA")) {
+              if (StringIsDouble(s[4])) {
+                pSC->minelev1 = std::stod(s[4]);
+              }
+              else {
+                error = "ParseGeometry File: elev(s) \"" + std::string(s[4]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[5], "NA")) {
+              if (StringIsDouble(s[5])) {
+                pSC->minelev2 = std::stod(s[5]);
+              }
+              else {
+                error = "ParseGeometry File: elev(s) \"" + std::string(s[5]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[6], "NA")) {
+              if (StringIsLong(s[6])) {
+                pSC->reachID = std::stoi(s[6]);
+              }
+              else {
+                error = "ParseGeometry File: reachID \"" + std::string(s[6]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a unique integer or long integer";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[7], "NA")) {
+              if (StringIsLong(s[7])) {
+                pSC->transfer = std::stoi(s[7]);
+                  ExitGracefullyIf(pSC->transfer != -1 && pSC->transfer != 0 && pSC->transfer != 1, 
+                      "ParseGeometry File: transfer in :StreamnodeConnectionsTable must be one of -1, 0, or 1",
+                      BAD_DATA);
+              }
+              else {
+                error = "ParseGeometry File: transfer \"" + std::string(s[7]) + "\" in row " + std::to_string(row) + " of :StreamnodeConnectionsTable must be a unique integer or long integer";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            pModel->add_snconntbl_row(pSC);
+          }
+        }
+      }
       break;
     }
     default://------------------------------------------------

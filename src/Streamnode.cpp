@@ -1,4 +1,4 @@
-#include "BlackbirdInclude.h"
+﻿#include "BlackbirdInclude.h"
 #include "Model.h"
 #include "Streamnode.h"
 #include<string>
@@ -129,6 +129,13 @@ double CStreamnode::compute_normal_depth(double flow, double slope, double init_
   if (init_wsl == -99) {
     init_wsl = dupe.mm->min_elev + 1;
   }
+
+  static constexpr double FLOW_TOL = 1e-6; // xxx to do make global
+
+  if (flow < FLOW_TOL || (bbopt->skip_headwater && mm->upnodeID1==-1 )) {
+    // for zero flow, return the min elev
+    return dupe.mm->min_elev;
+  }
   
   dupe.compute_profile(flow, init_wsl, bbopt);
   dupe.mm->sf = slope;
@@ -227,6 +234,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
       "Streamnode.cpp: compute_basic_depth_properties_interpolation: check "
       "properties in :PreprocHydTable do not match those in :Streamnodes table",
       exitcode::BAD_DATA);
+  static constexpr double DEPTH_TOL = 1e-6; // xxx to do make global
   std::vector<double> vec_depthdf_wsl = hyd_out_collect(&hydraulic_output::wsl, *depthdf);
   std::valarray<double> val_depthdf_wsl(vec_depthdf_wsl.data(), vec_depthdf_wsl.size());
   //std::cout << wsl << " | " << val_depthdf_wsl.min() << " | "
@@ -237,7 +245,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
         "Streamnode.cpp: compute_basic_depth_properties_interpolation: wsl "
         "provided is outside of the range in depthdf",
         exitcode::RUNTIME_ERR);
-    WriteWarning(
+    /* WriteWarning(
         "Streamnode.cpp: compute_basic_depth_properties_interpolation: wsl "
         "provided (" +
             std::to_string(wsl) + ") is outside of the range in depthdf [" +
@@ -245,8 +253,34 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
             std::to_string(val_depthdf_wsl.max()) + "] in calculating flow " +
             std::to_string(mm->flow) +
             ",\nExtrapolating to continue computation.",
-        bbopt->noisy_run);
+        bbopt->noisy_run);*/
     mm->depth = wsl - mm->min_elev;
+        if (mm->depth <= DEPTH_TOL || (bbopt->skip_headwater && mm->upnodeID1==-1 ) ) {
+        mm->depth = 0.0;
+        mm->k_total = 0.0;
+        mm->alpha = 0.0;
+        mm->area = 0.0;
+        mm->hradius = 0.0;
+        mm->wet_perimeter = 0.0;
+        mm->manning_composite = 0.0;
+        mm->length_effective = 0.0;
+        mm->hyd_depth = 0.0;
+        mm->top_width = 0.0;
+        mm->k_total_areaconv = 0.0;
+        mm->k_total_disconv = 0.0;
+        mm->k_total_roughconv = 0.0;
+        mm->alpha_areaconv = 0.0;
+        mm->alpha_disconv = 0.0;
+        mm->alpha_roughconv = 0.0;
+        mm->nc_equalforce = 0.0;
+        mm->nc_equalvelocity = 0.0;
+        mm->nc_wavgwp = 0.0;
+        mm->nc_wavgarea = 0.0;
+        mm->nc_wavgconv = 0.0;
+        mm->length_effectiveadjusted = 0.0;
+
+        return;
+    }
     mm->k_total = extrapolate(wsl, &hydraulic_output::k_total, *depthdf);
     mm->alpha = extrapolate(wsl, &hydraulic_output::alpha, *depthdf);
     mm->area = extrapolate(wsl, &hydraulic_output::area, *depthdf);
@@ -269,6 +303,32 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     mm->nc_wavgconv = extrapolate(wsl, &hydraulic_output::nc_wavgconv, *depthdf);
   } else {
     mm->depth = wsl - mm->min_elev;
+    // --- Zero‑depth tolerance rule ---
+    if (mm->depth <= DEPTH_TOL || (bbopt->skip_headwater && mm->upnodeID1==-1 )) {
+        mm->depth = 0.0;
+        mm->k_total = 0.0;
+        mm->alpha = 0.0;
+        mm->area = 0.0;
+        mm->hradius = 0.0;
+        mm->wet_perimeter = 0.0;
+        mm->manning_composite = 0.0;
+        mm->length_effective = 0.0;
+        mm->hyd_depth = 0.0;
+        mm->top_width = 0.0;
+        mm->k_total_areaconv = 0.0;
+        mm->k_total_disconv = 0.0;
+        mm->k_total_roughconv = 0.0;
+        mm->alpha_areaconv = 0.0;
+        mm->alpha_disconv = 0.0;
+        mm->alpha_roughconv = 0.0;
+        mm->nc_equalforce = 0.0;
+        mm->nc_equalvelocity = 0.0;
+        mm->nc_wavgwp = 0.0;
+        mm->nc_wavgarea = 0.0;
+        mm->nc_wavgconv = 0.0;
+        mm->length_effectiveadjusted = 0.0;
+        return;
+    }
     mm->k_total = interpolate(wsl, &hydraulic_output::k_total, *depthdf);
     mm->alpha = interpolate(wsl, &hydraulic_output::alpha, *depthdf);
     mm->area = interpolate(wsl, &hydraulic_output::area, *depthdf);
@@ -477,8 +537,8 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
   mm->head_loss =
       mm->length_energyloss * mm->sf_avg +
       loss_coeff *
-          std::abs(((mm->alpha * std::pow(mm->velocity, 2.) / 2.) / GRAVITY) -
-                   ((down_mm->alpha * std::pow(down_mm->velocity, 2.) / 2.) / GRAVITY));
+          std::abs(((mm->alpha * mm->velocity*mm->velocity / 2.) / GRAVITY) -
+                   ((down_mm->alpha * down_mm->velocity*down_mm->velocity / 2.) / GRAVITY));
 }
 
 
@@ -494,6 +554,43 @@ double CStreamnode::get_total_energy(double H, hydraulic_output *down_mm, COptio
   compute_profile_next(mm->flow, H, down_mm, bbopt);
   return energy_calc(mm->min_elev, mm->depth, mm->velocity, mm->alpha, GRAVITY);
 }
+
+//////////////////////////////////////////////////////////////////
+/// \brief Compute absolute difference in estimated WSL at streamnode
+///
+/// \param H [in] wsl value
+/// \param *down_mm [in] mm of downstream node
+/// \param *&bbopt [in] Global model options information
+/// \return absolute difference in provided and computed WSL at streamnode (>=0)
+//
+double CStreamnode::get_wsl_error(double H, hydraulic_output *down_mm, COptions *&bbopt) {
+  compute_profile_next(mm->flow, H, down_mm, bbopt);
+  return std::abs(H - (down_mm->wsl + down_mm->velocity_head + mm->head_loss -
+              mm->velocity_head));
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Compute residual in the WSL calculation with Brent root finding method
+/// 
+/// note: unused in current configuration, may be removed in future versions
+///
+/// \param H [in] wsl value
+/// \param *down_mm [in] mm of downstream node
+/// \param *&bbopt [in] Global model options information
+/// \return difference in provided and computed WSL at streamnode (>=0)
+//
+double CStreamnode::get_wsl_residual(double H, hydraulic_output *down_mm, COptions *&bbopt){
+    // Update hydraulic state at this node for water surface level H
+    compute_profile_next(mm->flow, H, down_mm, bbopt);
+    // Compute the target WSL based on downstream hydraulics
+    double H_target = down_mm->wsl
+                    + down_mm->velocity_head
+                    + mm->head_loss
+                    - mm->velocity_head;
+    // SIGNED residual (not absolute value)
+    return H - H_target;
+}
+
 
 //////////////////////////////////////////////////////////////////
 /// \brief Add row to depthdf
@@ -549,6 +646,34 @@ void CStreamnode::calc_output_flows(std::vector<double> upflows) {
   for (int k = 0; k < upflows.size(); k++) {
     upstream_flows[k] = upflows[k];
     output_flows[k] = upflows[k] + flow_sources[k] - flow_sinks[k];
+    if (output_flows[k] <= 0) {
+      WriteWarning("Setting flows to zero, possible flow conservation issues in model.\nIf running spill flows, consider reducing value of :SpillFlowCoefficient and/or adjusting other parameters.",true);
+        output_flows[k] = 0.0;
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Calculates the output flows of headwater node with sources and sinks included
+///
+/// \param upflows [in] flow value contributed by upstream nodes
+//
+void CStreamnode::calc_output_flows_headwaternode(COptions *&bbopt) {
+  allocate_flowprofiles(output_flows.size());
+  if (bbopt->skip_headwater) {
+    for (int k = 0; k < output_flows.size(); k++) {
+      output_flows[k] = 0.0;
+    }
+  } else {
+    for (int k = 0; k < output_flows.size(); k++) {
+      output_flows[k] = output_flows[k] + flow_sources[k] - flow_sinks[k];
+      if (output_flows[k] <= 0) {
+        WriteWarning(
+            "Setting flows to zero, possible flow conservation issues in model",
+            true);
+        output_flows[k] = 0.0;
+      }
+    }
   }
 }
 

@@ -104,6 +104,8 @@ inline void ExitGracefullyIf(bool condition, const char* statement, exitcode cod
 //*****************************************************************
 //Structures
 //*****************************************************************
+
+// structure for hydraulic output, stores and later outputs all hydraulic property results for streamnodes
 struct hydraulic_output {
   int nodeID;
   int reachID;
@@ -209,8 +211,33 @@ struct hydraulic_output {
 
   // Copy Constructor
   hydraulic_output(const hydraulic_output &other) = default;
+
+  
 };
 
+// structure for streamnode connections, used in recurrent flow calculations
+struct streamnodeconn {
+  int nodeID;
+  int adjnodeID;
+  double minhand1;
+  double minhand2;
+  double minelev1;
+  double minelev2;
+  int reachID;
+  int transfer;
+
+  // Constructor
+  streamnodeconn() : nodeID(0), adjnodeID(0), minhand1(0), minhand2(0), minelev1(0), minelev2(0), reachID(0), transfer(0) {}
+
+  // Copy Constructor
+  streamnodeconn(const streamnodeconn &other) = default;
+};
+
+// structure for exhaustive WSL calculation
+struct ExhaustiveWSLResult {
+    double wsl_critical;   // min-energy WSL
+    double wsl_estimated;  // chosen WSL based on Froude threshold
+};
 
 //*****************************************************************
 //Enumerables
@@ -235,6 +262,14 @@ enum enum_rt_method
   SUBCRITICAL,
   SUPERCRITICAL,
   MIXED
+};
+
+// Solver method
+enum enum_sm_method
+{
+  BRENT,
+  SECANT,
+  EXHAUSTIVE
 };
 
 // Friction slope method
@@ -391,7 +426,7 @@ inline double ConvCalc(double n, double A, double Rh) {
 /// \return conveyance
 //
 inline double energy_calc(double Z, double y, double v, double alpha, double g = GRAVITY) {
-  return Z + y + alpha * std::pow(v, 2.) / 2. / g;
+  return Z + y + alpha * v*v / 2. / g;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -535,6 +570,14 @@ inline std::string toString(enum_rt_method method) {
   }
 }
 
+inline std::string toString(enum_sm_method method) {
+  switch (method) {
+  case BRENT: return "BRENT";
+  case SECANT: return "SECANT";
+  default: return "UNKNOWN";
+  }
+}
+
 inline std::string toString(enum_fs_method method) {
   switch (method) {
   case AVERAGE_CONVEYANCE: return "AVERAGE_CONVEYANCE";
@@ -653,13 +696,14 @@ std::string CorrectForRelativePath(const std::string filename, const std::string
 //*****************************************************************
 // Algorithms (inline)
 //*****************************************************************
-inline double brent_minimize(double ax, double bx, const std::function<double(double)> &f,
-                      double tol = 1e-8, int max_iter = 100) {
+inline double brent_minimize(double ax, double bx, double mx, const std::function<double(double)> &f,
+                      double tol = 1e-8, int max_iter = 1000) {
   const double CGOLD = 0.3819660; // 1 - (1 / golden ratio)
   const double ZEPS = std::numeric_limits<double>::epsilon() * 1e-3;
 
   double a = ax;                    // current lower bound of the search interval
   double b = bx;                    // current upper bound of the search interval
+  double m = mx;                    // initial guess for the minimum (must be between ax and bx)
   double x = a + CGOLD * (b - a);   // current best point (lowest f value) (start with golden section)
   double w = x;                     // previous best points (used for parabolic fit)
   double v = x;                     // previous best points (used for parabolic fit)
@@ -671,8 +715,14 @@ inline double brent_minimize(double ax, double bx, const std::function<double(do
   double d = 0.0;                   // step sizes from previous iterations
   double e = 0.0;                   // step sizes from previous iterations
 
+  if (m < ax || m > bx) {
+    ExitGracefully("Brent's method: m (initial value) must be between ax and bx", exitcode::RUNTIME_ERR);
+  }
+
   for (int iter = 0; iter < max_iter; iter++) {
-    double m = 0.5 * (a + b);
+    if (iter > 0) {
+      m = 0.5 * (a + b);
+    }
     double tol1 = ZEPS * std::abs(x) + tol;
     double tol2 = 2.0 * tol1;
 
@@ -748,6 +798,194 @@ inline double brent_minimize(double ax, double bx, const std::function<double(do
 
   return x; // best guess after max_iter iterations
 }
+
+inline double brent_root2(double a, double b, const std::function<double(double)> &f,
+             double tolerance = 1e-8, int maxIter = 1000)
+{
+    double t = std::numeric_limits<double>::epsilon();
+
+    double m = 0.0;
+    double p = 0.0;
+    double q = 0.0;
+    double r = 0.0;
+    double s = 0.0;
+    
+    double a1 = a;
+    double b1 = b;
+    double fa = f(a1);
+    double fb = f(b1);
+
+    double c = a1;
+    double fc = fa;
+    double e = b1 - a1;
+    double d = e;
+
+    while (true)
+    {
+        if (fabs(fc) < fabs(fb))
+        {
+            a1 = b1;
+            b1 = c;
+            c = a1;
+            fa = fb;
+            fb = fc;
+            fc = fa;
+        }
+
+        tolerance = 2.0 * t * fabs(b1) + t;
+        m = 0.5 * (c - b1);
+
+        if ((fabs(m) <= tolerance) || (fb == 0.0))
+        {
+            break;
+        }
+
+        if ((fabs(e) < tolerance) || (fabs(fa) <= fabs(fb)))
+        {
+            e = m;
+            d = e;
+        }
+        else
+        {
+            s = fb / fa;
+
+            if (a1 == c)
+            {
+                p = 2.0 * m * s;
+                q = 1.0 - s;
+            }
+            else
+            {
+                q = fa / fc;
+                r = fb / fc;
+                p = s * (2.0 * m * q * (q - r) - (b1 - a1) * (r - 1.0));
+                q = (q - 1.0) * (r - 1.0) * (s - 1.0);
+            }
+
+            if (p > 0.0)
+            {
+                q = -q;
+            }
+            else
+            {
+                p = -p;
+            }
+
+            s = e;
+            e = d;
+
+            if ((2.0 * p < 3.0 * m * q - fabs(tolerance * q)) && (p < fabs(0.5 * s * q)))
+            {
+                d = p / q;
+            }
+            else
+            {
+                e = m;
+                d = e;
+            }
+        }
+
+        a1 = b1;
+        fa = fb;
+
+        if (tolerance < fabs(d))
+        {
+            b1 += d;
+        }
+        else if (0.0 < m)
+        {
+            b1 += tolerance;
+        }
+        else
+        {
+            b1 = b1 - tolerance;
+        }
+
+        fb = f(b1);
+
+        if ((0.0 < fb && 0.0 < fc) || (fb <= 0.0 && fc <= 0.0))
+        {
+            c = a1;
+            fc = fa;
+            e = b1 - a1;
+            d = e;
+        }
+    }
+
+    return b1;
+}
+
+// old version of the brent_root finding algorithm, kept for reference, but not
+// used in the codebase anymore. Use brent_root2 instead.
+/*
+inline double brent_root(double a, double b,
+                         const std::function<double(double)> &f,
+                         double tol = 1e-8, int maxIter = 100)
+{
+    double fa = f(a);
+    double fb = f(b);
+
+    if (fa * fb >= 0.0)
+        throw std::runtime_error("Root is not bracketed");
+
+    double c = a, fc = fa;
+    double d = b - a, e = d;
+
+    for (int iter = 0; iter < maxIter; ++iter)
+    {
+        if (std::fabs(fc) < std::fabs(fb)) {
+            std::swap(a, b); std::swap(b, c);
+            std::swap(fa, fb); std::swap(fb, fc);
+        }
+
+        double tol1 = 2 * std::numeric_limits<double>::epsilon() * std::fabs(b) + 0.5 * tol;
+        double m = 0.5 * (c - b);
+
+        if (std::fabs(m) <= tol1 || fb == 0.0)
+            return b;
+
+        double p, q;
+        if (std::fabs(e) < tol1 || std::fabs(fa) <= std::fabs(fb)) {
+            d = e = m;
+        } else {
+            double s = fb / fa;
+            if (a == c) {
+                p = 2 * m * s;
+                q = 1 - s;
+            } else {
+                double q1 = fa / fc;
+                double r = fb / fc;
+                p = s * (2 * m * q1 * (q1 - r) - (b - a) * (r - 1));
+                q = (q1 - 1) * (r - 1) * (s - 1);
+            }
+            if (p > 0) q = -q; else p = -p;
+
+            if (2 * p < 3 * m * q - std::fabs(tol1 * q) &&
+                p < std::fabs(0.5 * e * q))
+            {
+                e = d;
+                d = p / q;
+            } else {
+                d = e = m;
+            }
+        }
+
+        a = b;
+        fa = fb;
+        b += (std::fabs(d) > tol1 ? d : (m > 0 ? tol1 : -tol1));
+        fb = f(b);
+
+        if ((fb > 0 && fc > 0) || (fb < 0 && fc < 0)) {
+            c = a;
+            fc = fa;
+            d = e = b - a;
+        }
+    }
+
+    throw std::runtime_error("Brent root finder: max iterations exceeded");
+}
+*/
+
 
 #ifdef _WIN32
 #include <direct.h>

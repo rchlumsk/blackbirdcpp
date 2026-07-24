@@ -15,12 +15,69 @@ static std::string BlackbirdBuildDate(__DATE__);
 
 int main(int argc, char* argv[])
 {
-  clock_t     t0, t1, t2;          //computational time markers
+  clock_t     t0, t1, t2, t3, t4;          //computational time markers
   // Initialize model
   pModel = new CModel();
   COptions*& pOptions = pModel->bbopt;
 
   pOptions->version = __BLACKBIRD_VERSION__;
+
+  // artwork
+  const char *blackbird_art = R"(
+                                            
+             @@@@@                                   
+         @@@@@@@@@@@@                                
+            @@@@@@@@@@@                              
+             @@@@@@@@@@@@@@@                         
+             @@@@@@@@@@@@@@@@@@@@                    
+            @@@@@@@@@@@@@@@@@@@@@@@@@@               
+             @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@         
+             @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+              @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                @@@@@@@@@@@@@@@@@@@                  
+                  @@@@@@@@@@@@@@                     
+                  @@@@@@@@@@                         
+                    @    @                           
+                     @@@@@@@                         
+                  @@@@ @                             
+                      @                              
+                                                                                                    
+  )";
+
+  const char *blackbird_art_logo = R"(
+
+                                                                                                        :::::     
+                                                                                                     ::::::::     
+                                                                                                  :::::::::::     
+        @@@          @@@                          @@@         %#%                               ===-::::::---     
+        @@@          @@@@                        @@@@         ###          ###                 ::+#=::::-----     
+        @@@          @@@@                        @@@@         ###          %%%               ::::+#=::-------     
+        @@@@@@@@@    @@@@  @@@@@@@@      @@@@@@@ @@@@   @@@@  ###%#####    ###  ###%####  %%####=+#+------=++     
+        @@@@@ @@@@@  @@@@  @@    @@@   @@@@   @@@@@@@ @@@@    ####% %###%  ###  ####%   -*##+::-*##+----=***+     
+        @@@     @@@  @@@@   @@@@@@@@@ @@@@       @@@@@@@      ###    %###  ###  ###+::::-##-:::--*#+--+*****+     
+        @@@     @@@  @@@@ @@@@@@@@@@@ @@@        @@@@@@@@     ###    %###-:##+::=#+:::::-#*------*#*+*******+     
+        @@@@    @@@  @@@@ @@@::::*@%-:=@@=:::::::-%@@ @@@@    ###    *##=::*#+::=#+-::--=*#=----=##********++     
+        @@@@@@@@@@  -#@%-:*@%===*%@%-::=@@*=-=**::*@+::-%@@*::####=-=*#+:::*#+::+#*=-----+##+=+*###******++=-     
+        @@@@@@@%*-::-+%*---=#%%%*=*#=::::=#%%%#-::+#=::::*#*::=*=+***+-::::+*+--=*+-------+*####**#****+=----     
+      ::::::::----=========-----------------------::::::::::::::::::----------------===++***********++=------     
+     -------===++***********+++===-----------------------::::::::----------==+++++***************++=-------::     
+     ==++++*************************+++===------------------------------=+*******************+++=-----:::::::     
+     *******++====---------==++*************++++===-------------------=+*********++===----------:::::::::::       
+     ======---------------------=++*****************++++===-------==++********+==---------::::::::::::            
+     -------------------------------=====++++********************************=--------:::::::::::::               
+     :::::::------------------::------------------------===++**************+=-------:::::::::::::                 
+     :::::::::::::::::::::::::::::::-----------------:::--------==++****++=-------::::::::::::::                  
+     ::::::::::::::::::::::::::::::::::------:::::::::::::::::---------=+#*------::::::::::::::                   
+                                  :::::::::::::::::::::::::::::::------=#@@@%+=-::::::::::::::                    
+                                                    :::::::::::::::::---#@@@@@@@@#=:::::::::                      
+                                                        ::::::::::::::::*@@@@@@@@@@@@@#*++*                       
+                                                           ::::::::::::::=%@@@@@@%=::::::                         
+                                                              ::::::::::::=+**+=:::::::                           
+                                                                 ::::::::::-+*=::::::                             
+                                                                    ::::::::::::::                                
+                                                                                                                  
+
+  )";
 
   // Parse input arguments and set output directory
   ProcessExecutableArguments(argc, argv, pOptions);
@@ -30,6 +87,7 @@ int main(int argc, char* argv[])
     int year = std::stoi(BlackbirdBuildDate.substr(BlackbirdBuildDate.length() - 4, 4).c_str());
     std::cout << "=================================================================" << std::endl;
     std::cout << "                            BLACKBIRD                            " << std::endl;
+    // std::cout <<                            blackbird_art                            << std::endl;
     std::cout << " a robust hydraulic modelling framework supporting flood mapping " << std::endl;
     std::cout << "       Copyright 2025-" << year << ", the Blackbird Development Team " << std::endl;
     std::cout << "                          Version " << pOptions->version << std::endl;
@@ -52,18 +110,6 @@ int main(int argc, char* argv[])
     ExitGracefully("Main::Unable to read input file(s)", BAD_DATA);
   }
 
-  // Initialize GDAL
-  GDALAllRegister();
-
-  // Read input gridded data if applicable
-  if (pOptions->interpolation_postproc_method != enum_ppi_method::NONE) {
-    if (!pOptions->silent_run) {
-      std::cout << "======================================================" << std::endl;
-      std::cout << "Reading Gridded Data..." << std::endl;
-    }
-    pModel->ReadGISFiles();
-  }
-
   CheckForErrorWarnings(true, pModel);
 
   if (!pOptions->silent_run) {
@@ -75,6 +121,17 @@ int main(int argc, char* argv[])
 
   CheckForErrorWarnings(false, pModel);
 
+  // create profiles if option was specified
+  if (pOptions->create_raven_profiles) {
+    if (!pOptions->silent_run) {
+      std::cout << "======================================================" << std::endl;
+      std::cout << "Writing Raven Profiles..." << std::endl;
+    }
+    pModel->create_raven_profiles();
+    ExitGracefully("Generated Raven Profiles", SIMULATION_DONE);
+    return 0;
+  }
+
   if (!pOptions->silent_run) {
     std::cout << std::endl << "======================================================" << std::endl;
     std::cout << "Simulation Start..." << std::endl;
@@ -84,10 +141,86 @@ int main(int argc, char* argv[])
   
   // Compute hydraulic profile for all streamnodes
   pModel->hyd_compute_profile();
-  // Post-process flood results with method specified by input parameter
-  pModel->postprocess_floodresults();
+
+  // if spill flows, iterate on computing profiles and computing flows
+  if (pOptions->enable_spill_flows) {
+
+      // xxx add warning here for spill mult
+      // ExitGracefullyIf(flow_mult != 1, "Spill flow calculations are not compatabile with a global flow multiplier",BAD_DATA);
+
+      double spilldepth = -99;
+      // double minspilliterations = 5.0;
+      double spilldepthprev = -99;
+
+      std::cout << "Initiating Spill Flow Calculations..." << std::endl;
+
+      if (pModel->fp_names.size() > 1) {
+        ExitGracefully("Unable to run spill flows for multiple flow profiles "
+                       "at this time, spill flows will not be compited.",
+                       BAD_DATA);
+      }
+
+      int kk = 0; // counter for spillflows iterations
+
+      while (kk <= pOptions->iteration_limit_spillflows) {
+
+          if (!pOptions->silent_run) {
+            std::cout << "Spill Flow Iteration " << std::to_string(kk+1) << " === " << std::endl;
+          }
+
+          // zero sources before computing spill flows
+          pModel->zero_flow_sources();
+
+          // compute spill flows for each node in snconntable and update flows
+          spilldepth = pModel->update_spill_flows();
+
+          // recalculate flows
+          pModel->calc_output_flows();
+
+          // re-run hyd_compute_profile
+          pModel->hyd_compute_profile();
+
+          if ( (spilldepth < pOptions->tolerance_spillflows) || spilldepth==0.0 || (kk>1 && std::abs(spilldepth-spilldepthprev)<pOptions->spilldepthchangetol)) {
+            WriteAdvisory("Spill flow calculations converged after " + std::to_string(kk + 1) +
+                              " iterations with a spilldepth of " + std::to_string(spilldepth) + 
+                              " and a change in spilldepth of " + std::to_string(std::abs(spilldepth-spilldepthprev)),
+                          pOptions->noisy_run || pOptions->debug_run);
+              break;      
+          } else {
+            kk = kk+1;
+            spilldepthprev = spilldepth;
+          }
+      }
+      if (kk >= pOptions->iteration_limit_spillflows) {
+       WriteWarning("Spill flow calculations exiting after max number of iterations and a spilldpeth of " + std::to_string(spilldepth),
+                          pOptions->noisy_run);
+      }
+      WriteAdvisory("Spill flow calculations complete!", pOptions->noisy_run);
+  }
+
+  // Write hydraulic results to csv file for all streamnodes (if applicable)
+  if (pOptions->write_hydraulic_output) {
+      pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
+  }
 
   t2 = clock();
+
+  /// Reading GIS data if the postproc method is not NONE  
+  // Read input gridded data if applicable
+  if (pOptions->interpolation_postproc_method != enum_ppi_method::NONE) {
+    // Initialize GDAL
+    GDALAllRegister();
+    if (!pOptions->silent_run) {
+      std::cout << "======================================================" << std::endl;
+      std::cout << "Reading Gridded Data..." << std::endl;
+    }
+    pModel->ReadGISFiles();
+
+    // Post-process flood results with method specified by input parameter
+    pModel->postprocess_floodresults();
+  }
+ 
+  t3 = clock();
 
   //Finished Solving----------------------------------------------------
   // Initialize test output file for writing to
@@ -99,17 +232,19 @@ int main(int argc, char* argv[])
   //TESTOUTPUT.close();
   //pModel->WriteFullModel(); // writes full model to test output
   //pModel->hyd_result_pretty_print(); // writes hydraulic result to test output
-  pModel->hyd_result_pretty_print_csv(); // writes hydraulic result to csv
   pModel->WriteGriddedOutput(); // if applicable, writes raster output to raster files
   pModel->write_catchments_from_streamnodes_json(); // if applicable, updates catchments from streamnodes json with calculated flows, depths, and wsls
+
+  t4 = clock();
 
   if (!pOptions->silent_run)
   {
     std::cout << "======================================================" << std::endl;
     std::cout << "...Blackbird Simulation Complete: " << pOptions->run_name << std::endl;
-    std::cout << "        Parsing & initialization: " << float(t1 - t0) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
-    std::cout << "                      Simulation: " << float(t2 - t1) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
-    std::cout << "                  Writing output: " << float(clock() - t2) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << "        Parsing & Initialization: " << float(t1 - t0) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << "       Depth Simulation & Output: " << float(t2 - t1) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << " GIS Parsing and Post-Processing: " << float(t3 - t2) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << "              Additional Outputs: " << float(t4 - t3) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
     if (pOptions->main_output_dir != "") {
       std::cout << "  Output written to " << pOptions->main_output_dir << std::endl;
     }

@@ -27,6 +27,8 @@ public:
   std::vector<std::unique_ptr<CGriddedData>> dhandid;   // vector of pointers to GriddedData objects for dhand pourpoints
   std::vector<std::string> fp_names;                    // names of flowprofiles read in from .bbb
   double flow_mult;                                     // global flow multiplier read in from .bbb
+  std::vector<streamnodeconn*> *snconntbl;                // contains data from the snconntbl extracted from bbg files
+  
 
   // Outputs
   std::vector<hydraulic_output *> *hyd_result;                        // hydraulic outputs generated from hyd_compute_profile
@@ -41,13 +43,18 @@ public:
   CModel &operator=(const CModel &other);
 
   // Functions
+  void create_raven_profiles();                                   // creates raven profiles for all streamnodes based on normal depth and preprocessed tables
   void hyd_compute_profile();                                     // computes hydraulic profile for all streamnodes
   void calc_output_flows();                                       // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
+  double update_spill_flows();                                    // updates spill flows via sources and sinks, and returns the max change in flow
+  void zero_flow_sources();									      // sets flow of all source streamnodes to zero. used in iterative process of updating spill flows via sources and sinks
 
   void add_streamnode(CStreamnode*& pSN);                         // adds streamnode to bbsn and maps
   CStreamnode* get_streamnode_by_id(int sid) const;                     // returns streamnode using id map
   int get_index_by_id(int id);                                    // returns streamnode index usind id map
   int get_hyd_res_index(int flow_ind, int sid);                   // returns hyd_result index
+  void add_snconntbl_row(streamnodeconn*& row);                   // add streamnodeconn row to snconntbl
+  
 
   // I/O Functions defined in StandardOutput.cpp
   std::string FilenamePrepare(std::string filebase) const;        // attaches main_output_dir folder and run_name to filebase
@@ -79,6 +86,13 @@ protected:
 
   // Private functions
   void compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::vector<hydraulic_output *> *&res, CBoundaryCondition *&bc); // helper function used in hyd_compute_profile
+  double solve_critical_wsl_brent(const CStreamnode* sn_up, const CStreamnode* sn_down);                             // solver for critical wsl using brent method. 
+  double solve_critical_wsl_exhaustive(const CStreamnode* sn_up, const CStreamnode* sn_down);                             // solver for critical wsl using refined exhaustive search.
+  double solve_critical_wsl_brent_analytical(const CStreamnode* sn_up, const CStreamnode* sn_down);                  // solver for critical wsl using brent method.          
+  
+  double solve_wsl_standard_step_brent(const CStreamnode* sn_up, const CStreamnode* sn_down,  double wsl_critical ); // solver for estimated wsl using brent method. used in hyd_compute_profile
+  ExhaustiveWSLResult solve_wsl_exhaustive(const CStreamnode* sn_up, const CStreamnode* sn_down); // solver for estimated wsl using exhaustive search. used in hyd_compute_profile
+
   std::pair<int, int> dhand_bounding_depths(double depth);                                                                           // finds nearest dhands to use in postprocess_floodresults
   void generate_spp_depths(int flow_ind);                                                                                            // generates spp_depths for the flow_ind-th profile. used in postprocess_floodresults
   void generate_dhand_vals(int flow_ind, bool is_interp);                                                                            // generates dhand_vals for the flow_ind-th profile. used in postprocess_floodresults

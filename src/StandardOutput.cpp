@@ -1302,6 +1302,11 @@ void CModel::hyd_result_pretty_print_csv() const
         FILE_OPEN_ERR);
   }
 
+  // graceful exit if hyd_result is NULL
+  ExitGracefullyIf(this->hyd_result == nullptr,
+                 "hyd_result_pretty_print_csv: hyd_result is null",
+                 BAD_DATA);
+
   HYD_OUTPUT << "nodeId" << "," << "reachId" << "," << "downNodeId" << ","
              << "upNodeId1" << "," << "upNodeId2" << "," << "stationName" << ","
              << "station" << "," << "reachLengthDs" << "," << "reachLengthUs1"
@@ -1329,10 +1334,22 @@ void CModel::hyd_result_pretty_print_csv() const
              << "ncEqualVelocity" << "," << "ncWavgwp" << "," << "ncWavgArea"
              << "," << "ncWavgConv" << "," << "criticalDepth" << ","
              << "cpIterations" << "," << "kErr" << "," << "wsErr" << ","
-             << "lengthEnergyloss" << "," << "lengthEffectiveAdjusted" << "peakHoursRequired"
+             << "lengthEnergyloss" << "," << "lengthEffectiveAdjusted" <<  "," << "peakHoursRequired"
              << std::endl;
   // Iterate over all hydraulic_output objects in depthdf and print them
+  size_t idx = 0;
   for (const auto &ho : *(this->hyd_result)) {
+
+    if (ho == nullptr) {
+          WriteWarning(
+                ("hyd_result_pretty_print_csv: skipping null hydraulic_output at index " +
+                 std::to_string(idx)).c_str(),
+                bbopt->noisy_run
+            );
+            idx++;
+            continue;
+    }
+
     HYD_OUTPUT << ho->nodeID << "," << ho->reachID << "," << ho->downnodeID
                << "," << ho->upnodeID1 << "," << ho->upnodeID2 << ","
                << ho->stationname << "," << ho->station << ","
@@ -1368,6 +1385,7 @@ void CModel::hyd_result_pretty_print_csv() const
                << ho->k_err << "," << ho->ws_err << "," << ho->length_energyloss
                << "," << ho->length_effectiveadjusted << ","
                << ho->peak_hrs_required << std::endl;
+    idx++; // temp debug
   }
   HYD_OUTPUT.close();
 }

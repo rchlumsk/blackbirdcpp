@@ -12,7 +12,8 @@ COptions::COptions()
   gis_path(PLACEHOLDER_STR),
   modeltype(enum_mt_method::HAND_MANNING),
   regimetype(enum_rt_method::SUBCRITICAL),
-  dx(PLACEHOLDER),
+  solvermethod(enum_sm_method::BRENT),
+  dx(0.1),
   extrapolate_depth_table(true),
   num_extrapolation_points(PLACEHOLDER),
   friction_slope_method(enum_fs_method::AVERAGE_CONVEYANCE),
@@ -25,6 +26,14 @@ COptions::COptions()
   tolerance_nd(PLACEHOLDER),
   iteration_limit_nd(PLACEHOLDER),
   next_WSL_split_nd(PLACEHOLDER),
+  explicit_flows(false),
+  enable_spill_flows(false),
+  iteration_limit_spillflows(20),
+  tolerance_spillflows(0.01),
+  kspillflows(0.1),
+  spillflowsmaxqrate(0.5),
+  spillflowsminq(0.5),
+  spilldepthchangetol(0.001),
   max_RHSQ_ratio(PLACEHOLDER),
   min_RHSQ_ratio(PLACEHOLDER),
   manning_composite_method(enum_mc_method::EQUAL_FORCE),
@@ -40,11 +49,16 @@ COptions::COptions()
   froude_threshold(0.94),
   silent_run(false),
   noisy_run(false),
+  debug_run(false), 
+  extrachecks(true),
   in_format(enum_gridded_format::RASTER),
   out_format(enum_gridded_format::RASTER),
   in_nc_name("bb_inputs.nc"),
+  write_hydraulic_output(true),
   write_catchment_json(false),
-  enable_exhaustive(false) {
+  enable_exhaustive(false),
+  create_raven_profiles(false),
+  skip_headwater(false){
 }
 
 //////////////////////////////////////////////////////////////////

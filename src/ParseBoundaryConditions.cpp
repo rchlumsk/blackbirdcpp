@@ -71,8 +71,9 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":BCValue")) { code = 8; }
     else if (!strcmp(s[0], ":InitialWSL")) { code = 9; }
     else if (!strcmp(s[0], ":SteadyFlows")) { code = 100; }
-    else if (!strcmp(s[0], ":StreamnodeSourcesSinks")) { code = 101; }
-    else if (!strcmp(s[0], ":GlobalFlowMultiplier")) { code = 102; }
+    else if (!strcmp(s[0], ":ExplicitSteadyFlows")) { code = 101; }
+    else if (!strcmp(s[0], ":StreamnodeSourcesSinks")) { code = 110; }
+    else if (!strcmp(s[0], ":GlobalFlowMultiplier")) { code = 120; }
 
     switch (code)
     {
@@ -246,8 +247,70 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
       break;
     }
     case(101):  //----------------------------------------------
+    { /*:ExplicitSteadyFlows*/
+      if (pOptions->noisy_run) { std::cout << "Explicit steady flows table..." << std::endl; }
+      pOptions->explicit_flows = true;
+      ExitGracefullyIf(pOptions->enable_spill_flows == true, 
+        "ParseBoundaryConditions File: Explicit flows are provided, these cannot be used with spill flows.", 
+        BAD_DATA);
+      // rest is the same as SteadyFlows, should replace with a function here or other call
+      bool done = false;
+      int row = 0;
+      if (Len != 1) { pp->ImproperFormat(s); }
+      else {
+        std::string error;
+        while ((!done) && (!end_of_file))
+        {
+          end_of_file = pp->Tokenize(s, Len);
+          if (IsComment(s[0], Len)) {}//comment line
+          else if (!strcmp(s[0], ":Attributes")) // Attributes row. Reads in flow profile names
+          {
+            if (Len < 3) { pp->ImproperFormat(s); }
+            for (int i = 2; i < Len; i++) {
+              pModel->fp_names.push_back(s[i]);
+            }
+          }
+          else if (!strcmp(s[0], ":EndExplicitSteadyFlows")) { done = true; }
+          else
+          {
+            if (pModel->fp_names.empty()) {
+                error = "ParseBoundaryConditions File: :Attributes must be specified at the beginning of  :ExplicitSteadyFlows block";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            }
+            row++;
+            if (Len < 2) { pp->ImproperFormat(s); }
+            if (StringIsLong(s[0])) {
+              pSN = NULL;
+              pSN = pModel->get_streamnode_by_id(std::stoi(s[0]));
+              if (pSN == NULL) {
+                error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :ExplicitSteadyFlows does not exist in streamnodes object";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            else {
+              error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :ExplicitSteadyFlows must be unique integer or long integer";
+              ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            }
+            for (int i = 1; i < pModel->fp_names.size() + 1; i++) {
+              if (StringIsDouble(s[i])) {
+                pSN->add_steadyflow(std::stod(s[i]));
+              }
+              else {
+                error = "ParseBoundaryConditions File: flowprofile \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of  :ExplicitSteadyFlows must be double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+          }
+        }
+      }
+      break;
+    }
+    case(110):  //----------------------------------------------
     { /*:StreamnodeSourcesSinks*/
       if (pOptions->noisy_run) { std::cout << "Sources Sinks table..." << std::endl; }
+      ExitGracefullyIf(pOptions->explicit_flows == true, 
+          "ParseBoundaryConditions File: Explicit flows are provided, these cannot be used with :StreamnodeSourcesSinks.", 
+          BAD_DATA);
       bool done = false;
       int row = 0;
       if (Len != 1) { pp->ImproperFormat(s); }
@@ -298,7 +361,7 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
       }
       break;
     }
-    case (102): { /*:GlobalFlowMultiplier [double flow_multiplier]*/
+    case (120): { /*:GlobalFlowMultiplier [double flow_multiplier]*/
       if (pOptions->noisy_run) {
         std::cout << "GlobalFlowMultiplier" << std::endl;
       }

@@ -1,5 +1,6 @@
-#include "Model.h"
+﻿#include "Model.h"
 #include "XSection.h"
+#include <unordered_set>
 
 // Default constructor
 CModel::CModel()
@@ -21,7 +22,8 @@ CModel::CModel()
   spp_depths(),
   dhand_vals(),
   dhandid_vals(),
-  flow_mult(1) {
+  flow_mult(1),
+  snconntbl(new std::vector<streamnodeconn*>) {
   // Default constructor implementation
 }
 
@@ -30,7 +32,8 @@ CModel::CModel(const CModel &other)
     : streamnode_map(other.streamnode_map), flow(other.flow),
       peak_hrs_min(other.peak_hrs_min), peak_hrs_max(other.peak_hrs_max),
       spp_depths(other.spp_depths), dhand_vals(other.dhand_vals),
-      dhandid_vals(other.dhandid_vals), flow_mult(other.flow_mult) {
+      dhandid_vals(other.dhandid_vals), flow_mult(other.flow_mult),
+      snconntbl(other.snconntbl) {
   if (other.c_from_s) {
     c_from_s = other.c_from_s->clone();
   }
@@ -78,6 +81,17 @@ CModel::CModel(const CModel &other)
   } else {
     hyd_result = nullptr;
   }
+
+  if (other.snconntbl) {
+    snconntbl = new std::vector<streamnodeconn *>();
+    for (const auto &res : *other.snconntbl) {
+      snconntbl->push_back(new streamnodeconn(*res));
+    }
+  } else {
+    snconntbl = nullptr;
+  }
+
+  
 }
 
 // Copy assignment operator
@@ -124,6 +138,13 @@ CModel &CModel::operator=(const CModel &other) {
     delete hyd_result;
     hyd_result = nullptr;
   }
+  if (snconntbl) {
+    for (auto ptr : *snconntbl) {
+      delete ptr;
+    }
+    delete snconntbl;
+    snconntbl = nullptr;
+  }
 
   dhand_depth_seq = other.dhand_depth_seq;
   streamnode_map = other.streamnode_map;
@@ -134,6 +155,7 @@ CModel &CModel::operator=(const CModel &other) {
   dhand_vals = other.dhand_vals;
   dhandid_vals = other.dhandid_vals;
   flow_mult = other.flow_mult;
+  snconntbl = other.snconntbl;
 
   if (other.bbsn) {
     bbsn = new std::vector<CStreamnode *>();
@@ -165,7 +187,98 @@ CModel &CModel::operator=(const CModel &other) {
     hyd_result = nullptr;
   }
 
+  if (other.snconntbl) {
+    snconntbl = new std::vector<streamnodeconn *>();
+    for (const auto &res : *other.snconntbl) {
+      snconntbl->push_back(
+          new streamnodeconn(*res));
+    }
+  } else {
+    snconntbl = nullptr;
+  }
+
   return *this;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Computes the Raven-style profile and generates the channel_properties_blackbird.rvp file
+// output file will look like:
+/* :ChannelRatingCurves[name]
+     :Bedslope [slope]
+     :StageRelations
+        [depth, area, top_width, discharge, perimeter] x (number of rating curve points)
+     :EndStageRelations
+   :EndChannelRatingCurves
+*/
+//
+void CModel::create_raven_profiles() {
+
+    // xxx add functionality to write out the rvh file for :Subbasin and :HRUs table as well
+
+    // add a default profile that is used for headwaters instead (one time for all headwaters)
+
+    int total_nodes = bbsn->size();
+    CStreamnode *start_streamnode = get_streamnode_by_id((*bbbc)[0]->nodeID);
+    int nrowdepthdf = start_streamnode->depthdf->size();
+
+    std::string tmpFilename = FilenamePrepare("channel_properties_blackbird.rvp");
+    std::ofstream RVNPROFILE_OUTPUT(tmpFilename.c_str());
+
+    if (RVNPROFILE_OUTPUT.fail()) {
+        ExitGracefully(
+            ("CModel::channel_properties_blackbird.rvp: Unable to open output file " +
+             tmpFilename + " for writing.").c_str(),
+            FILE_OPEN_ERR);
+
+    }
+
+    RVNPROFILE_OUTPUT 
+        << "## Channel Properties written by Blackbird for use in Raven model\n"
+        << "## Profiles determined from pre-processed reach data and flows calculated using a normal depth assumption\n\n";
+
+    for (int i = 0; i < total_nodes; i++) {
+    CStreamnode *&temp_sn = (*bbsn)[i];
+
+
+   
+
+      if (bbopt->skip_headwater && temp_sn->upnodeID1 == -1) {
+        continue;    
+      } else {
+        RVNPROFILE_OUTPUT
+        << ":ChannelRatingCurves profile_" << std::setw(5) << std::setfill('0') << temp_sn->nodeID << "\n"; // write in %05d format
+
+        if (temp_sn->bed_slope < 0.01) {
+          RVNPROFILE_OUTPUT
+            << "  :Bedslope " <<  std::fixed << std::setprecision(4) << 0.01 << "\n"; // write in %.4f format
+        } else {
+          RVNPROFILE_OUTPUT
+            << "  :Bedslope " <<  std::fixed << std::setprecision(4) << temp_sn->bed_slope << "\n"; // write in %.4f format
+        }
+
+        RVNPROFILE_OUTPUT
+        // << "  :Bedslope " <<  std::fixed << std::setprecision(4) << std::max(temp_sn->bed_slope,0.01) << "\n" // write in %.4f format
+        << "  :StageRelations" 
+        << "  # [depth, area, top_width, discharge, perimeter]" 
+        << "\n";
+
+        for (int j = 0; j < nrowdepthdf; j++) {
+            hydraulic_output *row = (*temp_sn->depthdf)[j];
+            // Q = (1/n)*A*R^(2/3)*S^(1/2) rearranged to solve for flow using manning composite n, bed slope, and depth df outputs to get rating curve points for each depth df row
+            double tempflow = (1/row->manning_composite)*std::pow(row->hradius,2/3)*std::sqrt(temp_sn->bed_slope)*row->area; 
+            RVNPROFILE_OUTPUT << "    " 
+                                << std::fixed << std::setprecision(2)
+                                << row->depth << ", " 
+                                << std::fixed << std::setprecision(3)
+                                << row->area << ", "
+                                << row->top_width << ", " << tempflow << ", "
+                                << row->wet_perimeter << "\n"; // write in %.3f format
+        }
+        RVNPROFILE_OUTPUT << "  :EndStageRelations" << "\n";
+        RVNPROFILE_OUTPUT << ":EndChannelRatingCurves" << "\n\n";
+      }
+    }
+    RVNPROFILE_OUTPUT.close();
 }
 
 //////////////////////////////////////////////////////////////////
@@ -195,7 +308,7 @@ void CModel::hyd_compute_profile() {
 
   // Initialize container for hydraulic result
   hyd_result = new std::vector<hydraulic_output *>(
-      start_streamnode->output_flows.size() * bbsn->size());
+      start_streamnode->output_flows.size() * bbsn->size(), nullptr);
 
   // Loop through each flow
   // Compute the corresponding hydraulic profile starting at the boundary condition streamnode
@@ -250,8 +363,8 @@ void CModel::hyd_compute_profile() {
     }
     WriteAdvisory("The range of required peak flood times ranges from " +
                       std::to_string(peak_hrs_min) + " to " +
-                      std::to_string(peak_hrs_max) + " hours for flow " +
-                      std::to_string(flow) + "(" + fp_names[flow] +
+                      std::to_string(peak_hrs_max) + " hours for flow profile " +
+                      std::to_string(flow+1) + " (" + fp_names[flow] +
                       ") within the computed streamnodes",
                   bbopt->noisy_run);
     peak_hrs_min = PLACEHOLDER;
@@ -268,61 +381,283 @@ void CModel::hyd_compute_profile() {
 /// \brief Calculate output flows of all streamnodes
 //
 void CModel::calc_output_flows() {
-  std::set<int> finished_nodes;             // sorted list of nodes where output_flows has been calculated
-  std::unordered_map<int, int> id_to_ind;   // maps nodeID to index in bbsn
-  int total_nodes = bbsn->size();           // number of nodes in bbsn
-  int num_fp = PLACEHOLDER;                 // number of flow profiles
-  for (int iter = 0; finished_nodes.size() < total_nodes && iter < 1000; iter++) {
-    for (int i = 0; i < total_nodes; i++) {
-      CStreamnode*& temp_sn = (*bbsn)[i]; // reference to current streamnode pointer to simplify code
-      // If first while loop iteration, add node to id_to_ind
-      if (iter == 0) {
-        id_to_ind[temp_sn->nodeID] = i;
-      }
+    int total_nodes = bbsn->size();           // number of nodes in bbsn
+    int num_fp = PLACEHOLDER;                 // number of flow profiles
 
-      // If node has been calculated, skip
-      if (finished_nodes.find(temp_sn->nodeID) != finished_nodes.end()) {
-        continue;
-      }
-      // If either upnodes have not been calculated already, skip
-      if ( ( temp_sn->upnodeID1 != -1 && (finished_nodes.find(temp_sn->upnodeID1) == finished_nodes.end()) ) 
-        || ( temp_sn->upnodeID2 != -1 && (finished_nodes.find(temp_sn->upnodeID2) == finished_nodes.end()) )) {
-        continue;
-      }
+    if (bbopt->explicit_flows == false) {
+        // update flows based on accumulated flows in each reach
+        std::set<int> finished_nodes;             // sorted list of nodes where output_flows has been calculated
+        std::unordered_map<int, int> id_to_ind;   // maps nodeID to index in bbsn
 
-      // If headwater, add to finished nodes and continue
-      if (temp_sn->upstream_flows.size() > 0 && temp_sn->upstream_flows[0] == HEADWATER) {
-        finished_nodes.insert(temp_sn->nodeID);
-        // If num_fp has yet to be assigned, assign it (will execute on a headwater node in first iteration)
-        if (num_fp == PLACEHOLDER) {
-          num_fp = temp_sn->output_flows.size();
+        for (int iter = 0; finished_nodes.size() < total_nodes && iter < 1000; iter++) {
+            for (int i = 0; i < total_nodes; i++) {
+                CStreamnode*& temp_sn = (*bbsn)[i]; // reference to current streamnode pointer to simplify code
+                // If first while loop iteration, add node to id_to_ind
+                if (iter == 0) {
+                    id_to_ind[temp_sn->nodeID] = i;
+                }
+
+                // If node has been calculated, skip
+                if (finished_nodes.find(temp_sn->nodeID) != finished_nodes.end()) {
+                    continue;
+                }
+                // If either upnodes have not been calculated already, skip
+                if ((temp_sn->upnodeID1 != -1 && (finished_nodes.find(temp_sn->upnodeID1) == finished_nodes.end()))
+                    || (temp_sn->upnodeID2 != -1 && (finished_nodes.find(temp_sn->upnodeID2) == finished_nodes.end()))) {
+                    continue;
+                }
+
+                // If headwater, add to finished nodes and continue
+                if (temp_sn->upstream_flows.size() > 0 && temp_sn->upstream_flows[0] == HEADWATER) {
+                    // finished_nodes.insert(temp_sn->nodeID);
+                    // If num_fp has yet to be assigned, assign it (will execute on a headwater node in first iteration)
+                    if (num_fp == PLACEHOLDER) {
+                        num_fp = temp_sn->output_flows.size();
+                    }
+
+                    temp_sn->calc_output_flows_headwaternode(bbopt);
+                    finished_nodes.insert(temp_sn->nodeID);
+                    continue;
+                }
+
+                // Calculate total upstream flow to send into calc_output_flows function
+                std::vector<double> upflows = (*bbsn)[id_to_ind[temp_sn->upnodeID1]]->output_flows;
+                if (temp_sn->upnodeID2 != -1) {
+                    for (int j = 0; j < num_fp; j++) {
+                        upflows[j] += (*bbsn)[id_to_ind[temp_sn->upnodeID2]]->output_flows[j];
+                    }
+                }
+                temp_sn->calc_output_flows(upflows);
+
+                // add node to finished_nodes
+                finished_nodes.insert(temp_sn->nodeID);
+            }
         }
-        continue;
-      }
-
-      // Calculate total upstream flow to send into calc_output_flows function
-      std::vector<double> upflows = (*bbsn)[id_to_ind[temp_sn->upnodeID1]]->output_flows;
-      if (temp_sn->upnodeID2 != -1) {
-        for (int j = 0; j < num_fp; j++) {
-          upflows[j] += (*bbsn)[id_to_ind[temp_sn->upnodeID2]]->output_flows[j];
-        }
-      }
-      temp_sn->calc_output_flows(upflows);
-
-      // add node to finished_nodes
-      finished_nodes.insert(temp_sn->nodeID);
     }
+    else {
+        // flows are explicitly defined
+        // error check the inputs to ensure that each node has a defined flow
+        // xxx to do
+    }
+
+    // Apply global flow multiplier if applicable
+    if (flow_mult != 1) {
+        for (int i = 0; i < total_nodes; i++) {
+            CStreamnode*& temp_sn = (*bbsn)[i];
+            for (int j = 0; j < num_fp; j++) {
+                temp_sn->output_flows[j] *= flow_mult;
+            }
+        }
+    }
+
+    if (bbopt->debug_run) {
+        double totalQ = 0.0;
+        for (int i = 0; i < bbsn->size(); ++i) {
+            totalQ += (*bbsn)[i]->output_flows[0];
+        }
+        std::cout << "Total Q after spill iteration = " << totalQ << std::endl;
+
+        double sum_sources = 0.0;
+        for (int i = 0; i < bbsn->size(); ++i) {
+            for (double s : (*bbsn)[i]->flow_sources) {
+                sum_sources += s;
+            }
+        }
+        std::cout << "Sum of flow_sources = " << sum_sources << std::endl;
+    }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Sets all flow sources and sinks to zero before proceeding with spill flow calculations to update them based on spill flow calculations
+//
+void CModel::zero_flow_sources() {
+    for (int i = 0; i < bbsn->size(); i++) {
+        CStreamnode*& sn = (*bbsn)[i];
+        for (double &src : sn->flow_sources) {
+            src = 0.0;
+        }
+        for (double &snk : sn->flow_sinks) {
+            snk = 0.0;
+        }
+    }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Bound the transfer rate in spill flows based on inputs
+/// \param cumqtransfer [in] cumulative flow transfer calculated based on spill height difference and kspillflows for a given streamnode connection (can be positive or negative based on direction of flow transfer)
+/// \param Q1 [in] flow at node 1 (donor if cumqtransfer is positive, receiver if cumqtransfer is negative)
+/// \param Q2 [in] flow at node 2 (receiver if cumqtransfer is positive, donor if cumqtransfer is negative)
+/// \param minQ1 [in] minimum flow to maintain at node 1 (donor if cumqtransfer is positive, receiver if cumqtransfer is negative) after transfer based on coeff_min_flow
+/// \param minQ2 [in] minimum flow to maintain at node 2 (receiver if cumqtransfer is positive, donor if cumqtransfer is negative) after transfer based on coeff_min_flow
+/// \param maxChange1 [in] maximum change allowed in flow at node 1 (donor if cumqtransfer is positive, receiver if cumqtransfer is negative) based on coeff_qi_rate to avoid large changes in flow each iteration
+/// \param maxChange2 [in] maximum change allowed in flow at node 2 (receiver if cumqtransfer is positive, donor if cumqtransfer is negative) based on coeff_qi_rate to avoid large changes in flow each iteration
+//
+double clamp_transfer(double cumqtransfer,
+                      double Q1, double Q2,
+                      double minQ1, double minQ2,
+                      double maxChange1, double maxChange2)
+{
+    // Direction of transfer
+    double sign = (cumqtransfer >= 0.0 ? 1.0 : -1.0);
+    double amount = std::abs(cumqtransfer);
+
+    // Donor limits
+    double donor_limit;
+    if (sign > 0) {
+        // Flow from node1 → node2
+        donor_limit = Q1 - minQ1;
+        donor_limit = std::min(donor_limit, maxChange1);
+    } else {
+        // Flow from node2 → node1
+        donor_limit = Q2 - minQ2;
+        donor_limit = std::min(donor_limit, maxChange2);
+    }
+
+    // Receiver limits
+    double receiver_limit = (sign > 0 ? maxChange2 : maxChange1);
+
+    // Final allowed transfer
+    double allowed = std::min({ amount, donor_limit, receiver_limit });
+
+    return sign * allowed;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Update sources and sinks based on spill flow calculations
+//
+double CModel::update_spill_flows() {
+    double max_deltaQ = 0.0;                  // max exchange in flow between streamnodes
+    double max_spillheightdiff = 0.0;             // max difference in spill height between streamnodes (used to compute flow transfer rate)
+    double cumqtransfer = 0.0;
+
+    double coeff_qi_rate = bbopt->spillflowsmaxqrate; // computes max flow rate change based on coeff_qi_rate*Q for each iteration [0..1]
+    // e.g., coeff_qi_rate = 0.9, max flow rate change is 90% of the current flow rate
+
+    double coeff_min_flow = bbopt->spillflowsminq; // minimum flow to maintain in streamnodes from original, computed as coeff_min_flow*Q [0..1]
+    // e.g., coeff_min_flow = 0.1, flow will not reduce below 10% of original flow from previous solution
+
+    for (int i = 0; i < snconntbl->size(); i++) {
+        // get streamnode references
+        streamnodeconn* row = (*snconntbl)[i];
+        int ind1 = get_index_by_id(row->nodeID);
+        int ind2 = get_index_by_id(row->adjnodeID);
+        CStreamnode*& temp_sn1 = (*bbsn)[ind1];
+        CStreamnode*& temp_sn2 = (*bbsn)[ind2];
+        bool setqtransfer = false;
+        
+        // conditons to end qtransfer calc or not
+        if (i == snconntbl->size() - 1) {
+          setqtransfer = true; // ended due to end of file
+        } else {
+            // end if the next row has a change in the pairing of cid & adjid OR if the reachID changes
+            streamnodeconn *nextrow = (*snconntbl)[i+1];
+            int ind3 = get_index_by_id(nextrow->adjnodeID);
+            if (ind3 != ind2 || nextrow->reachID != row->reachID) { 
+              setqtransfer = true;
+            }
+        }
+        
+      // get depths at each node from hydraulic results
+      hydraulic_output *depthrow1 = (*hyd_result)[ind1];
+      hydraulic_output *depthrow2 = (*hyd_result)[ind2];
+
+      // compute difference in transfer elevation (absolute value)
+      double spillheightdiff = (std::max(depthrow1->depth - row->minhand1,0.0)+row->minelev1) - 
+                               (std::max(depthrow2->depth - row->minhand2,0.0)+row->minelev2);    
+
+      if (std::abs(spillheightdiff) > 0) {
+        // update max spillheightdiff
+        if (std::abs(spillheightdiff) > max_spillheightdiff) {
+          max_spillheightdiff = std::abs(spillheightdiff);
+        }
+      }
+      
+      double qtransfer = spillheightdiff * bbopt->kspillflows;
+      cumqtransfer = cumqtransfer + qtransfer;
+
+      if (setqtransfer) {
+
+        // limit qtransfer based on receiving body's flow rate, avoid a 50% increase in flows
+        /* if (cumqtransfer > 0) {
+          if (cumqtransfer > depthrow2->flow*coeff_qi_rate) {
+            cumqtransfer = depthrow2->flow * coeff_qi_rate;
+          }
+        } else {
+          if (abs(cumqtransfer) > depthrow1->flow * coeff_qi_rate) {
+            cumqtransfer = depthrow1->flow * (-coeff_qi_rate);
+          }
+        }
+        */
+
+
+        // clamp the transfer rate with bounds
+        double Q1 = temp_sn1->output_flows[0];
+        double Q2 = temp_sn2->output_flows[0];
+
+        double minQ1 = depthrow1->flow * coeff_min_flow;
+        double minQ2 = depthrow2->flow * coeff_min_flow;
+
+        double maxChange1 = Q1 * coeff_qi_rate;
+        double maxChange2 = Q2 * coeff_qi_rate;
+
+        cumqtransfer = clamp_transfer(cumqtransfer,
+                                      Q1, Q2,
+                                      minQ1, minQ2,
+                                      maxChange1, maxChange2);
+
+        // update cumqtransfer if limited by transfer integer
+        // if transfer is:
+        // 1, means sn1
+        if ((row->transfer == 1 && cumqtransfer < 0) ||
+            (row->transfer == -1 && cumqtransfer > 0)) {
+          cumqtransfer = 0.0; // set to zero to prevent transfer of flow from DS
+                              // -> US node. US -> DS is ok
+
+          if (bbopt->debug_run) {
+            std::cout << "setting cumqtransfer to zero for nodes "
+            << std::to_string(temp_sn1->nodeID) << " -> "
+            << std::to_string(temp_sn2->nodeID) << std::endl;
+          }
+
+        }
+        
+        // update flow sources
+        temp_sn1->flow_sources[0] += cumqtransfer*(-1);
+        temp_sn2->flow_sources[0] += cumqtransfer;
+        
+        // recalculate all flows based on updated sources and sinks to ensure 
+        /// they are reflected in the iterative flow changes along reaches
+        //calc_output_flows();
+
+        if (bbopt->noisy_run || bbopt->debug_run) {
+          
+          std::cout << "-- cumqtransfer = " + std::to_string(cumqtransfer) 
+                    << " for nodes " << std::to_string(row->nodeID) << " -> " << std::to_string(row->adjnodeID) 
+                    << ", cid node original flow = "
+                    << std::to_string(depthrow1->flow) << ", updated flow = "
+                    << std::to_string(temp_sn1->output_flows[0])
+                    << ", adjid node original flow = "
+                    << std::to_string(depthrow2->flow) << ", updated flow = "
+                    << std::to_string(temp_sn2->output_flows[0]) << std::endl;
+          
+        }
+
+        // reset cumulative flow transfer calculation for next streamnode
+        cumqtransfer = 0.0; 
+      }
   }
 
-  // Apply global flow multiplier if applicable
-  if (flow_mult != 1) {
-    for (int i = 0; i < total_nodes; i++) {
-      CStreamnode *&temp_sn = (*bbsn)[i];
-      for (int j = 0; j < num_fp; j++) {
-        temp_sn->output_flows[j] *= flow_mult;
-      }
+  if (bbopt->debug_run) {
+    double sum_sources = 0.0;
+    for (int i = 0; i < bbsn->size(); ++i) {
+        for (double s : (*bbsn)[i]->flow_sources) {
+            sum_sources += s;
+        }
     }
+    std::cout << "Sum of flow_sources = " << sum_sources << std::endl;
   }
+
+  return max_spillheightdiff; // return max spill height diff to evaluate against threshold
 }
 
 //////////////////////////////////////////////////////////////////
@@ -365,6 +700,15 @@ int CModel::get_hyd_res_index(int flow_ind, int sid) {
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Add row to snconntbl
+///
+/// \param row [in] row to be added
+//
+void CModel::add_snconntbl_row(streamnodeconn *&row) {
+  snconntbl->push_back(row);
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Reads GIS files required for model
 //
 void CModel::ReadGISFiles() {
@@ -403,6 +747,43 @@ void CModel::ReadGISFiles() {
     bbopt->in_format = enum_gridded_format::RASTER;
     ReadRasterFile(bbopt->gis_path + "/bb_catchments_fromstreamnodes.tif", dynamic_cast<CRaster *>(c_from_s.get()));
     c_from_s->name = "Catchments from Streamnodes";
+
+    if (bbopt->extrachecks) {
+
+      // -------------------------------------------------------------
+      // Collect unique IDs from catchment_from_streamnodes raster
+      // -------------------------------------------------------------
+      std::unordered_set<int> catchment_ids;
+
+      for (int j = 0; j < c_from_s->xsize * c_from_s->ysize; ++j) {
+        double v = c_from_s->data[j];
+        if (!std::isnan(v) && v != c_from_s->na_val) {
+          catchment_ids.insert(static_cast<int>(v));
+        }
+      }
+
+      // -------------------------------------------------------------
+      // Collect actual streamnode IDs from the model
+      // -------------------------------------------------------------
+      std::unordered_set<int> streamnode_ids;
+
+      for (const auto &sn : *bbsn) { // adjust if your container differs
+        streamnode_ids.insert(sn->nodeID);
+      }
+
+      // -------------------------------------------------------------
+      // Warn if any catchment IDs do not correspond to a real streamnode
+      // -------------------------------------------------------------
+      for (int id : catchment_ids) {
+        if (streamnode_ids.find(id) == streamnode_ids.end()) {
+          std::string msg = "Catchment raster contains streamnode ID " +
+                            std::to_string(id) +
+                            " which does not exist in the model streamnodes.";
+          WriteWarning(msg.c_str(), bbopt->noisy_run);
+        }
+      }
+    }
+
     if (bbopt->interpolation_postproc_method == enum_ppi_method::CATCHMENT_HAND ||
         bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) { // no dhand
       hand = std::make_unique<CRaster>();
@@ -790,6 +1171,8 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
     std::cout << "Computing profile for streamnode with node id " << std::to_string(sn->nodeID) << std::endl;
   }
 
+  static constexpr double FLOW_TOL = 1e-6;
+
   // Initialize values
   int ind = get_index_by_id(sn->nodeID);
   sn->mm->nodeID = sn->nodeID;
@@ -861,266 +1244,408 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
       sn->mm->depth = down_sn->mm->depth;
       sn->mm->wsl = sn->mm->depth + sn->mm->min_elev;
 
-      double err_lag1 = PLACEHOLDER, err_lag2 = PLACEHOLDER,
-             prevWSL_lag1 = PLACEHOLDER, prevWSL_lag2 = PLACEHOLDER,
-             min_err_wsl = PLACEHOLDER, min_err = PLACEHOLDER,
-             actual_err = PLACEHOLDER, min_fr = PLACEHOLDER,
-             proposed_wsl = PLACEHOLDER;
-      bool found_supercritical = false; // reset before every i iteration, use in iteration as needed
+      if (sn->mm->flow <= FLOW_TOL) {
+        sn->mm->flow = 0.0;
+        sn->mm->depth = 0.0;
+        sn->mm->wsl = sn->mm->min_elev;
 
-      for (int i = 0; i < bbopt->iteration_limit_cp; i++) {
-        prevWSL_lag2 = prevWSL_lag1;
-        prevWSL_lag1 = sn->mm->wsl;
-        sn->compute_profile_next(sn->mm->flow, sn->mm->wsl, down_sn->mm, bbopt);
+        sn->compute_profile(sn->mm->flow, sn->mm->wsl, bbopt);
 
-        double max_depth_change = std::max(0.5 * sn->mm->depth, 0.5);
-        double comp_wsl = down_sn->mm->wsl + down_sn->mm->velocity_head + sn->mm->head_loss - sn->mm->velocity_head;
+        // Zero all hydraulic properties
+        sn->mm->velocity = 0.0;
+        sn->mm->velocity_head = 0.0;
+        sn->mm->energy_total = sn->mm->wsl;
+        sn->mm->froude = 0.0;
+        sn->mm->sf = 0.0;
 
-        // checks/modifications against min_elev
-        if (comp_wsl <= sn->mm->min_elev) {
-            comp_wsl = sn->mm->flow == 0
-                    ? sn->mm->min_elev
-                    : std::max(comp_wsl,
-                                sn->mm->min_elev + 0.05 +
-                                    0.05 * (1 - (i + 1) / bbopt->iteration_limit_cp));
-        }
+        sn->mm->k_total = 0.0;
+        sn->mm->alpha = 0.0;
+        sn->mm->area = 0.0;
+        sn->mm->hradius = 0.0;
+        sn->mm->wet_perimeter = 0.0;
+        sn->mm->manning_composite = 0.0;
+        sn->mm->length_effective = 0.0;
+        sn->mm->length_effectiveadjusted = 0.0;
+        sn->mm->hyd_depth = 0.0;
+        sn->mm->top_width = 0.0;
 
-        err_lag2 = err_lag1;
-        err_lag1 = comp_wsl - prevWSL_lag1;
-        double err_diff = err_lag2 == PLACEHOLDER ? PLACEHOLDER : err_lag2 - err_lag1;
-        double assum_diff = prevWSL_lag2 == PLACEHOLDER ? PLACEHOLDER : prevWSL_lag2 - prevWSL_lag1;
+        sn->mm->k_total_areaconv = 0.0;
+        sn->mm->k_total_disconv = 0.0;
+        sn->mm->k_total_roughconv = 0.0;
 
-        if (min_err == PLACEHOLDER || std::abs(err_lag1) < min_err) {
-            min_err = std::abs(err_lag1);
-            actual_err = err_lag1;
-            min_err_wsl = prevWSL_lag1;
-            min_fr = sn->mm->froude;
-        }
+        sn->mm->alpha_areaconv = 0.0;
+        sn->mm->alpha_disconv = 0.0;
+        sn->mm->alpha_roughconv = 0.0;
 
-        sn->mm->ws_err = err_lag1;
-        sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
-        sn->mm->cp_iterations = i + 1;
+        sn->mm->nc_equalforce = 0.0;
+        sn->mm->nc_equalvelocity = 0.0;
+        sn->mm->nc_wavgwp = 0.0;
+        sn->mm->nc_wavgarea = 0.0;
+        sn->mm->nc_wavgconv = 0.0;
 
-        if (using_exhaustive) {
-          err_lag1 = 0.0; // set to zero since using exhaustive solution, exit loop
-        } 
+        // Peak hours required = 0 for zero flow
+        sn->mm->peak_hrs_required = 0.0;
 
-        if (std::abs(err_lag1) > bbopt->tolerance_cp) {
-          if (i + 1 == bbopt->iteration_limit_cp) {
-            WriteWarning("compute_profile(): iteration limit reached on streamnode" + sn->nodeID, bbopt->noisy_run);
+        // Assign output safely
+        (*res)[flow * bbsn->size() + ind] = new hydraulic_output(*(sn->mm));
+        sn->output_depths[flow] = sn->mm->depth;
+        sn->output_wsls[flow] = sn->mm->wsl;
 
-            // setting to min error result
-            sn->compute_profile_next(sn->mm->flow, min_err_wsl, down_sn->mm, bbopt);
-            sn->mm->ws_err = actual_err;
-            sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
+        // No profile computation needed
+        return;
+      } else {
+          if (bbopt->solvermethod == enum_sm_method::BRENT) {
 
-            if (min_err < 0.1 && sn->mm->froude <= bbopt->froude_threshold) {
-              // keeping the min err result
-              if (!bbopt->silent_run) {
-                std::cout << "setting to min error result on streamnode " << std::to_string(sn->nodeID) << std::endl;
-              }
-            } else {
-              if (!bbopt->silent_run) {
-                std::cout << "need to check crit depth" << std::endl;
-              }
-              // optimization
-              double wsl_critical = brent_minimize(
-                  sn->mm->min_elev,
-                  sn->mm->min_elev + sn->depthdf->back()->depth, [&](double x) {
-                  auto temp_sn = std::make_unique<CStreamnode>(*sn);
-                  return temp_sn->get_total_energy(x, down_sn->mm, bbopt);
-              });
-              
-              if (wsl_critical >= sn->mm->min_elev &&
-                  wsl_critical <= sn->depthdf->back()->depth) { // if optimization worked
-                double depth_critical = wsl_critical - sn->mm->min_elev;
-                sn->mm->depth_critical = depth_critical;
-                sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
-                sn->mm->ws_err = PLACEHOLDER;
-                sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
-                if (!bbopt->silent_run) {
-                  std::cout << "setting to critical depth result on streamnode " << std::to_string(sn->nodeID) << std::endl;
-                }
-              } else {
-                if (!bbopt->silent_run) {
-                  std::cout << "Failed to get critical depth at streamnode "
-                            << std::to_string(sn->nodeID) << ", keeping lowest err result"
-                            << std::endl;
-                }
-                break;
-              }
-            }
-            break;
-          }
+              /* if (bbopt->noisy_run) {
+                std::cout << "Using Brent method to solve for depth at streamnode "
+                        << std::to_string(sn->nodeID) << std::endl;
+              }*/
 
-          if (i == 0) {
-            // setting based on second trial rules
-            double proposed_wsl = sn->mm->wsl + 0.7 * err_lag1;
-            if (std::abs(proposed_wsl - sn->mm->wsl) > max_depth_change) {
-              sn->mm->wsl = sn->mm->wsl + std::copysign(max_depth_change, proposed_wsl - sn->mm->wsl);
-            } else {
-              sn->mm->wsl = proposed_wsl;
-            }
-          } else {
-            if (std::abs(err_diff) < 0.03 || i + 1 > bbopt->iteration_limit_cp / 2. || i >= 5) {
-              // if enable_exhaustive, then use solveddepth (or critdepth if solvedfroude < froude_threshold)
-              if (bbopt->enable_exhaustive) {
-                if (!bbopt->silent_run) {
-                  std::cout << "using exhaustive solution at node " << std::to_string(sn->nodeID) << std::endl;
-                }
+              // compute critical depth
+              // // xxx to resolve - cannot seem to get the derivative version of critical_wsl_brent working in any way. Reverting to exhaustive search for now.
+              // double wsl_critical = solve_critical_wsl_brent(sn, down_sn);
+              // double wsl_critical = solve_critical_wsl_brent_analytical(sn, down_sn);
+              // double wsl_critical = solve_critical_wsl_brent(sn, down_sn);   
+              double wsl_critical = solve_critical_wsl_exhaustive(sn, down_sn);                         
 
-                using_exhaustive = true;
-
-                // compute properties the exhaustive way
-                std::vector<double> depthsv(sn->depthdf->size());
-                std::vector<double> velocities(sn->depthdf->size());
-                std::vector<double> velheads(sn->depthdf->size());
-                std::vector<double> energies(sn->depthdf->size());
-                std::vector<double> sf(sn->depthdf->size());
-                std::vector<double> sfbar(sn->depthdf->size());
-                std::vector<double> losscoeff(sn->depthdf->size());
-                std::vector<double> headloss(sn->depthdf->size());
-                std::vector<double> deptherr(sn->depthdf->size());
-                std::vector<double> fr(sn->depthdf->size());
-
-                for (std::size_t i = 0; i < sn->depthdf->size(); ++i) {
-                hydraulic_output* row = (*sn->depthdf)[i];
-                depthsv[i] = row->depth;
-                velocities[i] = std::max(sn->mm->flow / row->area, 0.0);
-                velheads[i] = std::pow(velocities[i], 2) / 2.0 / GRAVITY * row->alpha;
-                energies[i] = sn->mm->min_elev + row->depth + velheads[i];
-                sf[i] = pow(sn->mm->flow/row->k_total,2.0);
-                sfbar[i] = (sf[i] + down_sn->mm->sf) / 2.0;
-                losscoeff[i] = sn->expansion_coeff;
-                if (down_sn->mm->velocity_head > velheads[i]) {
-                    losscoeff[i] = sn->contraction_coeff;
-                }
-                headloss[i] = row->length_effective * sfbar[i] +
-                                losscoeff[i] * std::abs(velheads[i]-down_sn->mm->velocity_head);
-                fr[i] = velocities[i] / std::sqrt(GRAVITY * row->depth);
-                deptherr[i] =
-                    std::abs(row->depth+row->min_elev - down_sn->mm->depth - down_sn->mm->min_elev - down_sn->mm->velocity_head - headloss[i] + velheads[i]);
-                }
-
-                // determine depth with the minimum difference
-                auto it = std::min_element(
-                deptherr.begin(), deptherr.end(),
-                [](double a, double b) {
-                    // Treat NaN as "always worse" so it never wins
-                    if (std::isnan(a)) return false;  // a cannot be the min
-                    if (std::isnan(b)) return true;   // b cannot beat a
-                    return a < b;
-                }
-                );
-
-                std::size_t index = std::distance(deptherr.begin(), it);
-                double solveddepth = depthsv[index];
-                double solvedfroude = fr[index];
-
-                // determine the minimum energy and critical depth
-                auto itt = std::min_element(
-                energies.begin(), energies.end(),
-                [](double a, double b) {
-                    // Treat NaN as "always worse" so it never wins
-                    if (std::isnan(a)) return false;  // a cannot be the min
-                    if (std::isnan(b)) return true;   // b cannot beat a
-                    return a < b;
-                }
-                );
-
-                std::size_t index2 = std::distance(energies.begin(), itt);
-                double critdepth = depthsv[index2];
-
-                if (solvedfroude >= bbopt->froude_threshold) {
-                  sn->mm->wsl = sn->mm->min_elev + solveddepth;
-                } else {
-                  sn->mm->wsl = sn->mm->min_elev + critdepth;
-                }
-
-
-              } else {
-                // for small error differences, secant method can fail
-                // take average of prevWSL_lag1 and prevWSL_lag2
-                double proposed_wsl = (comp_wsl + prevWSL_lag1) / 2.;
-                // change by half of max_depth_change in direction of comp_WSL
-                // if massive swing
-                if (std::abs(comp_wsl - prevWSL_lag1) > max_depth_change) {
-                  proposed_wsl =
-                      prevWSL_lag1 + std::copysign(0.5 * max_depth_change,
-                                                   comp_wsl - prevWSL_lag1);
-                }
-                sn->mm->wsl = proposed_wsl;
-              }
-            } else {
-              // secant method
-              double proposed_wsl = prevWSL_lag2 - err_lag2 * assum_diff / err_diff;
-              if (std::abs(proposed_wsl - sn->mm->wsl) > max_depth_change) {
-                sn->mm->wsl = sn->mm->wsl + std::copysign(max_depth_change, proposed_wsl - sn->mm->wsl);
-              } else {
-                sn->mm->wsl = proposed_wsl;
-              }
-            }
-          }
-        } else {
-          if (sn->mm->froude <= bbopt->froude_threshold || using_exhaustive) {
-            if (!bbopt->silent_run) {
-              std::cout << "Iterated on WSL at streamnode " << std::to_string(sn->nodeID)
-                        << " within tolerance on iteration " << i << std::endl;
-            }
-            break;
-          } else {
-            if (!bbopt->silent_run) {
-              std::cout << "need to check crit depth" << std::endl;
-            }
-
-            // optimization
-            double wsl_critical = brent_minimize(
-              sn->mm->min_elev,
-              sn->mm->min_elev + sn->depthdf->back()->depth,
-              [&](double x) {
-                auto temp_sn = std::make_unique<CStreamnode>(*sn);
-                return temp_sn->get_total_energy(x, down_sn->mm, bbopt);
-              }
-            );
-
-            if (wsl_critical >= sn->mm->min_elev &&
-                wsl_critical <= sn->depthdf->back()->depth) { // if optimization worked
+              // convert to depth
               double depth_critical = wsl_critical - sn->mm->min_elev;
               sn->mm->depth_critical = depth_critical;
-              if (sn->mm->depth < sn->mm->depth_critical) {
-                if (found_supercritical) {
-                  sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical, down_sn->mm, bbopt);
+
+              // checks for critical depth ~= 0
+              if (depth_critical < 0.01) {
+                WriteWarning("Estimated critical depth at streamnode " + std::to_string(sn->nodeID) + " is " + std::to_string(depth_critical) + 
+                    ", which is very close or at zero. This may indicate instability in results or errors in the inputs.",
+                     bbopt->noisy_run);
+              }
+
+              // calculate wsl_estimated using Brent method
+              double wsl_estimated = solve_wsl_standard_step_brent(
+                    sn,          // upstream node
+                    down_sn,     // downstream node
+                    wsl_critical // critical depth used to bound the solution space for the Brent method
+                );
+
+              // set depth in sn based on wsl_estimated from the Brent method
+              sn->mm->wsl = wsl_estimated;
+              sn->mm->depth_critical = wsl_critical - sn->mm->min_elev;
+              sn->mm->depth          = sn->mm->wsl - sn->mm->min_elev;
+              sn->compute_profile_next(sn->mm->flow, sn->mm->wsl, down_sn->mm, bbopt);
+              double wsl_error = sn->get_wsl_error(sn->mm->wsl, down_sn->mm, bbopt);
+              sn->mm->ws_err = wsl_error;
+              sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
+
+              // perform checks on the results
+
+              // check if wsl_estimated is at the upper bound
+              if (sn->mm->depth >= sn->depthdf->back()->depth*0.99) {
+              WriteWarning(
+                          "Estimated depth at streamnode " + std::to_string(sn->nodeID) + " is " + std::to_string(sn->mm->depth) + "m, which is at the available upper bound. The preprocesed table max depth may need to be increased.",
+                          bbopt->noisy_run);
+              }
+              // check the wsl_error from wsl determined by Brent, and report if it exceeds threshold
+              /* if (wsl_error > bbopt->tolerance_cp) {
+                WriteAdvisory(
+                          "WSL Error from brent method at streamnode " + std::to_string(sn->nodeID) + " is " + std::to_string(wsl_error) + "m, which is greater than tolerance.",
+                          bbopt->noisy_run);
+              }
+              */
+              // check froude number
+              if (sn->mm->froude > bbopt->froude_threshold) {
+              WriteAdvisory(
+                          "Froude number at streamnode " + std::to_string(sn->nodeID) + " is " + std::to_string(sn->mm->froude) + ", which indicates that the regime here may be supercritical.",
+                          bbopt->noisy_run);
+              }
+      
+          } else if (bbopt->solvermethod == enum_sm_method::SECANT) {
+
+              double err_lag1 = PLACEHOLDER, err_lag2 = PLACEHOLDER,
+                 prevWSL_lag1 = PLACEHOLDER, prevWSL_lag2 = PLACEHOLDER,
+                 min_err_wsl = PLACEHOLDER, min_err = PLACEHOLDER,
+                 actual_err = PLACEHOLDER, min_fr = PLACEHOLDER,
+                 proposed_wsl = PLACEHOLDER;
+          bool found_supercritical = false; // reset before every i iteration, use in iteration as needed
+
+          for (int i = 0; i < bbopt->iteration_limit_cp; i++) {
+            prevWSL_lag2 = prevWSL_lag1;
+            prevWSL_lag1 = sn->mm->wsl;
+            sn->compute_profile_next(sn->mm->flow, sn->mm->wsl, down_sn->mm, bbopt);
+
+            double max_depth_change = std::max(0.5 * sn->mm->depth, 0.5);
+            double comp_wsl = down_sn->mm->wsl + down_sn->mm->velocity_head +
+                              sn->mm->head_loss - sn->mm->velocity_head;
+
+            // checks/modifications against min_elev
+            if (comp_wsl <= sn->mm->min_elev) {
+              comp_wsl =
+                  sn->mm->flow == 0
+                      ? sn->mm->min_elev
+                      : std::max(comp_wsl,
+                                 sn->mm->min_elev + 0.05 +
+                                     0.05 *
+                                         (1 - (i + 1) / bbopt->iteration_limit_cp));
+            }
+
+            err_lag2 = err_lag1;
+            err_lag1 = comp_wsl - prevWSL_lag1;
+            double err_diff =
+                err_lag2 == PLACEHOLDER ? PLACEHOLDER : err_lag2 - err_lag1;
+            double assum_diff = prevWSL_lag2 == PLACEHOLDER
+                                    ? PLACEHOLDER
+                                    : prevWSL_lag2 - prevWSL_lag1;
+
+            if (min_err == PLACEHOLDER || std::abs(err_lag1) < min_err) {
+              min_err = std::abs(err_lag1);
+              actual_err = err_lag1;
+              min_err_wsl = prevWSL_lag1;
+              min_fr = sn->mm->froude;
+            }
+
+            sn->mm->ws_err = err_lag1;
+            sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
+            sn->mm->cp_iterations = i + 1;
+
+            if (using_exhaustive) {
+              err_lag1 =
+                  0.0; // set to zero since using exhaustive solution, exit loop
+            }
+
+            if (std::abs(err_lag1) > bbopt->tolerance_cp) {
+              if (i + 1 == bbopt->iteration_limit_cp) {
+                WriteWarning(
+                    "compute_profile(): iteration limit reached on streamnode" +
+                        sn->nodeID,
+                    bbopt->noisy_run);
+
+                // setting to min error result
+                sn->compute_profile_next(sn->mm->flow, min_err_wsl, down_sn->mm,
+                                         bbopt);
+                sn->mm->ws_err = actual_err;
+                sn->mm->k_err =
+                    sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
+
+                if (min_err < 0.1 && sn->mm->froude <= bbopt->froude_threshold) {
+                  // keeping the min err result
                   if (!bbopt->silent_run) {
-                    std::cout << "setting to supercritical" << std::endl;
+                    std::cout << "setting to min error result on streamnode "
+                              << std::to_string(sn->nodeID) << std::endl;
                   }
-                  break;
                 } else {
                   if (!bbopt->silent_run) {
-                    std::cout << "first time with supercritical, resetting" << std::endl;
+                    std::cout << "need to check crit depth" << std::endl;
                   }
-                  sn->compute_profile_next(sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical + 1, down_sn->mm, bbopt);
-                  i = 0;
-                  min_err = PLACEHOLDER;
-                }
-                found_supercritical = true;
-              } else {
-                if (sn->mm->froude > 1) {
-                  WriteWarning("Depth found to not be supercritical even though Froude is >1 at streamnode " + sn->nodeID, bbopt->noisy_run);
+                  // optimization
+
+                  double initguess = sn->mm->min_elev + down_sn->mm->depth_critical;
+                  if (down_sn->mm->depth_critical <= 0) {
+                    // if downstream critical depth is not available or <= 0, use downstream depth as initial guess instead
+                    initguess = sn->mm->min_elev + down_sn->mm->depth;
+                  }
+
+                  double wsl_critical = brent_minimize(
+                      sn->mm->min_elev+0.001,
+                      sn->mm->min_elev + sn->depthdf->back()->depth, 
+                      initguess, // initial guess based on downstream depth_critical
+                      [&](double x) {
+                        auto temp_sn = std::make_unique<CStreamnode>(*sn);
+                        return temp_sn->get_total_energy(x, down_sn->mm, bbopt);
+                      });
+
+                  if (wsl_critical >= sn->mm->min_elev &&
+                      wsl_critical <=
+                          sn->depthdf->back()->depth) { // if optimization worked
+                    double depth_critical = wsl_critical - sn->mm->min_elev;
+                    sn->mm->depth_critical = depth_critical;
+                    sn->compute_profile_next(
+                        sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical,
+                        down_sn->mm, bbopt);
+                    sn->mm->ws_err = PLACEHOLDER;
+                    sn->mm->k_err =
+                        sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
+                    if (!bbopt->silent_run) {
+                      std::cout << "setting to critical depth result on streamnode "
+                                << std::to_string(sn->nodeID) << std::endl;
+                    }
+                  } else {
+                    if (!bbopt->silent_run) {
+                      std::cout << "Failed to get critical depth at streamnode "
+                                << std::to_string(sn->nodeID)
+                                << ", keeping lowest err result" << std::endl;
+                    }
+                    break;
+                  }
                 }
                 break;
               }
+
+              if (i == 0) {
+                // setting based on second trial rules
+                double proposed_wsl = sn->mm->wsl + 0.7 * err_lag1;
+                if (std::abs(proposed_wsl - sn->mm->wsl) > max_depth_change) {
+                  sn->mm->wsl =
+                      sn->mm->wsl +
+                      std::copysign(max_depth_change, proposed_wsl - sn->mm->wsl);
+                } else {
+                  sn->mm->wsl = proposed_wsl;
+                }
+              } else {
+                if (std::abs(err_diff) < 0.03 ||
+                    i + 1 > bbopt->iteration_limit_cp / 2. || i >= 5) {
+                  // if enable_exhaustive, then use solveddepth (or critdepth if
+                  // solvedfroude < froude_threshold)
+                  if (bbopt->enable_exhaustive) {
+                    if (!bbopt->silent_run) {
+                      std::cout << "using exhaustive solution at node "
+                                << std::to_string(sn->nodeID) << std::endl;
+                    }
+
+                    using_exhaustive = true;
+                    ExhaustiveWSLResult res = solve_wsl_exhaustive(sn, down_sn);
+
+                    // store results
+                    sn->mm->wsl            = res.wsl_estimated;
+                    sn->mm->depth_critical = res.wsl_critical - sn->mm->min_elev;
+                    sn->mm->depth          = sn->mm->wsl - sn->mm->min_elev;
+                    sn->compute_profile_next(sn->mm->flow, sn->mm->wsl, down_sn->mm, bbopt);
+
+                  } else {
+                    // for small error differences, secant method can fail
+                    // take average of prevWSL_lag1 and prevWSL_lag2
+                    double proposed_wsl = (comp_wsl + prevWSL_lag1) / 2.;
+                    // change by half of max_depth_change in direction of comp_WSL
+                    // if massive swing
+                    if (std::abs(comp_wsl - prevWSL_lag1) > max_depth_change) {
+                      proposed_wsl =
+                          prevWSL_lag1 + std::copysign(0.5 * max_depth_change,
+                                                       comp_wsl - prevWSL_lag1);
+                    }
+                    sn->mm->wsl = proposed_wsl;
+                  }
+                } else {
+                  // secant method
+                  double proposed_wsl =
+                      prevWSL_lag2 - err_lag2 * assum_diff / err_diff;
+                  if (std::abs(proposed_wsl - sn->mm->wsl) > max_depth_change) {
+                    sn->mm->wsl =
+                        sn->mm->wsl +
+                        std::copysign(max_depth_change, proposed_wsl - sn->mm->wsl);
+                  } else {
+                    sn->mm->wsl = proposed_wsl;
+                  }
+                }
+              }
             } else {
-              WriteWarning(
-                  "Failed to converge in critical depth calculation for streamnode " + std::to_string(sn->nodeID) + ". Leaving depth as is, which may be supercritical",
-                  bbopt->noisy_run);
-              break;
+              if (sn->mm->froude <= bbopt->froude_threshold || using_exhaustive) {
+                if (!bbopt->silent_run) {
+                  std::cout << "Iterated on WSL at streamnode "
+                            << std::to_string(sn->nodeID)
+                            << " within tolerance on iteration " << i << std::endl;
+                }
+                break;
+              } else {
+                if (!bbopt->silent_run) {
+                  std::cout << "need to check crit depth" << std::endl;
+                }
+
+                double initguess = sn->mm->min_elev + down_sn->mm->depth_critical;
+                  if (down_sn->mm->depth_critical <= 0) {
+                    // if downstream critical depth is not available or <= 0, use downstream depth as initial guess instead
+                    initguess = sn->mm->min_elev + down_sn->mm->depth;
+                  }
+
+                double wsl_critical = brent_minimize(
+                    sn->mm->min_elev+0.001, 
+                    sn->mm->min_elev + sn->depthdf->back()->depth,
+                    initguess, // initial guess based on downstream depth_critical
+                    [&](double x) {
+                      auto temp_sn = std::make_unique<CStreamnode>(*sn);
+                      return temp_sn->get_total_energy(x, down_sn->mm, bbopt);
+                    });
+
+                if (wsl_critical >= sn->mm->min_elev &&
+                    wsl_critical <=
+                        sn->depthdf->back()->depth) { // if optimization worked
+                  double depth_critical = wsl_critical - sn->mm->min_elev;
+                  sn->mm->depth_critical = depth_critical;
+                  if (sn->mm->depth < sn->mm->depth_critical) {
+                    if (found_supercritical) {
+                      sn->compute_profile_next(
+                          sn->mm->flow, sn->mm->min_elev + sn->mm->depth_critical,
+                          down_sn->mm, bbopt);
+                      if (!bbopt->silent_run) {
+                        std::cout << "setting to supercritical" << std::endl;
+                      }
+                      break;
+                    } else {
+                      if (!bbopt->silent_run) {
+                        std::cout << "first time with supercritical, resetting"
+                                  << std::endl;
+                      }
+                      sn->compute_profile_next(sn->mm->flow,
+                                               sn->mm->min_elev +
+                                                   sn->mm->depth_critical + 1,
+                                               down_sn->mm, bbopt);
+                      i = 0;
+                      min_err = PLACEHOLDER;
+                    }
+                    found_supercritical = true;
+                  } else {
+                    if (sn->mm->froude > 1) {
+                      WriteWarning("Depth found to not be supercritical even "
+                                   "though Froude is >1 at streamnode " +
+                                       sn->nodeID,
+                                   bbopt->noisy_run);
+                    }
+                    break;
+                  }
+                } else {
+                  WriteWarning(
+                      "Failed to converge in critical depth calculation for "
+                      "streamnode " +
+                          std::to_string(sn->nodeID) +
+                          ". Leaving depth as is, which may be supercritical",
+                      bbopt->noisy_run);
+                  break;
+                }
+              }
             }
           }
+        } else if (bbopt->solvermethod == enum_sm_method::EXHAUSTIVE) {
+            if (!bbopt->silent_run) {
+                std::cout << "using exhaustive solution at node "
+                          << std::to_string(sn->nodeID) << std::endl;
+            }
+            using_exhaustive = true;
+            ExhaustiveWSLResult res = solve_wsl_exhaustive(sn, down_sn);
+
+            // store results
+            sn->mm->wsl            = res.wsl_estimated;
+            sn->mm->depth_critical = res.wsl_critical - sn->mm->min_elev;
+            sn->mm->depth          = sn->mm->wsl - sn->mm->min_elev;
+            sn->compute_profile_next(sn->mm->flow, sn->mm->wsl, down_sn->mm, bbopt);
+        } else {
+        ExitGracefully(
+            "Model.cpp: compute_streamnode: error in solver method input type",
+            BAD_DATA);
         }
       }
+
+      // ensure hydraulic_output is ALWAYS written
+      int out_index = flow * bbsn->size() + ind;
+
+      if ((*res)[out_index] == nullptr) {
+        (*res)[out_index] = new hydraulic_output(*(sn->mm));
+      } else {
+        *(*res)[out_index] = *(sn->mm);
+      }
+
+      sn->output_depths[flow] = sn->mm->depth;
+      sn->output_wsls[flow] = sn->mm->wsl;
     }
   }
+
   // check that results are within the Hseq bounds
+  // with updated Brent method, depth will be restricted to upper bound already
   if (sn->nodetype == enum_nodetype::REACH) {
     if (!sn->depthdf->empty() && sn->mm->depth > sn->depthdf->back()->depth) {
       WriteWarning("Model.cpp: compute_streamnode: Results for flow of " +
@@ -1144,6 +1669,19 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
     }
   }
 
+  if (sn->mm->flow <= FLOW_TOL ||
+    sn->mm->area <= 0.0 ||
+    sn->mm->length_effectiveadjusted <= 0.0) {
+
+    sn->mm->peak_hrs_required = 0.0;
+
+    (*res)[flow * bbsn->size() + ind] = new hydraulic_output(*(sn->mm));
+    sn->output_depths[flow] = sn->mm->depth;
+    sn->output_wsls[flow] = sn->mm->wsl;
+
+    return;
+  }
+
   // compute peak hours required and update min and max accordingly
   sn->mm->peak_hrs_required = (sn->mm->area * sn->mm->length_effectiveadjusted / sn->mm->flow) / 3600;
   if (peak_hrs_min == PLACEHOLDER || sn->mm->peak_hrs_required < peak_hrs_min) {
@@ -1154,9 +1692,11 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   }
 
   // assign output to its designated location
-  (*res)[flow * bbsn->size() + ind] = new hydraulic_output(*(sn->mm));
+  int out_index = flow * bbsn->size() + ind;
+  (*res)[out_index] = new hydraulic_output(*(sn->mm));
   sn->output_depths[flow] = sn->mm->depth;
   sn->output_wsls[flow] = sn->mm->wsl;
+
 
   //if (bbopt->debug_mode) {
   //  std::cout << "Streamnode: " << to_string(sn->mm->nodeID)
@@ -1207,6 +1747,542 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   if (sn->mm->cp_iterations != PLACEHOLDER && sn->mm->cp_iterations > bbopt->iteration_limit_cp) {
     WriteWarning("Iteration limit hit at streamnode " + std::to_string(sn->nodeID) + ", consider increasing bbopt->iteration_limit_cp", bbopt->noisy_run);
   }
+}
+
+ExhaustiveWSLResult CModel::solve_wsl_exhaustive(
+    const CStreamnode* sn_up,
+    const CStreamnode* sn_down
+)
+{
+    const std::size_t n = sn_up->depthdf->size();
+    std::vector<double> depthsv(n);
+    std::vector<double> velocities(n);
+    std::vector<double> velheads(n);
+    std::vector<double> energies(n);
+    std::vector<double> sf(n);
+    std::vector<double> sfbar(n);
+    std::vector<double> losscoeff(n);
+    std::vector<double> headloss(n);
+    std::vector<double> deptherr(n);
+    std::vector<double> fr(n);
+    
+    for (std::size_t i = 0; i < n; ++i) {
+        hydraulic_output* row = (*sn_up->depthdf)[i];
+
+        depthsv[i] = row->depth;
+        velocities[i] = std::max(sn_up->mm->flow / row->area, 0.0);
+        velheads[i] = velocities[i] * velocities[i] / (2.0 * GRAVITY) * row->alpha;
+        energies[i] = sn_up->mm->min_elev + depthsv[i] + velheads[i];
+        sf[i]    = std::pow(sn_up->mm->flow / row->k_total, 2.0);
+        sfbar[i] = (sf[i] + sn_down->mm->sf) / 2.0;
+        losscoeff[i] = sn_up->expansion_coeff;
+        if (sn_down->mm->velocity_head > velheads[i]) {
+            losscoeff[i] = sn_up->contraction_coeff;
+        }
+        headloss[i] =
+            row->length_effective * sfbar[i] +
+            losscoeff[i] * std::abs(velheads[i] - sn_down->mm->velocity_head);
+        fr[i] = velocities[i] / std::sqrt(GRAVITY * depthsv[i]);
+        deptherr[i] = std::abs(
+            depthsv[i] + row->min_elev
+            - sn_down->mm->depth
+            - sn_down->mm->min_elev
+            - sn_down->mm->velocity_head
+            - headloss[i]
+            + velheads[i]
+        );
+    }
+
+    // depth with minimum depth error -> "solved" depth
+    auto it = std::min_element(
+        deptherr.begin(), deptherr.end(),
+        [](double a, double b) {
+            if (std::isnan(a)) return false;
+            if (std::isnan(b)) return true;
+            return a < b;
+        }
+    );
+    std::size_t index_solved = std::distance(deptherr.begin(), it);
+    double solveddepth   = depthsv[index_solved];
+    double solvedfroude  = fr[index_solved];
+
+    // depth with minimum energy -> critical depth
+    auto itE = std::min_element(
+        energies.begin(), energies.end(),
+        [](double a, double b) {
+            if (std::isnan(a)) return false;
+            if (std::isnan(b)) return true;
+            return a < b;
+        }
+    );
+    std::size_t index_crit = std::distance(energies.begin(), itE);
+    double critdepth = depthsv[index_crit];
+
+    if (solvedfroude >= bbopt->froude_threshold) {
+        sn_up->mm->wsl = sn_up->mm->min_elev + solveddepth;
+    } else {
+        sn_up->mm->wsl = sn_up->mm->min_elev + critdepth;
+    }
+    sn_up->mm->depth_critical = critdepth;
+
+    double wsl_critical  = sn_up->mm->min_elev + critdepth;
+    double wsl_estimated = sn_up->mm->min_elev +
+                           ((solvedfroude >= bbopt->froude_threshold)
+                                ? solveddepth
+                                : critdepth);
+    /*
+    std::cout << "Exhaustive WSL solver results for streamnode " << sn_up->nodeID << ": "
+              << "wsl_critical = " << wsl_critical << ", "
+              << "wsl_estimated = " << wsl_estimated 
+        << "depth = " << wsl_estimated-sn_up->min_elev << std::endl;
+    */
+
+    return ExhaustiveWSLResult{ wsl_critical, wsl_estimated };
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Solver for critical depth using brent method
+/// \note used in the compute_streamnode for BRENT method (superseded)
+/// \param sn_up [in] streamnode for which to compute hydraulic profile
+/// \param sn_down [in] streamnode one node downstream of sn
+/// \output wsl_critical [out] estimated water surface level at sn_up that satisfies energy balance with sn_down
+//
+double CModel::solve_critical_wsl_brent(
+    const CStreamnode* sn_up, 
+    const CStreamnode* sn_down
+)
+{
+    const double bed = sn_up->mm->min_elev;
+
+    // Initial guess: downstream critical depth if available
+    double initguess = bed + sn_down->mm->depth_critical;
+    if (sn_down->mm->depth_critical <= 0.0) {
+        initguess = bed + sn_down->mm->depth;   // fallback to downstream depth
+    }
+
+    // Numerical derivative of total energy: dE/dH = 0 at critical depth
+    auto dEdx = [&](double H) {
+        const double h = 1e-4;
+        auto s1 = std::make_unique<CStreamnode>(*sn_up);
+        auto s2 = std::make_unique<CStreamnode>(*sn_up);
+        double Eplus  = s1->get_total_energy(H + h, sn_down->mm, bbopt);
+        double Eminus = s2->get_total_energy(H - h, sn_down->mm, bbopt);
+        return (Eplus - Eminus) / (2.0 * h);
+    };
+
+    // Bounds for root search
+    double lower = bed + 0.001;                         // slightly above bed
+    //double upper = bed + sn_up->depthdf->back()->depth;   // max tabulated depth
+    double upper = bed + std::min(sn_up->depthdf->back()->depth, 5.0); // set max as 5m
+
+    // Solve dE/dH = 0
+    double wsl_critical = brent_root2(lower, upper, dEdx, 1e-8, 100);
+
+    return wsl_critical;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Solver for critical depth using brent method with analytical derivative
+/// \note used in the compute_streamnode for BRENT method
+/// \param sn_up [in] streamnode for which to compute hydraulic profile
+/// \param sn_down [in] streamnode one node downstream of sn
+/// \output wsl_critical [out] estimated water surface level at sn_up that satisfies energy balance with sn_down
+//
+double CModel::solve_critical_wsl_brent_analytical(
+    const CStreamnode* sn_up,
+    const CStreamnode* sn_down
+)
+{
+    const double bed = sn_up->mm->min_elev;
+    const double Q   = sn_up->mm->flow;
+
+    // ---------------------------------------------------------
+    // Derivative of specific energy with respect to DEPTH
+    // ---------------------------------------------------------
+    auto dEdx = [&](double depth)
+    {
+        if (depth <= 0.0)
+            return 1.0;   // derivative positive near bed
+        double A     = sn_up->get_area(depth);
+        double Tw    = sn_up->get_topwidth(depth);
+        double alpha = sn_up->get_alpha(depth);
+        double term = alpha * (Q * Q * Tw) / (GRAVITY * A * A * A);
+        return 1.0 - term;
+    };
+
+    // ---------------------------------------------------------
+    // Lower bound (depth above bed)
+    // ---------------------------------------------------------
+    double lower = 0.001;   // depth, not elevation
+    double dE_lower = dEdx(lower);
+
+    // ---------------------------------------------------------
+    // Find smallest upper bound where sign changes
+    // ---------------------------------------------------------
+    const double step      = 0.05;
+    double upper = lower + step;
+    double dE_upper = dEdx(upper);
+    const double max_upper = 6.0;   // max depth to search
+
+    while (dE_lower * dE_upper > 0.0 && upper < max_upper)
+    {
+        upper += step;
+        dE_upper = dEdx(upper);
+    }
+
+    // If no sign change found → monotonic specific energy curve
+    if (dE_lower * dE_upper > 0.0)
+    {
+        return bed + 0.1;   // fallback WSL
+    }
+
+    // ---------------------------------------------------------
+    // Solve using Brent on the minimal bracket (depth)
+    // ---------------------------------------------------------
+    double depth_critical = brent_root2(lower, upper, dEdx, 1e-8, 100);
+
+    // Avoid zero depth
+    depth_critical = std::max(depth_critical, 0.03);
+
+    // Convert depth → water surface elevation
+    double wsl_critical = bed + depth_critical;
+
+    return wsl_critical;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Solver for critical depth using iterative exhaustive search
+/// \note used in the compute_streamnode for BRENT method
+/// \param sn_up [in] streamnode for which to compute hydraulic profile
+/// \param sn_down [in] streamnode one node downstream of sn
+/// \output wsl_critical [out] estimated water surface level at sn_up that satisfies energy balance with sn_down
+//
+double CModel::solve_critical_wsl_exhaustive(
+    const CStreamnode* sn_up,
+    const CStreamnode* sn_down
+)
+{
+    const double bed = sn_up->mm->min_elev;
+    const double Q   = sn_up->mm->flow;
+
+    const auto& df = *sn_up->depthdf;   // preprocessed depth table
+    if (df.empty())
+        return bed + 0.1;
+
+    // ---------------------------------------------------------
+    // Specific energy function E(depth)
+    // ---------------------------------------------------------
+    auto E = [&](double depth)
+    {
+        if (depth <= 0.0)
+            return std::numeric_limits<double>::infinity();
+
+        double A     = sn_up->get_area(depth);
+        // double Tw    = sn_up->get_topwidth(depth);
+        double alpha = sn_up->get_alpha(depth);
+        double v  = Q / A;
+        double ke = alpha * v * v / (2.0 * GRAVITY);
+        return depth + ke;   // E = y + α v² / (2g)
+    };
+
+    // ---------------------------------------------------------
+    // Step 1: Find first local minimum in depthdf
+    // ---------------------------------------------------------
+    double best_depth = df.front()->depth;
+    double best_E     = E(best_depth);
+
+    for (size_t i = 1; i < df.size(); ++i)
+    {
+        double d  = df[i]->depth;
+        double Ei = E(d);
+
+        if (Ei < best_E)
+        {
+            best_E     = Ei;
+            best_depth = d;
+        }
+        else
+        {
+            // Energy increased → stop scanning
+            break;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Step 2: Manual refinement around the minimum
+    // ---------------------------------------------------------
+    double refine_step = 0.01;   // 1 cm refinement
+    double search_lo   = std::max(0.001, best_depth - 0.20);
+    double search_hi   = best_depth + 0.20;
+
+    for (double depth = search_lo; depth <= search_hi; depth += refine_step)
+    {
+        double Ei = E(depth);
+        if (Ei < best_E)
+        {
+            best_E     = Ei;
+            best_depth = depth;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Final critical depth → convert to WSL
+    // ---------------------------------------------------------
+    double depth_critical = std::max(best_depth, 0.03); // prevent zero critical depth
+    double wsl_critical   = bed + depth_critical;
+
+    return wsl_critical;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Linearly interpolates to get the cross-sectional area at a given
+/// water surface level H
+/// \note used in the CModel::solve_critical_wsl_brent_analytical
+/// \param H [in] water surface level to compute property for
+/// \output area [out] linearly interpolated cross-sectional area at water surface level H
+//
+double CStreamnode::get_area(double depth) const
+{
+    const auto& df = *depthdf;   
+
+    // Below lowest tabulated depth
+    if (depth <= df.front()->depth)
+        return df.front()->area;
+
+    // Above highest tabulated depth
+    if (depth >= df.back()->depth)
+        return df.back()->area;
+
+    // Linear interpolation
+    for (size_t i = 0; i < df.size() - 1; ++i)
+    {
+        const auto& d1 = df[i];
+        const auto& d2 = df[i+1];
+        if (depth >= d1->depth && depth <= d2->depth)
+        {
+            double t = (depth - d1->depth) / (d2->depth - d1->depth);
+            return d1->area + t * (d2->area - d1->area);
+        }
+    }
+    return df.back()->area; // fallback
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Linearly interpolates to get the top width at a given
+/// water surface level H
+/// \note used in the CModel::solve_critical_wsl_brent_analytical
+/// \param H [in] water surface level to compute property for
+/// \output area [out] linearly interpolated top width at water surface level H
+//
+double CStreamnode::get_topwidth(double depth) const
+{
+
+    // depthdf is a POINTER → dereference it once
+    const auto& df = *depthdf;   // df is now a reference to the vector
+
+    // Below lowest tabulated depth
+    if (depth <= df.front()->depth)
+        return df.front()->top_width;
+
+    // Above highest tabulated depth
+    if (depth >= df.back()->depth)
+        return df.back()->top_width;
+
+    // Linear interpolation
+    for (size_t i = 0; i < df.size() - 1; ++i)
+    {
+        const auto& d1 = df[i];
+        const auto& d2 = df[i+1];
+
+        if (depth >= d1->depth && depth <= d2->depth)
+        {
+            double t = (depth - d1->depth) / (d2->depth - d1->depth);
+            return d1->top_width + t * (d2->top_width - d1->top_width);
+        }
+    }
+
+    // Fallback (should never happen)
+    return df.back()->top_width;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Linearly interpolates to get the velocity correction
+///        coefficient alpha at a given water surface level H
+/// \note  Same pattern as get_area(), used in critical‑depth calcs
+/// \param H [in] water surface level
+/// \return alpha [out] interpolated velocity‑correction coefficient
+//
+double CStreamnode::get_alpha(double depth) const
+{
+    const auto& df = *depthdf;
+
+    // Below lowest tabulated depth
+    if (depth <= df.front()->depth)
+        return df.front()->alpha;
+
+    // Above highest tabulated depth
+    if (depth >= df.back()->depth)
+        return df.back()->alpha;
+
+    // Linear interpolation
+    for (size_t i = 0; i < df.size() - 1; ++i)
+    {
+        const auto& d1 = df[i];
+        const auto& d2 = df[i+1];
+
+        if (depth >= d1->depth && depth <= d2->depth)
+        {
+            double t = (depth - d1->depth) / (d2->depth - d1->depth);
+            return d1->alpha + t * (d2->alpha - d1->alpha);
+        }
+    }
+
+    return df.back()->alpha; // fallback
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Robust WSL solver considers monotonicity and expands domain if needed
+/// \note used in the compute_streamnode for BRENT method
+/// \param sn_up [in] streamnode for which to compute hydraulic profile
+/// \param sn_down [in] streamnode one node downstream of sn
+/// \param wsl_critical [in] critical water surface elevation at the sn_up node
+/// \output wsl_estimated [out] estimated water surface level at sn_up that satisfies energy balance with sn_down
+//
+double CModel::solve_wsl_standard_step_brent(
+    const CStreamnode* sn_up,          // upstream node (solution at this node)
+    const CStreamnode* sn_down,        // downstream node (known or target)
+    double wsl_critical                // critical water surface level at upstream
+)
+{
+    // Residual wrapper: R(H) = energy_up(H) - energy_down_target
+    auto residual = [&](double H) {
+        auto temp_sn = std::make_unique<CStreamnode>(*sn_up);
+        return temp_sn->get_wsl_residual(H, sn_down->mm, bbopt);
+    };
+
+    // Basic physical bounds
+    const double bed_elev = sn_up->mm->min_elev;
+    const double Hc       = wsl_critical;
+    const double Htab_max = bed_elev + sn_up->depthdf->back()->depth;
+
+    // Start with a conservative search interval
+    double L = bed_elev + 1e-3;  // set to bound from 0m+tol in case it is critical
+    double U = Htab_max;
+
+    // Sample residual at a few points to infer monotonicity
+    double fL = residual(L);
+    double fU = residual(U);
+
+    // If already bracketed, we’re happy
+    if (fL * fU < 0.0) {
+        return brent_root2(L, U, residual, 1e-8, 100);
+    }
+
+    // Try an interior point to detect trend
+    double M  = 0.5 * (L + U);
+    double fM = residual(M);
+
+    // Estimate monotonicity sign: +1 ~ increasing, -1 ~ decreasing, 0 ~ unknown
+    int mono_sign = 0;
+    {
+        // crude finite-difference style check
+        double d1 = fM - fL;
+        double d2 = fU - fM;
+
+        if (d1 > 0.0 && d2 > 0.0) {
+            mono_sign = +1; // increasing
+        } else if (d1 < 0.0 && d2 < 0.0) {
+            mono_sign = -1; // decreasing
+        } else {
+            mono_sign = 0;  // ambiguous; treat as unknown
+        }
+    }
+
+    // If still not bracketed, expand interval guided by monotonicity
+    const int    max_expand_iter = 25;
+    const double base_span       = U - L;
+    double       span            = base_span;
+
+    for (int i = 0; i < max_expand_iter && fL * fU > 0.0; ++i) {
+
+        // Expand depending on monotonicity:
+        // - If increasing (mono_sign > 0): root lies where residual crosses zero,
+        //   so we want to extend in the direction that might cross.
+        // - If decreasing (mono_sign < 0): same idea, but opposite direction.
+        // - If unknown: expand both sides symmetrically.
+
+        if (mono_sign > 0) {
+            // R increasing: if both positive, move L down; if both negative, move U up
+            if (fL > 0.0 && fU > 0.0) {
+                L = std::max(bed_elev + 1e-6, L - span);
+                fL = residual(L);
+            } else if (fL < 0.0 && fU < 0.0) {
+                U = U + span;
+                fU = residual(U);
+            } else {
+                // sign changed during expansion
+                break;
+            }
+        } else if (mono_sign < 0) {
+            // R decreasing: if both positive, move U up; if both negative, move L down
+            if (fL > 0.0 && fU > 0.0) {
+                U = U + span;
+                fU = residual(U);
+            } else if (fL < 0.0 && fU < 0.0) {
+                L = std::max(bed_elev + 1e-6, L - span);
+                fL = residual(L);
+            } else {
+                // sign changed during expansion
+                break;
+            }
+        } else {
+            // Unknown monotonicity: expand both sides
+            L = std::max(bed_elev + 1e-6, L - 0.5 * span);
+            U = U + 0.5 * span;
+            fL = residual(L);
+            fU = residual(U);
+        }
+
+        // Increase span gradually to avoid tiny steps
+        span *= 1.5;
+    }
+
+    // Final check: do we have a valid bracket?
+    if (fL * fU < 0.0) {
+        return brent_root2(L, U, residual, 1e-8, 100);
+    }
+
+    // No bracket found: hydraulically inconsistent or outside table.
+    WriteWarning("WSL residual cannot be bracketed; falling back to critical or last valid depth",
+                 bbopt->noisy_run);
+
+    // Fallback strategy:
+    // 1) If residual at critical is small, accept critical.
+    // 2) Otherwise, pick the point with smallest |R| in [L, M, U].
+    double best_H  = Hc;
+    double best_R  = std::fabs(residual(Hc));
+    auto   update_best = [&](double H, double R) {
+        double aR = std::fabs(R);
+        if (aR < best_R) {
+            best_R = aR;
+            best_H = H;
+        }
+    };
+
+    update_best(L, fL);
+    update_best(M, fM);
+    update_best(U, fU);
+
+    if (best_H < bed_elev + 1e-6) {
+      best_H = Hc;
+      std::string msg =
+        "WSL solver returned a depth below bed for streamnode " +
+        std::to_string(sn_up->nodeID) +
+        "; using critical depth instead";
+      WriteWarning(msg.c_str(), bbopt->noisy_run);
+    }
+
+    return best_H;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -1626,19 +2702,36 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
     if (!is_interp) {
         double value = c_from_s->data[j];
 
-        if (!std::isnan(value) && value != c_from_s->na_val) {
-            int idx = get_hyd_res_index(flow_ind, value);
-           // check that value is in streamnode ID from bbg file
-           // idx will return -22222 if it is not
-          if (idx < 0) { 
-            curr_depth = PLACEHOLDER;
-          } else {
-            curr_depth = (*hyd_result)[idx]->depth;
-          }            
+    if (!std::isnan(value) && value != c_from_s->na_val) {
+
+        int idx = get_hyd_res_index(flow_ind, value);
+
+        if (idx < 0 || hyd_result == nullptr) {
+            curr_depth = 0.0;
         } else {
-            curr_depth = PLACEHOLDER;
+
+            hydraulic_output* ho = nullptr;
+
+            // bounds check
+            if (idx < hyd_result->size()) {
+                ho = (*hyd_result)[idx];
+            }
+
+            // null pointer or invalid depth → zero
+            if (ho == nullptr ||
+                std::isnan(ho->depth) ||
+                ho->depth == PLACEHOLDER ||
+                ho->depth < 0.0)
+            {
+                curr_depth = 0.0;
+            } else {
+                curr_depth = ho->depth;
+            }
         }
 
+    } else {
+        curr_depth = 0.0;
+    }
         // compact expression form
         /* curr_depth =
           !std::isnan(c_from_s->data[j]) && c_from_s->data[j] != c_from_s->na_val
@@ -1647,18 +2740,38 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
         */
     } else {
       if (!is_dhand) { // interp_hand
-        if (!std::isnan(handid->data[j]) && handid->data[j] != handid->na_val &&
+
+          // need to update to look for max index of pointid, not use spp_depths.size()
+        /* if (!std::isnan(handid->data[j]) &&
+                   handid->data[j] != handid->na_val &&
              (handid->data[j] - 1 >= spp_depths.size() || handid->data[j] - 1 < 0)) {
-          ExitGracefully(
+             ExitGracefully(
               ("Model.cpp: postprocess_floodresults: handid specifies a "
                "pourpoint id of " + std::to_string(handid->data[j]) +
                " which does not exist in snapped pourpoints").c_str(),
               exitcode::BAD_DATA);
-        }
-        curr_depth = !std::isnan(handid->data[j]) && handid->data[j] != handid->na_val
+         */
+
+        // remove check for handid in spp_depths size for now, should replace with a check that it is in the spp IDs though
+          // make this a warning for now
+        if (!std::isnan(handid->data[j]) &&
+                           handid->data[j] != handid->na_val) {
+          WriteWarning(
+              ("Model.cpp: postprocess_floodresults: handid specifies a "
+               "pourpoint id of " + std::to_string(handid->data[j]) +
+               " which does not exist in snapped pourpoints. Depths will not be computed for this hand node.").c_str(),
+                   bbopt->noisy_run);  
+          curr_depth = PLACEHOLDER;
+        } else {
+            curr_depth = !std::isnan(handid->data[j]) && handid->data[j] != handid->na_val
                                 ? spp_depths[handid->data[j] - 1]
                                 : PLACEHOLDER;
+        }
+        
       } else { // interp_dhand
+
+          // need to update to look for max index of pointid, not use spp_depths.size()
+          // commenting check out for now
         if ((dhandid_vals[j] != PLACEHOLDER &&
              (dhandid_vals[j] - 1 >= spp_depths.size() || dhandid_vals[j] - 1 < 0))) {
           ExitGracefully(
@@ -1672,11 +2785,21 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
                          : PLACEHOLDER;
       }
     }
+
+    // Normalize invalid depths: replace PLACEHOLDER, NaN, negatives with zero
+    if (std::isnan(curr_depth) || curr_depth == PLACEHOLDER || curr_depth < 0) {
+        curr_depth = 0.0;
+    }
+
     // assign curr_hand based on whether post processing method is dhand method
     if (!is_dhand) {
       curr_hand = !std::isnan(hand->data[j]) && hand->data[j] != hand->na_val ? hand->data[j] : PLACEHOLDER;
     } else {
       curr_hand = dhand_vals[j];
+    }
+
+    if (std::isnan(curr_hand) || curr_hand == PLACEHOLDER || curr_hand < 0) {
+        curr_hand = 0.0;
     }
 
     // assigning resulting value based on curr_depth and curr_hand
@@ -1685,6 +2808,12 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
     } else {
       result->data[j] = result->na_val;
     }
+
+    // convert all zero depths to NaN
+    if (std::abs(result->data[j]) < 1e-9) {
+        result->data[j] = std::numeric_limits<double>::quiet_NaN();
+    }
+
   }
 
   // Transpose data if writing to NetCDF
