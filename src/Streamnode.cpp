@@ -21,6 +21,8 @@ CStreamnode::CStreamnode()
   min_elev(PLACEHOLDER),
   bed_slope(PLACEHOLDER),
   sn_roughness_multiplier(1.),
+  is_conditional(false),
+  maps_to(PLACEHOLDER),
   depthdf(new std::vector<hydraulic_output*>),
   upstream_flows(),
   flow_sources(),
@@ -646,8 +648,8 @@ void CStreamnode::calc_output_flows(std::vector<double> upflows) {
   for (int k = 0; k < upflows.size(); k++) {
     upstream_flows[k] = upflows[k];
     output_flows[k] = upflows[k] + flow_sources[k] - flow_sinks[k];
-    if (output_flows[k] <= 0) {
-      WriteWarning("Setting flows to zero, possible flow conservation issues in model.\nIf running spill flows, consider reducing value of :SpillFlowCoefficient and/or adjusting other parameters.",true);
+    if (output_flows[k] < 0) {
+      // WriteWarning("Setting flows to zero, possible flow conservation issues in model.\nIf running spill flows, consider reducing value of :SpillFlowCoefficient and/or adjusting other parameters.",true);
         output_flows[k] = 0.0;
     }
   }

@@ -372,6 +372,7 @@ bool ParseMainInputFile(CModel*& pModel,
     }
     case (21): { /*:DebugRun*/
       pOptions->debug_run = true;
+      // pOptions->noisy_run = true;
       break;
     }
     case (22): { /*:SkipHeadwaterNodes*/

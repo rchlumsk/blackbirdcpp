@@ -233,6 +233,25 @@ struct streamnodeconn {
   streamnodeconn(const streamnodeconn &other) = default;
 };
 
+// structure for flow snapshot
+struct FlowSnapshot {
+    std::vector<double> output_flows;
+    // std::vector<double> upstream_flows;
+    // std::vector<double> flow_sources;
+    // std::vector<double> flow_sinks;
+
+    // Default constructor
+    FlowSnapshot() = default;
+
+    // Copy constructor
+    FlowSnapshot(const FlowSnapshot& other)
+        : output_flows(other.output_flows)
+       //    upstream_flows(other.upstream_flows),
+       //    flow_sources(other.flow_sources),
+       //    flow_sinks(other.flow_sinks)
+    {}
+};
+
 // structure for exhaustive WSL calculation
 struct ExhaustiveWSLResult {
     double wsl_critical;   // min-energy WSL

@@ -244,6 +244,19 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
           }
         }
       }
+      // check to ensure that all headwaters have output_flows defined, throw warning if not
+      for (auto* sn : *(pModel->bbsn)) {
+        bool is_headwater =
+            sn->upnodeID1 == -1 &&
+            sn->upnodeID2 == -1;
+        bool uninitialized =
+            sn->output_flows.size() == 0;
+        if (is_headwater && uninitialized) {
+            WriteWarning("ParseBoundaryConditions File: Headwater nodeID " + std::to_string(sn->nodeID) +
+                           " has no steady flows defined in :SteadyFlows. Initializing with zero flow.",
+                       pOptions->noisy_run);
+        }
+      }
       break;
     }
     case(101):  //----------------------------------------------

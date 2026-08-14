@@ -24,6 +24,8 @@ public:
   double min_elev;                          // minimum elevation of streamnode
   double bed_slope;                         // bed slope of streamnode
   double sn_roughness_multiplier;           // roughness multiplier for the individual streamnode
+  bool is_conditional;                      // whether streamnode is a conditional node based on flow (default falses)
+  int maps_to;                              // streamnode ID that the streamnode maps to (if conditional)
   std::vector<hydraulic_output*> *depthdf;  // contains data from the depthdf extracted from input files
   std::vector<double> upstream_flows;       // combined flows from upstream nodes w/o source/sink
   std::vector<double> flow_sources;         // flow sources to be added to upstream_flows
@@ -31,6 +33,9 @@ public:
   std::vector<double> output_flows;         // flows of streamnode w/ source/sink included for each flow profile
   std::vector<double> output_depths;        // depths of streamnode for each flow profile
   std::vector<double> output_wsls;          // water surface levels of streamnode for each flow profile
+
+  std::vector<int> from_ids;                // streamnode IDs that pass water to this streamnode (for conditional nodes)
+  std::vector<double> hand_values_cond;     // vector of HAND values (for conditional nodes)
 
   // For internal use
   hydraulic_output *mm;
@@ -67,6 +72,8 @@ public:
 
   void pretty_print() const; // defined in StandardOutput.cpp
 
+  void allocate_flowprofiles(int num_fp);   // if needed, allocates space in flowprofile related variables
+
   // Virtual Functions
   virtual void compute_basic_depth_properties(double wsl, COptions *&bbopt) {};                       // compute basic streamnode depth properties
   virtual void compute_basic_flow_properties(double flow, COptions *&bbopt) {};                       // compute basic streamnode flow properties
@@ -77,7 +84,7 @@ protected:
   std::unordered_map<double, int> depthdf_map;  // unordered map relating depths to row indexes of depthdf
 
   // Private functions
-  void allocate_flowprofiles(int num_fp);   // if needed, allocates space in flowprofile related variables
+  
 };
 
 #endif

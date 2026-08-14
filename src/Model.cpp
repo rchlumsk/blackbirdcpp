@@ -90,8 +90,6 @@ CModel::CModel(const CModel &other)
   } else {
     snconntbl = nullptr;
   }
-
-  
 }
 
 // Copy assignment operator
@@ -390,8 +388,10 @@ void CModel::calc_output_flows() {
         std::unordered_map<int, int> id_to_ind;   // maps nodeID to index in bbsn
 
         for (int iter = 0; finished_nodes.size() < total_nodes && iter < 1000; iter++) {
+
             for (int i = 0; i < total_nodes; i++) {
                 CStreamnode*& temp_sn = (*bbsn)[i]; // reference to current streamnode pointer to simplify code
+
                 // If first while loop iteration, add node to id_to_ind
                 if (iter == 0) {
                     id_to_ind[temp_sn->nodeID] = i;
@@ -405,6 +405,40 @@ void CModel::calc_output_flows() {
                 if ((temp_sn->upnodeID1 != -1 && (finished_nodes.find(temp_sn->upnodeID1) == finished_nodes.end()))
                     || (temp_sn->upnodeID2 != -1 && (finished_nodes.find(temp_sn->upnodeID2) == finished_nodes.end()))) {
                     continue;
+                }
+
+                // If headwater that has not been initialized in ParseBoundaryConditions, initialize output_flows to zero 
+                if (temp_sn->upnodeID1 == -1 && temp_sn->upnodeID2 == -1 && temp_sn->output_flows.size() == 0) {
+                    // num_fp is initialized from the first headwater node. If we hit an unintialized headwater node before 
+                    // num_fp is initialized, try to find another headwater node and use that.
+                    if (num_fp == PLACEHOLDER) {
+                        // Try to find another initialized headwater node
+                        for (int k = 0; k < total_nodes; k++) {
+                            CStreamnode* other = (*bbsn)[k];
+                            bool is_headwater =
+                                other->upnodeID1 == -1 &&
+                                other->upnodeID2 == -1 &&
+                                other->output_flows.size() > 0;
+                            if (is_headwater) {
+                                num_fp = other->output_flows.size();
+                                break;
+                            }
+                        }
+
+                        // If still not found, default to 1 flow profile
+                        if (num_fp == PLACEHOLDER) {
+                            num_fp = 1;
+                          WriteWarning("Number of flow profiles has not been assigned yet. Defaulting to 1 flow profile for headwater node " +
+                                           std::to_string(temp_sn->nodeID),
+                                       bbopt->noisy_run);
+                        }
+                    }
+                    // Allocate flow profiles
+                    temp_sn->allocate_flowprofiles(num_fp);
+                    // Set the flow to zero
+                    temp_sn->output_flows[0] = 0.0;
+                    // Mark this as a headwater flow
+                    temp_sn->upstream_flows[0] = HEADWATER;
                 }
 
                 // If headwater, add to finished nodes and continue
@@ -450,35 +484,68 @@ void CModel::calc_output_flows() {
         }
     }
 
-    if (bbopt->debug_run) {
-        double totalQ = 0.0;
-        for (int i = 0; i < bbsn->size(); ++i) {
-            totalQ += (*bbsn)[i]->output_flows[0];
-        }
-        std::cout << "Total Q after spill iteration = " << totalQ << std::endl;
-
-        double sum_sources = 0.0;
-        for (int i = 0; i < bbsn->size(); ++i) {
-            for (double s : (*bbsn)[i]->flow_sources) {
-                sum_sources += s;
-            }
-        }
-        std::cout << "Sum of flow_sources = " << sum_sources << std::endl;
+    // print statements for sum of flows and flow_sources
+    if (bbopt->debug_run && bbopt->enable_spill_flows) {
+      write_total_flows();
     }
 }
 
-//////////////////////////////////////////////////////////////////
-/// \brief Sets all flow sources and sinks to zero before proceeding with spill flow calculations to update them based on spill flow calculations
-//
-void CModel::zero_flow_sources() {
-    for (int i = 0; i < bbsn->size(); i++) {
-        CStreamnode*& sn = (*bbsn)[i];
-        for (double &src : sn->flow_sources) {
-            src = 0.0;
+// brief calculate flows on the second iteration
+// note: flow multiplier not used here as it would have already been included in first pass, propograted here
+void CModel::calc_output_flows_secondpass() {
+
+    int total_nodes = bbsn->size();
+    int num_fp = bbsn->at(0)->output_flows.size();
+
+    // update flows based on accumulated flows in each reach
+    std::set<int> finished_nodes;             // sorted list of nodes where output_flows has been calculated
+    std::unordered_map<int, int> id_to_ind;   // maps nodeID to index in bbsn
+
+    // xxx iter should be increased for larger models?
+
+    for (int iter = 0; finished_nodes.size() < total_nodes && iter < 1000; iter++) {
+
+        for (int i = 0; i < total_nodes; i++) {
+            CStreamnode*& temp_sn = (*bbsn)[i]; // reference to current streamnode pointer to simplify code
+
+            // If first while loop iteration, add node to id_to_ind
+            if (iter == 0) {
+                id_to_ind[temp_sn->nodeID] = i;
+            }
+
+            // If node has been calculated, skip
+            if (finished_nodes.find(temp_sn->nodeID) != finished_nodes.end()) {
+                continue;
+            }
+            // If either upnodes have not been calculated already, skip
+            if ((temp_sn->upnodeID1 != -1 && (finished_nodes.find(temp_sn->upnodeID1) == finished_nodes.end()))
+                || (temp_sn->upnodeID2 != -1 && (finished_nodes.find(temp_sn->upnodeID2) == finished_nodes.end()))) {
+                continue;
+            }
+
+            // If headwater, set flows to current flow + sources + sinks
+            if (temp_sn->upnodeID1 == -1 && temp_sn->upnodeID2 == -1) {
+                temp_sn->calc_output_flows_headwaternode(bbopt);
+                finished_nodes.insert(temp_sn->nodeID);
+                continue;
+            }
+
+            // Calculate total upstream flow to send into calc_output_flows function
+            std::vector<double> upflows = (*bbsn)[id_to_ind[temp_sn->upnodeID1]]->output_flows;
+            if (temp_sn->upnodeID2 != -1) {
+                for (int j = 0; j < num_fp; j++) {
+                    upflows[j] += (*bbsn)[id_to_ind[temp_sn->upnodeID2]]->output_flows[j];
+                }
+            }
+            temp_sn->calc_output_flows(upflows);
+
+            // add node to finished_nodes
+            finished_nodes.insert(temp_sn->nodeID);
         }
-        for (double &snk : sn->flow_sinks) {
-            snk = 0.0;
-        }
+    }
+
+    if (bbopt->debug_run && bbopt->enable_spill_flows) {
+        write_total_flows();
     }
 }
 
@@ -529,6 +596,20 @@ double CModel::update_spill_flows() {
     double max_deltaQ = 0.0;                  // max exchange in flow between streamnodes
     double max_spillheightdiff = 0.0;             // max difference in spill height between streamnodes (used to compute flow transfer rate)
     double cumqtransfer = 0.0;
+
+    // In the :StreamnodeConnectionsTable, the transfer column indicates the connection of the nodes within the network
+    // transfer ==  1 -> nodeID is upstream of adjacent_nodeID
+    // transfer == -1 -> nodeID is downstream of adjacent_nodeID
+    // transfer ==  0 -> nodeID is not upstream or downstream of adjacent_nodeID (likely on a parallel branch)
+    // In the Blackbird compiled code, only transfers between parallel nodes (i.e., transfer==0) is allowed unless a conditioanl streamnode is configured
+
+    // In this function, cumqtransfer assumes water is moving from temp_sn1 -> temp_sn2
+    // cumqtransfer > 0 -> water is moving from temp_sn1 -> temp_sn2 (i.e., nodeID -> adjnodeID)
+    // cumqtransfer < 0 -> water is moving from temp_sn2 -> temp_sn1 (i.e., adjnodeID -> nodeID)
+
+    // note that if no conditional node is in place, then water is only allowed to move if transfer == 0 (i.e., parallel nodes) and will not move if transfer == 1 or -1 (i.e., upstream/downstream nodes)
+    // if conditional node, then water can move from US->DS (i.e., short circuiting flow in the network), as this preserves the steady state flow balance
+    // however, water is not allowed to move DS->US under any steady state circumstances, as this would violate the flow mass balance
 
     double coeff_qi_rate = bbopt->spillflowsmaxqrate; // computes max flow rate change based on coeff_qi_rate*Q for each iteration [0..1]
     // e.g., coeff_qi_rate = 0.9, max flow rate change is 90% of the current flow rate
@@ -589,38 +670,44 @@ double CModel::update_spill_flows() {
         }
         */
 
+        // clamp the transfer if neither node is conditional
+        if (!(temp_sn1->is_conditional || temp_sn2->is_conditional)) {
+            // clamp the transfer rate with bounds
+            double Q1 = temp_sn1->output_flows[0];
+            double Q2 = temp_sn2->output_flows[0];
 
-        // clamp the transfer rate with bounds
-        double Q1 = temp_sn1->output_flows[0];
-        double Q2 = temp_sn2->output_flows[0];
+            double minQ1 = depthrow1->flow * coeff_min_flow;
+            double minQ2 = depthrow2->flow * coeff_min_flow;
 
-        double minQ1 = depthrow1->flow * coeff_min_flow;
-        double minQ2 = depthrow2->flow * coeff_min_flow;
+            double maxChange1 = Q1 * coeff_qi_rate;
+            double maxChange2 = Q2 * coeff_qi_rate;
 
-        double maxChange1 = Q1 * coeff_qi_rate;
-        double maxChange2 = Q2 * coeff_qi_rate;
 
-        cumqtransfer = clamp_transfer(cumqtransfer,
-                                      Q1, Q2,
-                                      minQ1, minQ2,
-                                      maxChange1, maxChange2);
-
-        // update cumqtransfer if limited by transfer integer
-        // if transfer is:
-        // 1, means sn1
-        if ((row->transfer == 1 && cumqtransfer < 0) ||
-            (row->transfer == -1 && cumqtransfer > 0)) {
-          cumqtransfer = 0.0; // set to zero to prevent transfer of flow from DS
-                              // -> US node. US -> DS is ok
-
-          if (bbopt->debug_run) {
-            std::cout << "setting cumqtransfer to zero for nodes "
-            << std::to_string(temp_sn1->nodeID) << " -> "
-            << std::to_string(temp_sn2->nodeID) << std::endl;
-          }
-
+            cumqtransfer = clamp_transfer(cumqtransfer,
+                                    Q1, Q2,
+                                    minQ1, minQ2,
+                                    maxChange1, maxChange2);
         }
-        
+
+        if (row->transfer == 1 || row->transfer==-1) {
+
+            // update to set the water transfer rate to zero if either is true:
+            // - water would move from DS->US (not allowed even if it's a conditional node)
+            // - water would move from US->DS but the receiving node is not conditional
+
+            if (cumqtransfer > 0 && row->transfer == -1 ||       // water moving DS->US
+                cumqtransfer < 0 && row->transfer == 1 ||        // water moving DS->US
+                cumqtransfer > 0 && !temp_sn2->is_conditional || // water moving US->DS but receiving node is not conditional
+                cumqtransfer < 0 && !temp_sn1->is_conditional) { // water moving US->DS but receiving node is not conditional
+                cumqtransfer = 0.0; // set to zero to prevent transfer flow along connected streamnodes
+                if (bbopt->debug_run) {
+                std::cout << "setting cumqtransfer to zero for nodes "
+                << std::to_string(temp_sn1->nodeID) << " -> "
+                << std::to_string(temp_sn2->nodeID) << std::endl;
+                }
+            }
+        }
+
         // update flow sources
         temp_sn1->flow_sources[0] += cumqtransfer*(-1);
         temp_sn2->flow_sources[0] += cumqtransfer;
@@ -633,28 +720,20 @@ double CModel::update_spill_flows() {
           
           std::cout << "-- cumqtransfer = " + std::to_string(cumqtransfer) 
                     << " for nodes " << std::to_string(row->nodeID) << " -> " << std::to_string(row->adjnodeID) 
+                    /*
                     << ", cid node original flow = "
                     << std::to_string(depthrow1->flow) << ", updated flow = "
-                    << std::to_string(temp_sn1->output_flows[0])
+                    << std::to_string(temp_sn1->output_flows[0] + temp_sn1->flow_sources[0])
                     << ", adjid node original flow = "
                     << std::to_string(depthrow2->flow) << ", updated flow = "
-                    << std::to_string(temp_sn2->output_flows[0]) << std::endl;
-          
+                    << std::to_string(temp_sn2->output_flows[0] + temp_sn2->flow_sources[0]) */
+                    << ", total flow adjustment = " << std::abs(temp_sn1->flow_sources[0])
+                    << std::endl;
         }
 
         // reset cumulative flow transfer calculation for next streamnode
         cumqtransfer = 0.0; 
       }
-  }
-
-  if (bbopt->debug_run) {
-    double sum_sources = 0.0;
-    for (int i = 0; i < bbsn->size(); ++i) {
-        for (double s : (*bbsn)[i]->flow_sources) {
-            sum_sources += s;
-        }
-    }
-    std::cout << "Sum of flow_sources = " << sum_sources << std::endl;
   }
 
   return max_spillheightdiff; // return max spill height diff to evaluate against threshold
@@ -665,6 +744,14 @@ double CModel::update_spill_flows() {
 /// \param pSN [in] pointer reference to CStreamnode being added
 //
 void CModel::add_streamnode(CStreamnode*& pSN) {
+  // Check for duplicate nodeID
+  if (streamnode_map.find(pSN->nodeID) != streamnode_map.end()) {
+    ExitGracefully(
+          ("Error: Streamnode with nodeID " + std::to_string(pSN->nodeID) +
+                       " already exists in streamnode_map.").c_str(),
+          BAD_DATA);
+  }
+
   bbsn->push_back(pSN);
   streamnode_map[pSN->nodeID] = bbsn->size() - 1;
 }
@@ -2798,6 +2885,21 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
       curr_hand = dhand_vals[j];
     }
 
+    // --- CONDITIONAL STREAMNODE HAND OVERRIDE ---
+    // will need it to check for the conditional mapsto ID here, and calculate it twice
+    // take it as the max of two values for depth
+    // non-trivial code intervention!!
+    /* int sn_id = (int)c_from_s->data[j];
+    if (!std::isnan(sn_id) && sn_id != c_from_s->na_val) {
+
+        CStreamnode* sn = get_streamnode_by_id(sn_id);
+
+        if (sn && sn->is_conditional) {
+            curr_hand = 0.1; // cond_hand->data[j];   // your alternate HAND source
+        }
+    }
+    */
+
     if (std::isnan(curr_hand) || curr_hand == PLACEHOLDER || curr_hand < 0) {
         curr_hand = 0.0;
     }
@@ -2941,6 +3043,73 @@ void CModel::initialize_out_gridded(bool is_dhand) {
                        .c_str(),
                    exitcode::BAD_DATA);
   }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Writes out the sum of flows and flow sources in the model
+//  Used in debugging with the spill flow calculations
+//
+void CModel::write_total_flows() {
+    double totalQ = 0.0;
+    double minQ = 1e9;
+    double maxQ = -1;
+    for (int i = 0; i < bbsn->size(); ++i) {
+        totalQ += (*bbsn)[i]->output_flows[0];
+      if ((*bbsn)[i]->output_flows[0] < minQ) {
+            minQ = (*bbsn)[i]->output_flows[0];
+      }
+      if ((*bbsn)[i]->output_flows[0] > maxQ) {
+            maxQ = (*bbsn)[i]->output_flows[0];
+      }
+    }
+
+    double sum_sources = 0.0;
+    for (int i = 0; i < bbsn->size(); ++i) {
+        for (double s : (*bbsn)[i]->flow_sources) {
+            sum_sources += s;
+        }
+    }
+
+    std::cout << "Max Flow (cms) is " << maxQ
+              << ", min flow (cms) is " << minQ
+              << ", total flow (cms) is " << totalQ 
+              << ", sum flow sources (cms) is " << sum_sources
+              << std::endl;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Stores snapshot of headwater output_flows
+//  Used in spill flow calculations to restore flows after the previous run
+//    to ensure proper calculation of flows in the system
+//
+void CModel::snapshot_headwater_flows() {
+    snapshot.clear();
+    snapshot.reserve(bbsn->size());
+
+    for (auto* sn : *bbsn) {
+        // HEADWATER nodes have upstream_flows[0] == HEADWATER
+        if (!sn->upstream_flows.empty() && sn->upstream_flows[0] == HEADWATER) {
+            FlowSnapshot fs;
+            fs.output_flows = sn->output_flows;   // store ONLY headwater output flows
+            snapshot.push_back(std::move(fs));
+        }
+    }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Restores headwater output_flows from snapshot
+//  Used in spill flow calculations to restore flows after the previous run
+//    to ensure proper calculation of flows in the system
+//
+void CModel::restore_headwater_flows() {
+    size_t idx = 0;
+
+    for (auto* sn : *bbsn) {
+        if (!sn->upstream_flows.empty() && sn->upstream_flows[0] == HEADWATER) {
+            sn->output_flows = snapshot[idx].output_flows;
+            idx++;
+        }
+    }
 }
 
 // Destructor

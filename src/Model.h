@@ -28,6 +28,7 @@ public:
   std::vector<std::string> fp_names;                    // names of flowprofiles read in from .bbb
   double flow_mult;                                     // global flow multiplier read in from .bbb
   std::vector<streamnodeconn*> *snconntbl;                // contains data from the snconntbl extracted from bbg files
+  std::vector<FlowSnapshot> snapshot;
   
 
   // Outputs
@@ -46,15 +47,16 @@ public:
   void create_raven_profiles();                                   // creates raven profiles for all streamnodes based on normal depth and preprocessed tables
   void hyd_compute_profile();                                     // computes hydraulic profile for all streamnodes
   void calc_output_flows();                                       // calculates flows of all streamnodes based on headwater nodes steady flows and source sinks
+  void calc_output_flows_secondpass();                            // calculates flows of all streamnodes in a second or subsequent iteration, once all have been initialized previously. Used in spill calculations
   double update_spill_flows();                                    // updates spill flows via sources and sinks, and returns the max change in flow
-  void zero_flow_sources();									      // sets flow of all source streamnodes to zero. used in iterative process of updating spill flows via sources and sinks
 
   void add_streamnode(CStreamnode*& pSN);                         // adds streamnode to bbsn and maps
   CStreamnode* get_streamnode_by_id(int sid) const;                     // returns streamnode using id map
   int get_index_by_id(int id);                                    // returns streamnode index usind id map
   int get_hyd_res_index(int flow_ind, int sid);                   // returns hyd_result index
   void add_snconntbl_row(streamnodeconn*& row);                   // add streamnodeconn row to snconntbl
-  
+  void snapshot_headwater_flows();                                // grab snapshot of flows for all headwater streamnodes and store in snapshot vector
+  void restore_headwater_flows();                                 // restore all flows for all headwater streamnodes from snapshot vector  
 
   // I/O Functions defined in StandardOutput.cpp
   std::string FilenamePrepare(std::string filebase) const;        // attaches main_output_dir folder and run_name to filebase
@@ -63,6 +65,8 @@ public:
   void hyd_result_pretty_print() const;                           // writes hyd_result to testoutput
   void hyd_result_pretty_print_csv() const;                       // writes hyd_result to csv file
   void write_catchments_from_streamnodes_json() const;            // writes data for flows, depths, and wsls for each flow profile to an existing json
+  void write_total_flows();                                       // writes out a sum of the total flows in the model, used in debugging of spill flows
+
 
   // GIS Functions
   void ReadGISFiles();                                                                                      // reads necessary gis files

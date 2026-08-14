@@ -116,10 +116,20 @@ int main(int argc, char* argv[])
     std::cout << "======================================================" << std::endl;
     std::cout << "Initializing Model..." << std::endl;
   }
+
   // Calculate output flows for all streamnodes
   pModel->calc_output_flows();
 
   CheckForErrorWarnings(false, pModel);
+
+  if (pOptions->enable_spill_flows) {
+    // store snapshot of model to restore flows after first run
+    pModel->snapshot_headwater_flows();
+  }
+
+  if (pOptions->debug_run && pOptions->enable_spill_flows) {
+    pModel->write_total_flows();
+  }
 
   // create profiles if option was specified
   if (pOptions->create_raven_profiles) {
@@ -168,14 +178,15 @@ int main(int argc, char* argv[])
             std::cout << "Spill Flow Iteration " << std::to_string(kk+1) << " === " << std::endl;
           }
 
-          // zero sources before computing spill flows
-          pModel->zero_flow_sources();
-
           // compute spill flows for each node in snconntable and update flows
+          // updates source term for different nodes to move water around
           spilldepth = pModel->update_spill_flows();
 
-          // recalculate flows
-          pModel->calc_output_flows();
+          // restore flows at headwater nodes from original snapshot of model
+          pModel->restore_headwater_flows();
+
+          // recalculate flows using similar logic to the orignal, but respecting initialized outflows
+          pModel->calc_output_flows_secondpass();
 
           // re-run hyd_compute_profile
           pModel->hyd_compute_profile();
