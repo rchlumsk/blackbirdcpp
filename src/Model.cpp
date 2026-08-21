@@ -23,6 +23,7 @@ CModel::CModel()
   dhand_vals(),
   dhandid_vals(),
   flow_mult(1),
+  conditional_model(false),
   snconntbl(new std::vector<streamnodeconn*>) {
   // Default constructor implementation
 }
@@ -560,9 +561,9 @@ void CModel::calc_output_flows_secondpass() {
 /// \param maxChange2 [in] maximum change allowed in flow at node 2 (receiver if cumqtransfer is positive, donor if cumqtransfer is negative) based on coeff_qi_rate to avoid large changes in flow each iteration
 //
 double clamp_transfer(double cumqtransfer,
-                      double Q1, double Q2,
-                      double minQ1, double minQ2,
-                      double maxChange1, double maxChange2)
+    double Q1, double Q2,
+    double minQ1, double minQ2,
+    double maxChange1, double maxChange2)
 {
     // Direction of transfer
     double sign = (cumqtransfer >= 0.0 ? 1.0 : -1.0);
@@ -574,7 +575,8 @@ double clamp_transfer(double cumqtransfer,
         // Flow from node1 → node2
         donor_limit = Q1 - minQ1;
         donor_limit = std::min(donor_limit, maxChange1);
-    } else {
+    }
+    else {
         // Flow from node2 → node1
         donor_limit = Q2 - minQ2;
         donor_limit = std::min(donor_limit, maxChange2);
@@ -625,36 +627,48 @@ double CModel::update_spill_flows() {
         CStreamnode*& temp_sn1 = (*bbsn)[ind1];
         CStreamnode*& temp_sn2 = (*bbsn)[ind2];
         bool setqtransfer = false;
-        
+
         // conditons to end qtransfer calc or not
         if (i == snconntbl->size() - 1) {
-          setqtransfer = true; // ended due to end of file
-        } else {
+            setqtransfer = true; // ended due to end of file
+        }
+        else {
             // end if the next row has a change in the pairing of cid & adjid OR if the reachID changes
-            streamnodeconn *nextrow = (*snconntbl)[i+1];
+            streamnodeconn* nextrow = (*snconntbl)[i + 1];
             int ind3 = get_index_by_id(nextrow->adjnodeID);
-            if (ind3 != ind2 || nextrow->reachID != row->reachID) { 
-              setqtransfer = true;
+            if (ind3 != ind2 || nextrow->reachID != row->reachID) {
+                setqtransfer = true;
             }
         }
-        
-      // get depths at each node from hydraulic results
-      hydraulic_output *depthrow1 = (*hyd_result)[ind1];
-      hydraulic_output *depthrow2 = (*hyd_result)[ind2];
 
-      // compute difference in transfer elevation (absolute value)
-      double spillheightdiff = (std::max(depthrow1->depth - row->minhand1,0.0)+row->minelev1) - 
-                               (std::max(depthrow2->depth - row->minhand2,0.0)+row->minelev2);    
+        // get depths at each node from hydraulic results
+        hydraulic_output* depthrow1 = (*hyd_result)[ind1];
+        hydraulic_output* depthrow2 = (*hyd_result)[ind2];
 
-      if (std::abs(spillheightdiff) > 0) {
-        // update max spillheightdiff
-        if (std::abs(spillheightdiff) > max_spillheightdiff) {
-          max_spillheightdiff = std::abs(spillheightdiff);
+        // compute difference in transfer elevation (absolute value)
+        double spillheightdiff = (std::max(depthrow1->depth - row->minhand1, 0.0) + row->minelev1) -
+                                 (std::max(depthrow2->depth - row->minhand2, 0.0) + row->minelev2);
+
+        if (std::abs(spillheightdiff) > 0) {
+            // update max spillheightdiff
+            if (std::abs(spillheightdiff) > max_spillheightdiff) {
+                max_spillheightdiff = std::abs(spillheightdiff);
+            }
         }
-      }
-      
-      double qtransfer = spillheightdiff * bbopt->kspillflows;
-      cumqtransfer = cumqtransfer + qtransfer;
+
+        // limit spillheightdiff based on the difference in cell WSE vs elevation
+        // limit height diff and flow rate transfer where the elevation alone > elev+depth on other side
+        if      (spillheightdiff > 0 && row->minelev1 > std::max(depthrow2->depth - row->minhand2, 0.0) + row->minelev2) {
+            // limit to just the depth of water on the upstream side
+            spillheightdiff = std::max(depthrow1->depth - row->minhand1, 0.0);       
+        }
+        else if (spillheightdiff < 0 && row->minelev2 > std::max(depthrow1->depth - row->minhand1, 0.0) + row->minelev1) {
+            // limit to just the depth of water on the upstream side
+            spillheightdiff = std::max(depthrow2->depth - row->minhand2, 0.0)*(-1.0);       
+        }
+
+        double qtransfer = spillheightdiff * bbopt->kspillflows;
+        cumqtransfer = cumqtransfer + qtransfer;
 
       if (setqtransfer) {
 
@@ -754,6 +768,52 @@ void CModel::add_streamnode(CStreamnode*& pSN) {
 
   bbsn->push_back(pSN);
   streamnode_map[pSN->nodeID] = bbsn->size() - 1;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Add node ID to conditional node ID integer vector
+/// \param id [in] integer to add to vector
+//
+void CModel::add_condsnid(int id, int mapsto)
+{
+    pairedcondids p(id, mapsto);
+    // avoid duplicates
+    auto it = std::find_if(
+        condsnIDs.begin(),
+        condsnIDs.end(),
+        [&](const pairedcondids& x) {
+            return x.id1 == id && x.id2 == mapsto;
+        }
+    );
+
+    if (it == condsnIDs.end()) {
+        condsnIDs.push_back(p);
+    }
+    conditional_model = true;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Checks whether a node is conditional based on ID value
+/// \param id [in] integer to check
+//
+bool CModel::is_conditional_node(int id) const
+{
+    for (const auto& p : condsnIDs) {
+        if (p.id2 == id) return true;
+    }
+    return false;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Returns the mapto paired ID from a conditional node ID
+/// \param id [in] integer to check
+//
+int CModel::get_conditional_condid(int id) const
+{
+    for (const auto& p : condsnIDs) {
+        if (p.id2 == id) return p.id1;
+    }
+    return -1;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -880,6 +940,11 @@ void CModel::ReadGISFiles() {
       if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
         ReadRasterFile(bbopt->gis_path + "/bb_hand_pourpoint_id.tif",  dynamic_cast<CRaster *>(handid.get()));
         handid->name = "HAND ID";
+      }
+      if (conditional_model) {
+        condhand = std::make_unique<CRaster>();
+        ReadRasterFile(bbopt->gis_path + "/bb_hand_conditional.tif",  dynamic_cast<CRaster *>(condhand.get()));
+        condhand->name = "CONDHAND";
       }
     } else { // use dhand
       for (auto d : dhand_depth_seq) {
@@ -2885,27 +2950,24 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
       curr_hand = dhand_vals[j];
     }
 
-    // --- CONDITIONAL STREAMNODE HAND OVERRIDE ---
-    // will need it to check for the conditional mapsto ID here, and calculate it twice
-    // take it as the max of two values for depth
-    // non-trivial code intervention!!
-    /* int sn_id = (int)c_from_s->data[j];
-    if (!std::isnan(sn_id) && sn_id != c_from_s->na_val) {
-
-        CStreamnode* sn = get_streamnode_by_id(sn_id);
-
-        if (sn && sn->is_conditional) {
-            curr_hand = 0.1; // cond_hand->data[j];   // your alternate HAND source
-        }
-    }
-    */
-
     if (std::isnan(curr_hand) || curr_hand == PLACEHOLDER || curr_hand < 0) {
         curr_hand = 0.0;
     }
 
+    // calculate baseline result based on hand calc,instead of assigning directly to cell
+    double final_depth =
+        (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER && curr_depth >= curr_hand)
+            ? (curr_depth - curr_hand)
+            : result->na_val;
+
+    // Normalize invalid depths: replace PLACEHOLDER, NaN, negatives with zero
+    if (std::isnan(final_depth) || final_depth == PLACEHOLDER || final_depth < 0) {
+        final_depth = 0.0;
+    }
+
     // assigning resulting value based on curr_depth and curr_hand
-    if (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER && curr_depth >= curr_hand) {
+    /* if (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER &&
+             curr_depth >= curr_hand) {
       result->data[j] = curr_depth - curr_hand;
     } else {
       result->data[j] = result->na_val;
@@ -2915,7 +2977,70 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
     if (std::abs(result->data[j]) < 1e-9) {
         result->data[j] = std::numeric_limits<double>::quiet_NaN();
     }
+    */
+    if (conditional_model) {
 
+        int sn_id = static_cast<int>(c_from_s->data[j]);
+
+        if (!std::isnan(sn_id) && sn_id != c_from_s->na_val) {
+
+            // check if this node is conditional
+            if (is_conditional_node(sn_id)) {
+
+                int condID = get_conditional_condid(sn_id);
+
+                // read alternate HAND raster
+                double alt_hand = condhand->data[j];
+                double cond_depth = 0.0;
+                double curr_cdepth = 0.0;
+
+                if (!std::isnan(alt_hand) &&
+                    alt_hand != condhand->na_val &&
+                    alt_hand >= 0.0)
+                {
+                    int idxc = get_hyd_res_index(flow_ind, condID);
+
+                    if (idxc < 0 || hyd_result == nullptr) {
+                        cond_depth = 0.0;
+                    } else {
+
+                        hydraulic_output* hoc = nullptr;
+
+                        if (idxc < hyd_result->size()) {
+                            hoc = (*hyd_result)[idxc];
+                        }
+
+                        if (hoc == nullptr ||
+                            std::isnan(hoc->depth) ||
+                            hoc->depth == PLACEHOLDER ||
+                            hoc->depth < 0.0)
+                        {
+                            curr_cdepth = 0.0;
+                        } else {
+                            curr_cdepth = hoc->depth;
+                        }
+                    }
+
+                    // compute conditional depth based on cond hand and depth at proper node
+                    cond_depth = curr_cdepth - alt_hand;
+
+                    if (std::isnan(cond_depth) || cond_depth == PLACEHOLDER || cond_depth < 0) {
+                      cond_depth = 0.0;
+                    }
+
+                    // take max of normal vs conditional depth
+                    final_depth = std::max(final_depth, cond_depth);
+                }
+            }
+        }
+    }
+
+    if (std::abs(final_depth) < 1e-9) {
+      final_depth = std::numeric_limits<double>::quiet_NaN();
+    }
+
+    // assign final result to cell value
+    result->data[j] = final_depth;
   }
 
   // Transpose data if writing to NetCDF

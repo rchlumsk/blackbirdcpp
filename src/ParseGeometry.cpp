@@ -72,7 +72,6 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":StreamnodeRoughnessMultiplier"))   { code = 4; }
     else if (!strcmp(s[0], ":StreamnodeConnectionsTable"))      { code = 5; }
     else if (!strcmp(s[0], ":ConditionalStreamnode"))           { code = 6; } 
-    
 
     // treated as comments
     else if (!strcmp(s[0], ":PreprocessedHydraulicTables")) { code = -2; } //treat as comment
@@ -80,8 +79,6 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":EndPreprocessedHydraulicTables")) { code = -2; } //treat as comment
     else if (!strcmp(s[0], ":EndStreamnodeConnectionsTable")) { code = -2; } //treat as comment
     else if (!strcmp(s[0], ":EndConditionalStreamnode")) { code = -2; } //treat as comment
-    else if (!strcmp(s[0], ":EndHANDValues")) { code = -2; } //treat as comment
-    
 
     switch (code)
     {
@@ -1245,9 +1242,6 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     { /*:ConditionalStreamnode*/
       if (pOptions->noisy_run) { std::cout << "Conditional Streamnode..." << std::endl; }
       ExitGracefullyIf(pModel->bbsn->size() == 0, "ParseGeometry File: :Streamnodes must come before :ConditionalStreamnode", exitcode::BAD_DATA);
-
-      // ExitGracefully("Function not yet built out", STUB);
-
       bool done = false;
       int row = 0;
       if (Len < 2) { pp->ImproperFormat(s); }
@@ -1275,7 +1269,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
           if (IsComment(s[0], Len)) {}//comment line
           else if (!strcmp(s[0], ":MapsTo")) {
             pSN->maps_to = std::stoi(s[1]);
-
+            pModel->add_condsnid(pSN->nodeID, pSN->maps_to);
             // Check if the streamnode being mapped to is already a junction (has an upnodeID2), if not update it to the cond node
             CStreamnode*     temp_sn(NULL);
             temp_sn = pModel->get_streamnode_by_id(std::stoi(s[1]));
@@ -1308,39 +1302,6 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
             }
             pSN->from_ids = from_ids;
           }
-
-          else if (!strcmp(s[0], ":HANDValues")) {
-            std::vector<double> hand_values;
-            // Continue reading until :EndHANDValues or EOF
-            while ((!done) && (!end_of_file))
-            {
-                end_of_file = pp->Tokenize(s, Len);
-                // Skip comments
-                if (IsComment(s[0], Len)) { continue; }
-
-                // End of HAND block
-                if (!strcmp(s[0], ":EndHANDValues"))
-                {
-                    break;
-                }
-                // Parse all tokens on this line as doubles
-                for (int i = 0; i < Len; ++i)
-                {
-                    char* endptr = nullptr;
-                    double v = std::strtod(s[i], &endptr);
-                    // Accept only if parsing consumed characters
-                    if (endptr != s[i])
-                    {
-                        hand_values.push_back(v);
-                    }
-                    // else ignore non-numeric tokens
-                }
-            }
-            // hand_values now contains ALL HAND values across all lines
-            pSN->hand_values_cond = hand_values; 
-          }
-
-          else if (!strcmp(s[0], ":EndHANDValues")) {  } // treat as comment
           else if (!strcmp(s[0], ":EndConditionalStreamnode")) { done = true; }
         }
       }

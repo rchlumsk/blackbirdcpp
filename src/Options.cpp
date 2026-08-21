@@ -34,6 +34,7 @@ COptions::COptions()
   spillflowsmaxqrate(0.5),
   spillflowsminq(0.5),
   spilldepthchangetol(0.001),
+  spilldepthchangetolminvval(0.1),
   max_RHSQ_ratio(PLACEHOLDER),
   min_RHSQ_ratio(PLACEHOLDER),
   manning_composite_method(enum_mc_method::EQUAL_FORCE),

@@ -23,13 +23,15 @@ public:
   CVector spp;                                          // vector object for snapped pourpoints
   std::unique_ptr<CGriddedData> hand;                   // pointer to GriddedData object for hand
   std::unique_ptr<CGriddedData> handid;                 // pointer to GriddedData object for hand pourpoints
+  std::unique_ptr<CGriddedData> condhand;               // pointer to GriddedData object for conditional hand
   std::vector<std::unique_ptr<CGriddedData>> dhand;     // vector of pointers to GriddedData objects for dhand
   std::vector<std::unique_ptr<CGriddedData>> dhandid;   // vector of pointers to GriddedData objects for dhand pourpoints
   std::vector<std::string> fp_names;                    // names of flowprofiles read in from .bbb
   double flow_mult;                                     // global flow multiplier read in from .bbb
-  std::vector<streamnodeconn*> *snconntbl;                // contains data from the snconntbl extracted from bbg files
+  std::vector<streamnodeconn*> *snconntbl;              // contains data from the snconntbl extracted from bbg files
   std::vector<FlowSnapshot> snapshot;
-  
+  std::vector<pairedcondids> condsnIDs;                 // sequence of node IDs that are conditional
+  bool conditional_model;                               // boolean whether the run contains conditional nodes
 
   // Outputs
   std::vector<hydraulic_output *> *hyd_result;                        // hydraulic outputs generated from hyd_compute_profile
@@ -51,12 +53,17 @@ public:
   double update_spill_flows();                                    // updates spill flows via sources and sinks, and returns the max change in flow
 
   void add_streamnode(CStreamnode*& pSN);                         // adds streamnode to bbsn and maps
-  CStreamnode* get_streamnode_by_id(int sid) const;                     // returns streamnode using id map
+  CStreamnode* get_streamnode_by_id(int sid) const;               // returns streamnode using id map
   int get_index_by_id(int id);                                    // returns streamnode index usind id map
   int get_hyd_res_index(int flow_ind, int sid);                   // returns hyd_result index
   void add_snconntbl_row(streamnodeconn*& row);                   // add streamnodeconn row to snconntbl
   void snapshot_headwater_flows();                                // grab snapshot of flows for all headwater streamnodes and store in snapshot vector
   void restore_headwater_flows();                                 // restore all flows for all headwater streamnodes from snapshot vector  
+
+  // conditional streamnode related functions
+  void add_condsnid(int id, int mapsto);                          // add ID to the conditional streamnode vector
+  bool is_conditional_node(int id) const;                         // checks whether a node is conditional based on ID value
+  int get_conditional_condid(int id) const;                       // returns the condID paired ID from a conditional mapsto node ID
 
   // I/O Functions defined in StandardOutput.cpp
   std::string FilenamePrepare(std::string filebase) const;        // attaches main_output_dir folder and run_name to filebase

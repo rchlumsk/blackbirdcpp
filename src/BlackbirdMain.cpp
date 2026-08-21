@@ -191,7 +191,12 @@ int main(int argc, char* argv[])
           // re-run hyd_compute_profile
           pModel->hyd_compute_profile();
 
-          if ( (spilldepth < pOptions->tolerance_spillflows) || spilldepth==0.0 || (kk>1 && std::abs(spilldepth-spilldepthprev)<pOptions->spilldepthchangetol)) {
+          // stop if:
+          // - spill depth less than the threshold (default 0.01m)
+          // - spill depth is 0.0
+          // - past the first iteration AND change in spill depth is less than the delta threshold (default 0.001m) AND the total spill depth is less than the threshold for the delta criterion to apply (default 0.1m)
+          // last part is important, otherwise in some cases the water can continue spilling without much change in the spill depth at the boundary
+          if ( (spilldepth < pOptions->tolerance_spillflows) || spilldepth==0.0 || (kk>0 && std::abs(spilldepth-spilldepthprev)<pOptions->spilldepthchangetol && spilldepth <= pOptions->spilldepthchangetolminvval)) {
             WriteAdvisory("Spill flow calculations converged after " + std::to_string(kk + 1) +
                               " iterations with a spilldepth of " + std::to_string(spilldepth) + 
                               " and a change in spilldepth of " + std::to_string(std::abs(spilldepth-spilldepthprev)),

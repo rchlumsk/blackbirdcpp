@@ -160,7 +160,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":SpillFlowMinFlowPercent"))     { code = 39; }
     else if (!strcmp(s[0], ":SpillFlowMaxDeltaFlow"))       { code = 40; }
     else if (!strcmp(s[0], ":SpillFlowDeltaThreshold"))     { code = 41; }
-
+    else if (!strcmp(s[0], ":SpillFlowDeltaThresholdMinVal")) { code = 42; }
 
 
     //-------------------- CALIBRATION PARAMETER ------------------------
@@ -530,6 +530,12 @@ bool ParseMainInputFile(CModel*& pModel,
       if (pOptions->noisy_run) { std::cout << "SpillFlowDeltaThreshold" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":SpillFlowDeltaThreshold", p, pOptions->noisy_run); break; }
       pOptions->spilldepthchangetol = std::atof(s[1]);
+      break;
+    } 
+    case(42): {/*:SpillFlowDeltaThresholdMinVal [double coeff]*/
+      if (pOptions->noisy_run) { std::cout << "SpillFlowDeltaThresholdMinVal" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":SpillFlowDeltaThresholdMinVal", p, pOptions->noisy_run); break; }
+      pOptions->spilldepthchangetolminvval = std::atof(s[1]);
       break;
     } 
     case(100):

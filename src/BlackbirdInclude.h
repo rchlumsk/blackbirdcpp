@@ -233,6 +233,15 @@ struct streamnodeconn {
   streamnodeconn(const streamnodeconn &other) = default;
 };
 
+// structure for paired conditional IDs
+struct pairedcondids {
+    int id1;
+    int id2;
+
+    pairedcondids() : id1(-1), id2(-1) {}
+    pairedcondids(int a, int b) : id1(a), id2(b) {}
+};
+
 // structure for flow snapshot
 struct FlowSnapshot {
     std::vector<double> output_flows;
