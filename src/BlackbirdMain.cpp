@@ -257,10 +257,11 @@ int main(int argc, char* argv[])
   {
     std::cout << "======================================================" << std::endl;
     std::cout << "...Blackbird Simulation Complete: " << pOptions->run_name << std::endl;
-    std::cout << "        Parsing & Initialization: " << float(t1 - t0) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
-    std::cout << "       Depth Simulation & Output: " << float(t2 - t1) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
-    std::cout << " GIS Parsing and Post-Processing: " << float(t3 - t2) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
-    std::cout << "              Additional Outputs: " << float(t4 - t3) / CLOCKS_PER_SEC << " seconds elapsed . " << std::endl;
+    std::cout << "        Parsing & Initialization: " << float(t1 - t0) / CLOCKS_PER_SEC << " seconds elapsed" << std::endl;
+    std::cout << "       Depth Simulation & Output: " << float(t2 - t1) / CLOCKS_PER_SEC << " seconds elapsed" << std::endl;
+    std::cout << " GIS Parsing and Post-Processing: " << float(t3 - t2) / CLOCKS_PER_SEC << " seconds elapsed" << std::endl;
+    std::cout << "              Additional Outputs: " << float(t4 - t3) / CLOCKS_PER_SEC << " seconds elapsed" << std::endl;
+    std::cout << "                   Total Runtime: " << float(t4 - t0) / CLOCKS_PER_SEC << " seconds elapsed" << std::endl;
     if (pOptions->main_output_dir != "") {
       std::cout << "  Output written to " << pOptions->main_output_dir << std::endl;
     }

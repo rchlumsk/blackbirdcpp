@@ -162,6 +162,8 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":SpillFlowDeltaThreshold"))     { code = 41; }
     else if (!strcmp(s[0], ":SpillFlowDeltaThresholdMinVal")) { code = 42; }
 
+    else if (!strcmp(s[0], ":InterpMethod"))                { code = 45; }
+
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
@@ -536,6 +538,14 @@ bool ParseMainInputFile(CModel*& pModel,
       if (pOptions->noisy_run) { std::cout << "SpillFlowDeltaThresholdMinVal" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":SpillFlowDeltaThresholdMinVal", p, pOptions->noisy_run); break; }
       pOptions->spilldepthchangetolminvval = std::atof(s[1]);
+      break;
+    } 
+    case(45): {/*:InterpMethod [string method]*/
+      if (pOptions->noisy_run) { std::cout << "InterpMethod" << std::endl; }
+      if (Len < 2) { ImproperFormatWarning(":InterpMethod", p, pOptions->noisy_run); break; }
+      if (!strcmp(s[1], "INTERP_RASTER")) { pOptions->interpmethod = enum_interp_method::INTERP_RASTER; }
+      else if (!strcmp(s[1], "POURPOINT_SHP")) { pOptions->interpmethod = enum_interp_method::POURPOINT_SHP; }
+      else { ExitGracefully("ParseMainInputFile: unrecognized InterpMethod. options are: INTERP_RASTER or POURPOINT_SHP", exitcode::BAD_DATA); }
       break;
     } 
     case(100):

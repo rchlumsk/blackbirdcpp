@@ -35,6 +35,7 @@ COptions::COptions()
   spillflowsminq(0.5),
   spilldepthchangetol(0.001),
   spilldepthchangetolminvval(0.1),
+  interpmethod(enum_interp_method::INTERP_RASTER),
   max_RHSQ_ratio(PLACEHOLDER),
   min_RHSQ_ratio(PLACEHOLDER),
   manning_composite_method(enum_mc_method::EQUAL_FORCE),

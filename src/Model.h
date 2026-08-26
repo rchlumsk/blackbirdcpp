@@ -23,6 +23,7 @@ public:
   CVector spp;                                          // vector object for snapped pourpoints
   std::unique_ptr<CGriddedData> hand;                   // pointer to GriddedData object for hand
   std::unique_ptr<CGriddedData> handid;                 // pointer to GriddedData object for hand pourpoints
+  std::unique_ptr<CGriddedData> interpdepth;            // pointer to GriddedData object for depth interpolation (raster values [0..1])
   std::unique_ptr<CGriddedData> condhand;               // pointer to GriddedData object for conditional hand
   std::vector<std::unique_ptr<CGriddedData>> dhand;     // vector of pointers to GriddedData objects for dhand
   std::vector<std::unique_ptr<CGriddedData>> dhandid;   // vector of pointers to GriddedData objects for dhand pourpoints
@@ -108,6 +109,7 @@ protected:
   void generate_spp_depths(int flow_ind);                                                                                            // generates spp_depths for the flow_ind-th profile. used in postprocess_floodresults
   void generate_dhand_vals(int flow_ind, bool is_interp);                                                                            // generates dhand_vals for the flow_ind-th profile. used in postprocess_floodresults
   void generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand);                                                            // generates an output gridded for the flow_ind-th profile. used in postprocess_floodresults
+  void generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod);                                                       // generates an output gridded for the flow_ind-th profile. used in postprocess_floodresults. Supersedes old method
   void initialize_out_gridded(bool is_dhand);                                                                                        // initializes an output gridded data instance for the flow ind-th profile. used in generate_out_gridded
 };
 

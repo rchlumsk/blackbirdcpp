@@ -865,12 +865,13 @@ void CModel::ReadGISFiles() {
         exitcode::BAD_DATA);
   }
 
-  // Read vector file for snapped pourpoints
-  if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
+  // Read vector file for snapped pourpoints if using POURPOINT_SHP method
+  if (bbopt->interpmethod == enum_interp_method::POURPOINT_SHP &&
+      (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND ||
       bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_DHAND_WSLCORR ||
-      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+      bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND)) {
     ReadVectorFile(bbopt->gis_path + "/bb_snapped_pourpoints_hand.shp", spp);
-    spp.name = "Snapped Pourpoints";
+    spp.name = "Snapped Pourpoints";  // xxx may be able to remove from usage soon
   }
 
   // Read gridded data either from netcdf or raster
@@ -937,9 +938,16 @@ void CModel::ReadGISFiles() {
       handid = std::make_unique<CRaster>();
       ReadRasterFile(bbopt->gis_path + "/bb_hand.tif",  dynamic_cast<CRaster *>(hand.get()));
       hand->name = "HAND";
-      if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND) {
+      if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND && 
+          bbopt->interpmethod == enum_interp_method::POURPOINT_SHP) {
         ReadRasterFile(bbopt->gis_path + "/bb_hand_pourpoint_id.tif",  dynamic_cast<CRaster *>(handid.get()));
         handid->name = "HAND ID";
+      }
+      if (bbopt->interpolation_postproc_method == enum_ppi_method::INTERP_HAND && 
+          bbopt->interpmethod == enum_interp_method::INTERP_RASTER) {
+        interpdepth = std::make_unique<CRaster>();
+        ReadRasterFile(bbopt->gis_path + "/bb_interp.tif",  dynamic_cast<CRaster *>(interpdepth.get()));
+        interpdepth->name = "INTERP DEPTH";
       }
       if (conditional_model) {
         condhand = std::make_unique<CRaster>();
@@ -1260,47 +1268,56 @@ void CModel::postprocess_floodresults() {
       std::cout << "post processing flood results for flow " + std::to_string(flow_ind + 1) << std::endl;
     }
 
-    switch (bbopt->interpolation_postproc_method)
-    {
-    case (enum_ppi_method::CATCHMENT_HAND):
-    {
-      generate_out_gridded(flow_ind, false, false);
-      break;
+    if (bbopt->interpmethod == enum_interp_method::POURPOINT_SHP) {
+    
+            switch (bbopt->interpolation_postproc_method)
+            {
+            case (enum_ppi_method::CATCHMENT_HAND):
+            {
+              generate_out_gridded(flow_ind, false, false);
+              break;
+            }
+            case (enum_ppi_method::INTERP_HAND):
+            {
+              generate_spp_depths(flow_ind);
+              generate_out_gridded(flow_ind, true, false);
+              break;
+            }
+            case (enum_ppi_method::CATCHMENT_DHAND):
+            {
+              generate_dhand_vals(flow_ind, false);
+              generate_out_gridded(flow_ind, false, true);
+              break;
+            }
+            case (enum_ppi_method::INTERP_DHAND):
+            {
+              generate_spp_depths(flow_ind);
+              generate_dhand_vals(flow_ind, true);
+              generate_out_gridded(flow_ind, true, true);
+              break;
+            }
+    
+            //case (enum_ppi_method::INTERP_DHAND_WSLCORR):
+            //{
+            //  break;
+            //}
+            default:
+            {
+              ExitGracefully(
+                  ("Model.cpp: postprocess_floodresults: postprocessing method " +
+                   toString(bbopt->interpolation_postproc_method) +
+                   " is not yet available")
+                      .c_str(),
+                  exitcode::BAD_DATA);
+              break;
+            }
+        } //end switch
+    
+    } else {
+      // enum_ppi_method postprocmethod = ;
+      // use updated method that just relies on the INTERP_RASTER, simplifies quite a bit
+      generate_out_gridded2(flow_ind, bbopt->interpolation_postproc_method);
     }
-    case (enum_ppi_method::INTERP_HAND):
-    {
-      generate_spp_depths(flow_ind);
-      generate_out_gridded(flow_ind, true, false);
-      break;
-    }
-    case (enum_ppi_method::CATCHMENT_DHAND):
-    {
-      generate_dhand_vals(flow_ind, false);
-      generate_out_gridded(flow_ind, false, true);
-      break;
-    }
-    case (enum_ppi_method::INTERP_DHAND):
-    {
-      generate_spp_depths(flow_ind);
-      generate_dhand_vals(flow_ind, true);
-      generate_out_gridded(flow_ind, true, true);
-      break;
-    }
-    //case (enum_ppi_method::INTERP_DHAND_WSLCORR):
-    //{
-    //  break;
-    //}
-    default:
-    {
-      ExitGracefully(
-          ("Model.cpp: postprocess_floodresults: postprocessing method " +
-           toString(bbopt->interpolation_postproc_method) +
-           " is not yet available")
-              .c_str(),
-          exitcode::BAD_DATA);
-      break;
-    }
-    } //end switch
 
     spp_depths.clear(); // if applicable, clear spp_depths for next flow profile
     dhand_vals.clear(); // if applicable, clear dhand_vals for next flow profile
@@ -2919,6 +2936,8 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
                                 ? spp_depths[handid->data[j] - 1]
                                 : PLACEHOLDER;
         }
+
+
         
       } else { // interp_dhand
 
@@ -2936,6 +2955,202 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
                          ? spp_depths[dhandid_vals[j] - 1]
                          : PLACEHOLDER;
       }
+    }
+
+    // Normalize invalid depths: replace PLACEHOLDER, NaN, negatives with zero
+    if (std::isnan(curr_depth) || curr_depth == PLACEHOLDER || curr_depth < 0) {
+        curr_depth = 0.0;
+    }
+
+    // assign curr_hand based on whether post processing method is dhand method
+    if (!is_dhand) {
+      curr_hand = !std::isnan(hand->data[j]) && hand->data[j] != hand->na_val ? hand->data[j] : PLACEHOLDER;
+    } else {
+      curr_hand = dhand_vals[j];
+    }
+
+    if (std::isnan(curr_hand) || curr_hand == PLACEHOLDER || curr_hand < 0) {
+        curr_hand = 0.0;
+    }
+
+    // calculate baseline result based on hand calc,instead of assigning directly to cell
+    double final_depth =
+        (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER && curr_depth >= curr_hand)
+            ? (curr_depth - curr_hand)
+            : result->na_val;
+
+    // Normalize invalid depths: replace PLACEHOLDER, NaN, negatives with zero
+    if (std::isnan(final_depth) || final_depth == PLACEHOLDER || final_depth < 0) {
+        final_depth = 0.0;
+    }
+
+    // assigning resulting value based on curr_depth and curr_hand
+    /* if (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER &&
+             curr_depth >= curr_hand) {
+      result->data[j] = curr_depth - curr_hand;
+    } else {
+      result->data[j] = result->na_val;
+    }
+
+    // convert all zero depths to NaN
+    if (std::abs(result->data[j]) < 1e-9) {
+        result->data[j] = std::numeric_limits<double>::quiet_NaN();
+    }
+    */
+    if (conditional_model) {
+
+        int sn_id = static_cast<int>(c_from_s->data[j]);
+
+        if (!std::isnan(sn_id) && sn_id != c_from_s->na_val) {
+
+            // check if this node is conditional
+            if (is_conditional_node(sn_id)) {
+
+                int condID = get_conditional_condid(sn_id);
+
+                // read alternate HAND raster
+                double alt_hand = condhand->data[j];
+                double cond_depth = 0.0;
+                double curr_cdepth = 0.0;
+
+                if (!std::isnan(alt_hand) &&
+                    alt_hand != condhand->na_val &&
+                    alt_hand >= 0.0)
+                {
+                    int idxc = get_hyd_res_index(flow_ind, condID);
+
+                    if (idxc < 0 || hyd_result == nullptr) {
+                        cond_depth = 0.0;
+                    } else {
+
+                        hydraulic_output* hoc = nullptr;
+
+                        if (idxc < hyd_result->size()) {
+                            hoc = (*hyd_result)[idxc];
+                        }
+
+                        if (hoc == nullptr ||
+                            std::isnan(hoc->depth) ||
+                            hoc->depth == PLACEHOLDER ||
+                            hoc->depth < 0.0)
+                        {
+                            curr_cdepth = 0.0;
+                        } else {
+                            curr_cdepth = hoc->depth;
+                        }
+                    }
+
+                    // compute conditional depth based on cond hand and depth at proper node
+                    cond_depth = curr_cdepth - alt_hand;
+
+                    if (std::isnan(cond_depth) || cond_depth == PLACEHOLDER || cond_depth < 0) {
+                      cond_depth = 0.0;
+                    }
+
+                    // take max of normal vs conditional depth
+                    final_depth = std::max(final_depth, cond_depth);
+                }
+            }
+        }
+    }
+
+    if (std::abs(final_depth) < 1e-9) {
+      final_depth = std::numeric_limits<double>::quiet_NaN();
+    }
+
+    // assign final result to cell value
+    result->data[j] = final_depth;
+  }
+
+  // Transpose data if writing to NetCDF
+  if (bbopt->out_format == enum_gridded_format::NETCDF) {
+    result->transpose_data();
+  }
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Generates and saves a gridded data based on the post processing method for the "flow_ind"-th flow
+/// \param flow_ind [in] index of the flow currently being considered
+/// \param is_interp [in] boolean indicated whether post processing method is interp method
+/// \param is_dhand [in] boolean indicated whether post processing method is dhand method
+//
+void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod) {
+  bool is_dhand = false;
+  if (postprocmethod == enum_ppi_method::INTERP_DHAND || postprocmethod == enum_ppi_method::CATCHMENT_DHAND) {
+    is_dhand = true;
+    ExitGracefully("DHAND methods not currently supported with the INTERP_RASTER interpolation method",
+        exitcode::RUNTIME_ERR);
+  }
+  bool is_interp = false;
+  if (postprocmethod == enum_ppi_method::INTERP_HAND || postprocmethod == enum_ppi_method::INTERP_DHAND) {
+    is_interp = true;
+  }
+
+  initialize_out_gridded(is_dhand);
+  CGriddedData *result = out_gridded.back().get();
+  result->name = "result_depths_" + fp_names[flow_ind];
+  result->fp_name = fp_names[flow_ind];
+  std::fill(result->data, result->data + (result->xsize * result->ysize), 0.0);
+
+  for (int j = 0; j < result->xsize * result->ysize; j++) {
+    double curr_depth, curr_hand;
+    double value = c_from_s->data[j]; // streamnode ID 
+    hydraulic_output* ho = nullptr;
+
+    // get depth for the current cell based on hydraulic results
+    if (!std::isnan(value) && value != c_from_s->na_val) {
+        
+        int idx = get_hyd_res_index(flow_ind, value);
+        if (idx >= 0 && hyd_result != nullptr && idx < hyd_result->size()) {
+            ho = (*hyd_result)[idx];  
+        }
+
+        // null pointer or invalid depth → zero
+        if (ho == nullptr ||
+            std::isnan(ho->depth) ||
+            ho->depth == PLACEHOLDER ||
+            ho->depth < 0.0)
+        {
+            curr_depth = 0.0;
+        } else {
+            curr_depth = ho->depth;
+        }
+
+        if (is_interp) {
+          // get other depths and calculate interpolated depth
+          if (ho != nullptr && ho->upnodeID1 != -1) {
+              // get that hydraulic result
+              double depth1 = -99;
+              double depth2 = -99;
+
+              hydraulic_output* ho1 = (*hyd_result)[get_hyd_res_index(flow_ind, ho->upnodeID1)];
+              if (!is_conditional_node(ho->upnodeID1)) {
+                depth1 = ho1->depth;
+              }
+
+              if (ho->upnodeID2 != -1) {
+                // get that hydraulic result too
+                hydraulic_output* ho2 = (*hyd_result)[get_hyd_res_index(flow_ind, ho->upnodeID2)];
+                if (!is_conditional_node(ho->upnodeID2)) {
+                depth2 = ho2->depth;
+                }
+              }
+
+              double interpvalue = interpdepth->data[j];
+              // xxx if running interp_dhand, would need to get the right interpdepth raster here (and have multiple interpdepth generated)
+              if (depth1 != -99 && !std::isnan(interpvalue) && interpvalue != interpdepth->na_val) {
+                // calculate interpolated curr_depth based on junction properties
+                double meandepth = depth1; // use depth from upstream node
+                if (depth2 != -99) {
+                  meandepth = (depth1 + depth2) / 2; // use mean depth from both upstream nodes
+                }
+                curr_depth = curr_depth * interpvalue + meandepth * (1-interpvalue); // weighted average interpolation of depths
+              }
+          }
+        }
+
+    } else {
+        curr_depth = 0.0;
     }
 
     // Normalize invalid depths: replace PLACEHOLDER, NaN, negatives with zero

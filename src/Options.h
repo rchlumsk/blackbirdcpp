@@ -41,6 +41,7 @@ public:
   double spillflowsminq;							// minimum flow rate reserved (%) for streamnode with spill flows, ensures that at least this percentage is left each iteration
   double spilldepthchangetol;						// tolerance depth change (m) for spill flows between streamnodes, ensures that flow iterations continue until depth change is less than this value (or less than threshold)
   double spilldepthchangetolminvval;				// minimum spill depth before the spilldepthchangetol criterion is active (guards against stopping with a large spill depth that does not change)
+  enum_interp_method interpmethod;				    // which method to use in INTERP- based post-processing (INTERP_RASTER or POURPOINT_SHP)
   double max_RHSQ_ratio;                            // unused?
   double min_RHSQ_ratio;                            // unused?
   enum_mc_method manning_composite_method;          // manning composite method. options: EQUAL_FORCE, WEIGHTED_AVERAGE_AREA, WEIGHTED_AVERAGE_WETPERIMETER, WEIGHTED_AVERAGE_CONVEYANCE, EQUAL_VELOCITY, BLENDED_NC

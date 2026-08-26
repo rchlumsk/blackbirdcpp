@@ -332,6 +332,13 @@ enum enum_xsc_method
   AREAWEIGHTED_CONVEYANCE
 };
 
+// Interp methods
+enum enum_interp_method
+{
+    INTERP_RASTER,
+    POURPOINT_SHP
+};
+
 // Reach integraton method
 enum enum_ri_method
 {
