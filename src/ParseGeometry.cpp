@@ -72,6 +72,9 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":StreamnodeRoughnessMultiplier"))   { code = 4; }
     else if (!strcmp(s[0], ":StreamnodeConnectionsTable"))      { code = 5; }
     else if (!strcmp(s[0], ":ConditionalStreamnode"))           { code = 6; } 
+    else if (!strcmp(s[0], ":HydraulicStructure"))              { code = 7; } 
+
+    // structure handling
 
     // treated as comments
     else if (!strcmp(s[0], ":PreprocessedHydraulicTables")) { code = -2; } //treat as comment
@@ -79,6 +82,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":EndPreprocessedHydraulicTables")) { code = -2; } //treat as comment
     else if (!strcmp(s[0], ":EndStreamnodeConnectionsTable")) { code = -2; } //treat as comment
     else if (!strcmp(s[0], ":EndConditionalStreamnode")) { code = -2; } //treat as comment
+    else if (!strcmp(s[0], ":EndHydraulicStructure")) { code = -2; } //treat as comment
 
     switch (code)
     {
@@ -1306,6 +1310,160 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
         }
       }
       break;
+    }
+    case(7):  //----------------------------------------------
+    { /*:HydraulicStructure*/
+        if (pOptions->noisy_run) { std::cout << "Hydraulic Structure..." << std::endl; }
+        ExitGracefullyIf(pModel->bbsn->size() == 0,
+            "ParseGeometry File: :Streamnodes must come before :HydraulicStructure",
+            exitcode::BAD_DATA);
+        bool done = false;
+        int row = 0;
+        if (Len < 2) { pp->ImproperFormat(s); }
+        else {
+            std::string error;
+
+            // ---------------------------------------------------------
+            // Parse nodeID after :HydraulicStructure
+            // ---------------------------------------------------------
+            CStreamnode* pSN = nullptr;
+
+            if (StringIsLong(s[1])) {
+                int nodeID = std::stoi(s[1]);
+                pSN = pModel->get_streamnode_by_id(nodeID);
+
+                if (pSN == NULL) {
+                    error = "ParseGeometry File: nodeID \"" + std::string(s[1]) +
+                            "\" after :HydraulicStructure does not exist in streamnodes object. Streamnodes must be defined before hydraulic structures.";
+                    ExitGracefully(error.c_str(), BAD_DATA_WARN);
+                }
+            } else {
+                error = "ParseGeometry File: nodeID \"" + std::string(s[1]) +
+                        "\" after :HydraulicStructure must be unique integer or long integer";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            }
+
+            ExitGracefullyIf(pSN->is_structure,
+                ("ParseGeometry File: nodeID \"" + std::string(s[1]) +
+                "\" already has a hydraulic structure defined. Only one hydraulic structure can be assigned to a streamnode.").c_str(),
+                BAD_DATA_WARN);
+
+            // ---------------------------------------------------------
+            // Temporary structure object to fill
+            // ---------------------------------------------------------
+            hydraulic_structure hs;
+            hs.nodeID = pSN->nodeID;
+
+            // ---------------------------------------------------------
+            // Parse block
+            // ---------------------------------------------------------
+            while ((!done) && (!end_of_file))
+            {
+                end_of_file = pp->Tokenize(s, Len);
+                row++;
+
+                if (IsComment(s[0], Len)) {
+                    // skip comment
+                }
+                else if (!strcmp(s[0], ":Type")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    if (!strcmp(s[1], "BRIDGE")) {
+                      hs.type = enum_struc_type::BRIDGE;
+                    } else if (!strcmp(s[1], "CULVERT") ||
+                               !strcmp(s[1], "CULVERT_CIRCULAR")) {
+                      hs.type = enum_struc_type::CULVERT_CIRCULAR;
+                    } else {
+                        ExitGracefully(
+                            (std::string("Unknown structure type: ") + std::string(s[1])).c_str(),
+                            BAD_DATA
+                        );
+                    }
+                }
+                else if (!strcmp(s[0], ":Diameter")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.diameter = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":Barrels")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.barrels = std::stoi(s[1]);
+                }
+                else if (!strcmp(s[0], ":DeckHeight")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.deck_height = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":BottomHeight")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.bottom_height = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":StructureManningRoughness")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.structure_manning_roughness = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":LengthOverride")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.length_override = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":Width")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.width = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":Height")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.height = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":ContractionCoeff")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    // override the contraction coeff at the streamnode directly as well,
+                    // leave in hs to validate
+                    pSN->contraction_coeff = std::stod(s[1]);
+                    hs.contraction_coeff = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":ExpansionCoeff")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    // override the expansion coeff at the streamnode directly
+                    // leave in hs to validate
+                    pSN->expansion_coeff = std::stod(s[1]);
+                    pSN->expansion_coeff = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":EntranceExitCoeff")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.ee_coeff = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":PressureFlowCoeff")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.press_coeff = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":EndHydraulicStructure")) {
+                    done = true;
+                }
+                else {
+                    // Unknown token
+                    error = "ParseGeometry File: Unknown token \"" + std::string(s[0]) +
+                            "\" in :HydraulicStructure block for nodeID " +
+                            std::to_string(pSN->nodeID);
+                    ExitGracefully(error.c_str(), BAD_DATA_WARN);
+                }
+            }
+
+            // ---------------------------------------------------------
+            // Validate the structure
+            // ---------------------------------------------------------
+            try {
+                hs.assert_valid();
+            }
+            catch (const std::exception& ex) {
+                ExitGracefully(ex.what(), BAD_DATA_WARN);
+            }
+
+            // ---------------------------------------------------------
+            // Assign structure to streamnode
+            // ---------------------------------------------------------
+            pSN->hydstructure = hs;
+            pSN->is_structure = true;
+            pModel->structure_model = true;
+            WriteAdvisory("ParseGeometry File: Hydraulic structure assigned to streamnode " + std::to_string(pSN->nodeID), pOptions->noisy_run);
+        }
+        break;
     }
     default://------------------------------------------------
     {

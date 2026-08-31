@@ -26,6 +26,8 @@ public:
   double sn_roughness_multiplier;           // roughness multiplier for the individual streamnode
   bool is_conditional;                      // whether streamnode is a conditional node based on flow (default falses)
   int maps_to;                              // streamnode ID that the streamnode maps to (if conditional)
+  bool is_structure;                        // bool whether streamnode is a structure (default false)
+  hydraulic_structure hydstructure;         // struct for the hydraulic structure properties
   std::vector<hydraulic_output*> *depthdf;  // contains data from the depthdf extracted from input files
   std::vector<double> upstream_flows;       // combined flows from upstream nodes w/o source/sink
   std::vector<double> flow_sources;         // flow sources to be added to upstream_flows

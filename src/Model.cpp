@@ -24,6 +24,7 @@ CModel::CModel()
   dhandid_vals(),
   flow_mult(1),
   conditional_model(false),
+  structure_model(false),
   snconntbl(new std::vector<streamnodeconn*>) {
   // Default constructor implementation
 }
@@ -814,6 +815,279 @@ int CModel::get_conditional_condid(int id) const
         if (p.id2 == id) return p.id1;
     }
     return -1;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Updates hydraulic property tables for streamnodes with hydraulic
+/// structures (bridges, culverts, etc.)
+//
+void CModel::update_hydraulic_structures()
+{
+    for (auto& pSN : *(this->bbsn))
+    {
+        if (!pSN->is_structure)
+            continue;
+
+        hydraulic_structure& hs = pSN->hydstructure;
+        auto& df = *(pSN->depthdf);   // dereference pointer
+
+        size_t N = df.size();
+
+        if (N == 0)
+        {
+            std::string error =
+                "HydraulicStructure Error: Streamnode " +
+                std::to_string(pSN->nodeID) +
+                " is marked as a hydraulic structure, but its depthdf "
+                "table is empty or missing. Cannot update hydraulic properties.";
+
+            ExitGracefully(error.c_str(), BAD_DATA_WARN);
+        }
+
+        // Extract baseline columns
+        std::vector<double> depth(N);
+        std::vector<double> area_base(N);
+        std::vector<double> perim_base(N);
+        std::vector<double> topw_base(N);
+        std::vector<double> K_base(N);
+        std::vector<double> hR_base(N);
+        std::vector<double> mann_base(N);
+
+        for (size_t i = 0; i < N; ++i)
+        {
+            hydraulic_output* row = df[i];
+
+            depth[i]        = row->depth;
+            area_base[i]    = row->area;
+            perim_base[i]   = row->wet_perimeter;
+            topw_base[i]    = row->top_width;
+            K_base[i]       = row->k_total;
+            hR_base[i]      = row->hradius;
+            mann_base[i]    = row->manning_composite;
+        }
+
+        // New geometry arrays
+        std::vector<double> new_area(N,0.0);
+        std::vector<double> new_perim(N,0.0);
+        std::vector<double> new_topw(N,0.0);
+        std::vector<double> new_K(N,0.0);
+        std::vector<double> new_hR(N,0.0);
+        std::vector<double> new_mann(N,0.0);
+        std::vector<double> theta(N,0.0);
+
+        int idx_top_opening = -1;
+        int idx_deck = -1;
+
+
+        // Structure to do list ===============
+        // xxx consider setting the properties to be the max of the properties here and the original?
+        // xxx update manning roughness handling, dont need gravel, take the baseline nc and use that, blend with structure sides
+        // xxx check the top openng and deck indices
+
+
+        // Identify key depths
+        if (hs.type == enum_struc_type::BRIDGE)
+        {
+            double H = hs.height;
+            double deck = hs.deck_height;
+
+            for (size_t i = 0; i < N; ++i)
+            {
+                if (depth[i] == H) idx_top_opening = (int)i;
+                if (depth[i] == H + deck) idx_deck = (int)i;
+            }
+        }
+        else if (hs.type == enum_struc_type::CULVERT_CIRCULAR)
+        {
+            double R = hs.diameter / 2.0;
+            double bottom = hs.bottom_height;
+            double deck = hs.deck_height;
+
+            for (size_t i = 0; i < N; ++i)
+            {
+                if (depth[i] == bottom + 2*R) idx_top_opening = (int)i;
+                if (depth[i] == deck) idx_deck = (int)i;
+            }
+        }
+
+        // Compute modified geometry
+        for (size_t i = 0; i < N; ++i)
+        {
+            double d = depth[i];
+
+            if (hs.type == enum_struc_type::BRIDGE)
+            {
+                double W = hs.width;
+                double H = hs.height;
+                double deck = hs.deck_height;
+
+                double n_channel = mann_base[i];
+                double n_channel_top = (idx_top_opening >= 0 ? mann_base[idx_top_opening] : n_channel);
+                double n_conc = 0.015;
+                double n_gravel = 0.02;
+
+                if (d < H)
+                {
+                    new_topw[i] = W;
+                    new_area[i] = d * W;
+                    new_perim[i] = W + 2*d;
+
+                    new_mann[i] = std::pow(
+                        ((2*d)*std::pow(n_conc,1.5) +
+                         W*std::pow(n_channel,1.5)) / new_perim[i],
+                        2.0/3.0);
+                }
+                else if (d == H)
+                {
+                    new_topw[i] = W;
+                    new_area[i] = d * W;
+                    new_perim[i] = 2*W + 2*d;
+
+                    new_mann[i] = std::pow(
+                        (((2*d + W)*std::pow(n_conc,1.5)) +
+                          W*std::pow(n_channel_top,1.5)) / new_perim[i],
+                        2.0/3.0);
+                }
+                else if (d < H + deck)
+                {
+                    new_topw[i] = 0;
+                    new_area[i] = W * H;
+                    new_perim[i] = 2*W + 2*H;
+
+                    new_mann[i] = std::pow(
+                        (((2*H + W)*std::pow(n_conc,1.5)) +
+                          W*std::pow(n_channel_top,1.5)) / new_perim[i],
+                        2.0/3.0);
+                }
+                else
+                {
+                    double A_base = area_base[i];
+                    double A_deck = (idx_deck >= 0 ? area_base[idx_deck] : 0.0);
+
+                    new_topw[i] = topw_base[i];
+                    new_area[i] = A_base - A_deck + W*H;
+
+                    double P_base = perim_base[i];
+                    double P_deck = (idx_deck >= 0 ? perim_base[idx_deck] : 0.0);
+                    double TW_deck = (idx_deck >= 0 ? topw_base[idx_deck] : 0.0);
+
+                    new_perim[i] = P_base + TW_deck - P_deck + (2*W + 2*H);
+
+                    double n_base = mann_base[i];
+
+                    new_mann[i] = std::pow(
+                        (
+                            (2*H + W)*std::pow(n_conc,1.5) +
+                            (W + P_base - P_deck)*std::pow(n_base,1.5) +
+                            TW_deck*std::pow(n_gravel,1.5)
+                        ) / new_perim[i],
+                        2.0/3.0);
+                }
+
+                new_hR[i] = (new_perim[i] == 0 ? 0 : new_area[i] / new_perim[i]);
+                new_K[i] = (new_mann[i] == 0 ? 0 :
+                            (new_area[i] * std::pow(new_hR[i], 2.0/3.0)) / new_mann[i]);
+            }
+            else if (hs.type == enum_struc_type::CULVERT_CIRCULAR)
+            {
+                double R = hs.diameter / 2.0;
+                double bottom = hs.bottom_height;
+                double deck = hs.deck_height;
+                int B = hs.barrels;
+
+                double n_channel = mann_base[i];
+                double n_channel_top = (idx_top_opening >= 0 ? mann_base[idx_top_opening] : n_channel);
+                double n_conc = 0.015;
+                double n_gravel = 0.02;
+
+                if (d <= bottom)
+                {
+                    theta[i] = 0;
+                    new_area[i] = 0;
+                    new_perim[i] = 0;
+                    new_topw[i] = 0;
+                    new_mann[i] = 0;
+                    new_hR[i] = 0;
+                    new_K[i] = 0;
+                }
+                else if (d < bottom + 2*R)
+                {
+                    theta[i] = std::acos(1 - (d - bottom)/R);
+                    new_area[i] = B * R*R * (theta[i] - std::sin(theta[i]))/2.0;
+                    new_perim[i] = B * theta[i] * R;
+                    new_mann[i] = n_conc;
+                    new_topw[i] = B * 2*R * std::sin(theta[i]);
+                }
+                else if (d == bottom + 2*R)
+                {
+                    theta[i] = std::acos(1 - (d - bottom)/R);
+                    new_area[i] = B * M_PI * R*R;
+                    new_perim[i] = B * 2*M_PI * R;
+                    new_mann[i] = n_conc;
+                    new_topw[i] = 0;
+                }
+                else if (d < deck)
+                {
+                    theta[i] = 0;
+                    new_area[i] = B * M_PI * R*R;
+                    new_perim[i] = B * 2*M_PI * R;
+                    new_mann[i] = n_conc;
+                    new_topw[i] = 0;
+                }
+                else
+                {
+                    theta[i] = 0;
+
+                    double A_base = area_base[i];
+                    double A_deck = (idx_deck >= 0 ? area_base[idx_deck] : 0.0);
+
+                    new_area[i] = A_base - A_deck + B * M_PI * R*R;
+                    new_topw[i] = topw_base[i];
+
+                    double P_base = perim_base[i];
+                    double P_deck = (idx_deck >= 0 ? perim_base[idx_deck] : 0.0);
+                    double TW_deck = (idx_deck >= 0 ? topw_base[idx_deck] : 0.0);
+
+                    new_perim[i] = P_base - P_deck + B * 2*M_PI * R + TW_deck;
+
+                    double n_base = mann_base[i];
+
+                    new_mann[i] = std::pow(
+                        (
+                            (B * 2*M_PI * R)*std::pow(n_conc,1.5) +
+                            (P_base - P_deck)*std::pow(n_base,1.5) +
+                            TW_deck*std::pow(n_gravel,1.5)
+                        ) / new_perim[i],
+                        2.0/3.0);
+                }
+
+                new_hR[i] = (new_perim[i] == 0 ? 0 : new_area[i] / new_perim[i]);
+                new_K[i] = (new_mann[i] == 0 ? 0 :
+                            (new_area[i] * std::pow(new_hR[i], 2.0/3.0)) / new_mann[i]);
+            }
+        }
+
+        // Write updated geometry back into hydraulic_output rows
+        for (size_t i = 0; i < N; ++i)
+        {
+            hydraulic_output* row = df[i];
+
+            row->top_width         = new_topw[i];
+            row->area              = new_area[i];
+            row->wet_perimeter     = new_perim[i];
+            row->hradius           = new_hR[i];
+            row->k_total           = new_K[i];
+            row->manning_composite = new_mann[i];
+
+            // xxx may need to update length and recalc
+            // may need to do more here
+            // xxx will want to update roughness handling
+
+            // Only culverts use theta
+            // (Add a theta field to hydraulic_output if needed)
+            // row->theta = theta[i];
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////
@@ -2997,7 +3271,7 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
         result->data[j] = std::numeric_limits<double>::quiet_NaN();
     }
     */
-    if (conditional_model) {
+    if (conditional_model && bbopt->enable_spill_flows) {
 
         int sn_id = static_cast<int>(c_from_s->data[j]);
 
@@ -3193,7 +3467,7 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
         result->data[j] = std::numeric_limits<double>::quiet_NaN();
     }
     */
-    if (conditional_model) {
+    if (conditional_model && bbopt->enable_spill_flows) {
 
         int sn_id = static_cast<int>(c_from_s->data[j]);
 

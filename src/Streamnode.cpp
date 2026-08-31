@@ -23,6 +23,7 @@ CStreamnode::CStreamnode()
   sn_roughness_multiplier(1.),
   is_conditional(false),
   maps_to(PLACEHOLDER),
+  is_structure(false),
   depthdf(new std::vector<hydraulic_output*>),
   upstream_flows(),
   flow_sources(),
@@ -536,7 +537,41 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
     ExitGracefully("Streamnode.cpp: compute_profile_next: unrecognized leff_method", exitcode::BAD_DATA);
   }
 
+
+  // structure related losses
+  double enterexitloss = 0.0;
+  double pierloss = 0.0;
+  double pressureflowloss = 0.0;
+  
+  // structure-related losses calculated, otherwise left as zero
+  if (is_structure) {
+    enterexitloss =
+        mm->velocity * mm->velocity / 2.0 / GRAVITY * hydstructure.ee_coeff;
+
+    // pier losses
+    // xxx to do
+
+    // pressure flow losses
+    if (hydstructure.type ==
+        enum_struc_type::BRIDGE) { // check structure type nad enum them
+      // build out logic for checking if the water depth exceeds the top, then
+      // calc the pressure flow loss term
+      if (mm->depth > hydstructure.height + hydstructure.deck_height) {
+        pressureflowloss = mm->velocity * mm->velocity / 2.0 / GRAVITY *
+                           hydstructure.press_coeff; // xxx to revise
+      }
+    } else if (hydstructure.type == enum_struc_type::CULVERT_CIRCULAR) {
+      if (mm->depth > hydstructure.bottom_height + hydstructure.diameter +
+                          hydstructure.deck_height) {
+        pressureflowloss = mm->velocity * mm->velocity / 2.0 / GRAVITY *
+                           hydstructure.press_coeff; // xxx to revise
+      }
+    }
+  }
+
+  // calculate total head loss
   mm->head_loss =
+      enterexitloss + pierloss + pressureflowloss + // added structure related losses, zero for non-structure nodes
       mm->length_energyloss * mm->sf_avg +
       loss_coeff *
           std::abs(((mm->alpha * mm->velocity*mm->velocity / 2.) / GRAVITY) -

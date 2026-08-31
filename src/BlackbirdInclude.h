@@ -267,6 +267,139 @@ struct ExhaustiveWSLResult {
     double wsl_estimated;  // chosen WSL based on Froude threshold
 };
 
+// Structure types
+enum enum_struc_type
+{
+    BRIDGE,
+    CULVERT_CIRCULAR
+};
+
+// structure for hydraulic structures tied to streamnodes
+struct hydraulic_structure {
+    int nodeID = -1;
+
+    // common fields
+    // std::string type;
+    enum_struc_type type = enum_struc_type::BRIDGE;
+    double deck_height = 0.5;
+    double bottom_height = 0.0;
+    double structure_manning_roughness = 0.02; // default concrete/CSP roughness
+    double length_override = -1.0; // -1 means "not provided"
+
+    // culvert-specific
+    double diameter = 1.0;
+    int barrels = 1;
+
+    // bridge-specific
+    double width = 2;
+    double height = 1.0;
+    double contraction_coeff = 0.3; // default for hydraulic structures
+    double expansion_coeff = 0.5;   // default for hydraulic structures
+    double ee_coeff = 0.2;          // enter and exit loss coeff
+    double press_coeff = 0.3;       // additional loss term for pressure flow
+
+    // Default constructor
+    hydraulic_structure() = default;
+
+    // Copy constructor
+    hydraulic_structure(const hydraulic_structure& other)
+        : nodeID(other.nodeID),
+          type(other.type),
+          deck_height(other.deck_height),
+          bottom_height(other.bottom_height),
+          structure_manning_roughness(other.structure_manning_roughness),
+          length_override(other.length_override),
+          diameter(other.diameter),
+          barrels(other.barrels),
+          width(other.width),
+          height(other.height),
+          contraction_coeff(other.contraction_coeff),
+          expansion_coeff(other.expansion_coeff),
+          ee_coeff(other.ee_coeff)
+    {}
+
+    // ---------------------------------------------------------
+    // Validation routines
+    // ---------------------------------------------------------
+
+    // Quick boolean validation
+    bool validate() const {
+        if (nodeID < 0) return false;
+        // if (type.empty()) return false;
+
+        if (type == enum_struc_type::CULVERT_CIRCULAR) {
+            if (diameter <= 0.0) return false;
+            if (barrels <= 0) return false;
+        }
+
+        if (type == enum_struc_type::BRIDGE) {
+            if (width <= 0.0) return false;
+            if (height <= 0.0) return false;
+            if (contraction_coeff < 0.0 || expansion_coeff < 0.0 || ee_coeff < 0.0 || press_coeff < 0.0) return false;
+        }
+
+        if (structure_manning_roughness <= 0.0) return false;
+        if (deck_height < 0.0) return false;
+        if (bottom_height < 0.0) return false;
+
+        return true;
+    }
+
+    // Detailed error-reporting validation
+    std::vector<std::string> validate_errors() const {
+        std::vector<std::string> errors;
+
+        if (nodeID < 0)
+            errors.emplace_back("nodeID must be >= 0.");
+
+        // if (type.empty())
+        //     errors.emplace_back("type must be specified (CULVERT or BRIDGE).");
+
+        if (structure_manning_roughness <= 0.0)
+            errors.emplace_back("structure_manning_roughness must be > 0.");
+
+        if (deck_height < 0.0)
+            errors.emplace_back("deck_height must be >= 0.");
+
+        if (bottom_height < 0.0)
+            errors.emplace_back("bottom_height must be >= 0.");
+
+        if (type == enum_struc_type::CULVERT_CIRCULAR) {
+            if (diameter <= 0.0)
+                errors.emplace_back("CULVERT requires diameter > 0.");
+            if (barrels <= 0)
+                errors.emplace_back("CULVERT requires barrels >= 1.");
+        }
+
+        if (type == enum_struc_type::BRIDGE) {
+            if (width <= 0.0)
+                errors.emplace_back("BRIDGE requires width > 0.");
+            if (height <= 0.0)
+                errors.emplace_back("BRIDGE requires height > 0.");
+            if (contraction_coeff < 0.0)
+                errors.emplace_back("BRIDGE contraction_coeff must be >= 0.");
+            if (expansion_coeff < 0.0)
+                errors.emplace_back("BRIDGE expansion_coeff must be >= 0.");
+            if (ee_coeff < 0.0)
+                errors.emplace_back("BRIDGE ee_coeff must be >= 0.");
+        }
+
+        return errors;
+    }
+
+    // Convenience: throw exception if invalid
+    void assert_valid() const {
+        auto errs = validate_errors();
+        if (!errs.empty()) {
+            std::ostringstream oss;
+            oss << "Invalid hydraulic_structure for node " << nodeID << ":\n";
+            for (const auto& e : errs) oss << "  - " << e << "\n";
+            throw std::runtime_error(oss.str());
+        }
+    }
+};
+
+
 //*****************************************************************
 //Enumerables
 //*****************************************************************

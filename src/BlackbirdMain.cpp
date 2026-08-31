@@ -147,6 +147,12 @@ int main(int argc, char* argv[])
     std::cout << "Simulation Start..." << std::endl;
   }
 
+  // update the hydraulic properties for any structures
+  if (pModel->structure_model) {
+    std::cout << "Updating hydraulic properties for structures..." << std::endl;
+    pModel->update_hydraulic_structures();
+  }
+
   t1 = clock();
   
   // Compute hydraulic profile for all streamnodes

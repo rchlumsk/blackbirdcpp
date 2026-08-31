@@ -33,6 +33,7 @@ public:
   std::vector<FlowSnapshot> snapshot;
   std::vector<pairedcondids> condsnIDs;                 // sequence of node IDs that are conditional
   bool conditional_model;                               // boolean whether the run contains conditional nodes
+  bool structure_model;                                 // boolean whether the model contains structures
 
   // Outputs
   std::vector<hydraulic_output *> *hyd_result;                        // hydraulic outputs generated from hyd_compute_profile
@@ -65,6 +66,9 @@ public:
   void add_condsnid(int id, int mapsto);                          // add ID to the conditional streamnode vector
   bool is_conditional_node(int id) const;                         // checks whether a node is conditional based on ID value
   int get_conditional_condid(int id) const;                       // returns the condID paired ID from a conditional mapsto node ID
+
+  // structure handling
+  void update_hydraulic_structures();                             // updates the depthdf tables for each hydraulic structure streamnode
 
   // I/O Functions defined in StandardOutput.cpp
   std::string FilenamePrepare(std::string filebase) const;        // attaches main_output_dir folder and run_name to filebase
