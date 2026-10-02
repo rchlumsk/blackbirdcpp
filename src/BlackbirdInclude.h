@@ -54,7 +54,9 @@ const double PI = 3.1415926535898; ///< Double approximation of pi
 const double HEADWATER               = -111111; // arbitrary value indicating that a node is a headwater node
 const double PLACEHOLDER             = -222222; // arbitrary value indicating a placeholder value
 const std::string PLACEHOLDER_STR    = "-222222";  // arbitrary value indicating a placeholder string value
-const double GRAVITY                 = 9.81; // gravitational acceleration
+const double GRAVITY                 = 9.81; // gravitational acceleration, N/kg
+const double RHO                     = 1000; // density of water, kg/m3
+const double PSI                     = GRAVITY * RHO; // specific weight of water, N/m3
 
 //units conversion constants
 const double SEC_PER_DAY = 86400;    ///< days to seconds
@@ -155,6 +157,7 @@ struct hydraulic_output {
   double wet_perimeter_rob;
   double energy_total;
   double velocity_head;
+  double pressure_head;
   double froude;
   double sf;
   double sf_avg;
@@ -199,7 +202,7 @@ struct hydraulic_output {
         area_lob(0.0), area_main(0.0), area_rob(0.0), hradius(0.0),
         hradius_lob(0.0), hradius_main(0.0), hradius_rob(0.0),
         wet_perimeter(0.0), wet_perimeter_lob(0.0), wet_perimeter_main(0.0),
-        wet_perimeter_rob(0.0), energy_total(0.0), velocity_head(0.0),
+        wet_perimeter_rob(0.0), energy_total(0.0), velocity_head(0.0),pressure_head(0.0),
         froude(0.0), sf(0.0), sf_avg(0.0), sbed(0.0), length_effective(0.0),
         head_loss(0.0), manning_lob(0.0), manning_main(0.0), manning_rob(0.0),
         manning_composite(0.0), k_total_areaconv(0.0), k_total_roughconv(0.0),
@@ -214,191 +217,6 @@ struct hydraulic_output {
 
   
 };
-
-// structure for streamnode connections, used in recurrent flow calculations
-struct streamnodeconn {
-  int nodeID;
-  int adjnodeID;
-  double minhand1;
-  double minhand2;
-  double minelev1;
-  double minelev2;
-  int reachID;
-  int transfer;
-
-  // Constructor
-  streamnodeconn() : nodeID(0), adjnodeID(0), minhand1(0), minhand2(0), minelev1(0), minelev2(0), reachID(0), transfer(0) {}
-
-  // Copy Constructor
-  streamnodeconn(const streamnodeconn &other) = default;
-};
-
-// structure for paired conditional IDs
-struct pairedcondids {
-    int id1;
-    int id2;
-
-    pairedcondids() : id1(-1), id2(-1) {}
-    pairedcondids(int a, int b) : id1(a), id2(b) {}
-};
-
-// structure for flow snapshot
-struct FlowSnapshot {
-    std::vector<double> output_flows;
-    // std::vector<double> upstream_flows;
-    // std::vector<double> flow_sources;
-    // std::vector<double> flow_sinks;
-
-    // Default constructor
-    FlowSnapshot() = default;
-
-    // Copy constructor
-    FlowSnapshot(const FlowSnapshot& other)
-        : output_flows(other.output_flows)
-       //    upstream_flows(other.upstream_flows),
-       //    flow_sources(other.flow_sources),
-       //    flow_sinks(other.flow_sinks)
-    {}
-};
-
-// structure for exhaustive WSL calculation
-struct ExhaustiveWSLResult {
-    double wsl_critical;   // min-energy WSL
-    double wsl_estimated;  // chosen WSL based on Froude threshold
-};
-
-// Structure types
-enum enum_struc_type
-{
-    BRIDGE,
-    CULVERT_CIRCULAR
-};
-
-// structure for hydraulic structures tied to streamnodes
-struct hydraulic_structure {
-    int nodeID = -1;
-
-    // common fields
-    // std::string type;
-    enum_struc_type type = enum_struc_type::BRIDGE;
-    double deck_height = 0.5;
-    double bottom_height = 0.0;
-    double structure_manning_roughness = 0.02; // default concrete/CSP roughness
-    double length_override = -1.0; // -1 means "not provided"
-
-    // culvert-specific
-    double diameter = 1.0;
-    int barrels = 1;
-
-    // bridge-specific
-    double width = 2;
-    double height = 1.0;
-    double contraction_coeff = 0.3; // default for hydraulic structures
-    double expansion_coeff = 0.5;   // default for hydraulic structures
-    double ee_coeff = 0.2;          // enter and exit loss coeff
-    double press_coeff = 0.3;       // additional loss term for pressure flow
-
-    // Default constructor
-    hydraulic_structure() = default;
-
-    // Copy constructor
-    hydraulic_structure(const hydraulic_structure& other)
-        : nodeID(other.nodeID),
-          type(other.type),
-          deck_height(other.deck_height),
-          bottom_height(other.bottom_height),
-          structure_manning_roughness(other.structure_manning_roughness),
-          length_override(other.length_override),
-          diameter(other.diameter),
-          barrels(other.barrels),
-          width(other.width),
-          height(other.height),
-          contraction_coeff(other.contraction_coeff),
-          expansion_coeff(other.expansion_coeff),
-          ee_coeff(other.ee_coeff)
-    {}
-
-    // ---------------------------------------------------------
-    // Validation routines
-    // ---------------------------------------------------------
-
-    // Quick boolean validation
-    bool validate() const {
-        if (nodeID < 0) return false;
-        // if (type.empty()) return false;
-
-        if (type == enum_struc_type::CULVERT_CIRCULAR) {
-            if (diameter <= 0.0) return false;
-            if (barrels <= 0) return false;
-        }
-
-        if (type == enum_struc_type::BRIDGE) {
-            if (width <= 0.0) return false;
-            if (height <= 0.0) return false;
-            if (contraction_coeff < 0.0 || expansion_coeff < 0.0 || ee_coeff < 0.0 || press_coeff < 0.0) return false;
-        }
-
-        if (structure_manning_roughness <= 0.0) return false;
-        if (deck_height < 0.0) return false;
-        if (bottom_height < 0.0) return false;
-
-        return true;
-    }
-
-    // Detailed error-reporting validation
-    std::vector<std::string> validate_errors() const {
-        std::vector<std::string> errors;
-
-        if (nodeID < 0)
-            errors.emplace_back("nodeID must be >= 0.");
-
-        // if (type.empty())
-        //     errors.emplace_back("type must be specified (CULVERT or BRIDGE).");
-
-        if (structure_manning_roughness <= 0.0)
-            errors.emplace_back("structure_manning_roughness must be > 0.");
-
-        if (deck_height < 0.0)
-            errors.emplace_back("deck_height must be >= 0.");
-
-        if (bottom_height < 0.0)
-            errors.emplace_back("bottom_height must be >= 0.");
-
-        if (type == enum_struc_type::CULVERT_CIRCULAR) {
-            if (diameter <= 0.0)
-                errors.emplace_back("CULVERT requires diameter > 0.");
-            if (barrels <= 0)
-                errors.emplace_back("CULVERT requires barrels >= 1.");
-        }
-
-        if (type == enum_struc_type::BRIDGE) {
-            if (width <= 0.0)
-                errors.emplace_back("BRIDGE requires width > 0.");
-            if (height <= 0.0)
-                errors.emplace_back("BRIDGE requires height > 0.");
-            if (contraction_coeff < 0.0)
-                errors.emplace_back("BRIDGE contraction_coeff must be >= 0.");
-            if (expansion_coeff < 0.0)
-                errors.emplace_back("BRIDGE expansion_coeff must be >= 0.");
-            if (ee_coeff < 0.0)
-                errors.emplace_back("BRIDGE ee_coeff must be >= 0.");
-        }
-
-        return errors;
-    }
-
-    // Convenience: throw exception if invalid
-    void assert_valid() const {
-        auto errs = validate_errors();
-        if (!errs.empty()) {
-            std::ostringstream oss;
-            oss << "Invalid hydraulic_structure for node " << nodeID << ":\n";
-            for (const auto& e : errs) oss << "  - " << e << "\n";
-            throw std::runtime_error(oss.str());
-        }
-    }
-};
-
 
 //*****************************************************************
 //Enumerables
@@ -519,6 +337,290 @@ enum enum_gridded_format
   RASTER,
   NETCDF,
   PNG
+};
+
+// Flow regime types
+enum enum_flow_regimes
+{
+    OPEN_CHANNEL_FLOW,
+    PRESSURE_FLOW,
+    WEIR_FLOW, // only used for WEIR structures, not bridges or culverts
+    COMBINED_WEIR_PRESSURE_FLOW
+};
+
+// Structure types
+enum enum_struc_type
+{
+    BRIDGE,
+    CULVERT_CIRCULAR
+};
+
+//*****************************************************************
+//structs
+//*****************************************************************
+
+// structure for streamnode connections, used in recurrent flow calculations
+struct streamnodeconn {
+  int nodeID;
+  int adjnodeID;
+  double minhand1;
+  double minhand2;
+  double minelev1;
+  double minelev2;
+  int reachID;
+  int transfer;
+
+  // Constructor
+  streamnodeconn() : nodeID(0), adjnodeID(0), minhand1(0), minhand2(0), minelev1(0), minelev2(0), reachID(0), transfer(0) {}
+
+  // Copy Constructor
+  streamnodeconn(const streamnodeconn &other) = default;
+};
+
+// flow regimes for use in evaluating structures
+struct flow_regime {
+  enum_flow_regimes regime = OPEN_CHANNEL_FLOW; // default to open channel flow
+    double weir_flow = 0.0;
+    double pressure_flow = 0.0;
+    double open_channel_flow = 0.0;
+};
+
+// structure for paired conditional IDs
+struct pairedcondids {
+    int id1;
+    int id2;
+
+    pairedcondids() : id1(-1), id2(-1) {}
+    pairedcondids(int a, int b) : id1(a), id2(b) {}
+};
+
+// structure for flow snapshot
+struct FlowSnapshot {
+    std::vector<double> output_flows;
+    // std::vector<double> upstream_flows;
+    // std::vector<double> flow_sources;
+    // std::vector<double> flow_sinks;
+
+    // Default constructor
+    FlowSnapshot() = default;
+
+    // Copy constructor
+    FlowSnapshot(const FlowSnapshot& other)
+        : output_flows(other.output_flows)
+       //    upstream_flows(other.upstream_flows),
+       //    flow_sources(other.flow_sources),
+       //    flow_sinks(other.flow_sinks)
+    {}
+};
+
+// structure for exhaustive WSL calculation
+struct ExhaustiveWSLResult {
+    double wsl_critical;   // min-energy WSL
+    double wsl_estimated;  // chosen WSL based on Froude threshold
+};
+
+// structure for hydraulic structures tied to streamnodes
+struct hydraulic_structure {
+    int nodeID = -1;
+
+    // common fields
+    // std::string type;
+    enum_struc_type type = enum_struc_type::BRIDGE;
+    double deck_thickness = 0.5;   // thickness of the deck from soffit to overtopping
+    double structure_manning_roughness = 0.02; // default concrete/CSP roughness
+    double length = -1.0;       // -1 means "not provided"
+
+    // culvert-specific
+    double diameter = 1.0;         // diameter of a circular culvert
+    int barrels = 1;               // number of culvert barrels
+    double bottom_height = 0.0;    // height of the bottom of the structure, including any obstruction or offset (i.e., perched culverts)
+    // note: bottom_height is indepdent of diameter, it is assumed that the culvert is offset by the bottom_height from the thalweg, and bottom of the culvert starts at bottom_height, and the top of the culvert is at
+    // bottom_height + diameter. This allows for perched culverts to be modeled.
+
+    // bridge-specific
+    double width = 2;               // width of the bridge opening
+    double height = 1.0;            // height of the bridge opening from thalweg to soffit
+
+    // loss coefficients
+    double contraction_coeff = 0.3; // default for hydraulic structures
+    double expansion_coeff = 0.5;   // default for hydraulic structures
+    double ee_coeff = 0.2;          // enter and exit loss coeff
+    double press_coeff = 0.3;       // additional loss term for pressure flow
+
+    // discharge coefficients
+    double weir_discharge_coeff = 1.6;      // coefficient of discharge for weir flow, used in the weir equation for computing flow
+    double orifice_discharge_coeff = 0.8;   // coefficient of discharge for submerged flow, used in the pressure flow equations (orifice equation)
+    double sluice_discharge_coeff = 0.5;    // coefficient of discharge for partially submerged flow, used in the pressure flow equations (sluice gate equation)
+
+    // Default constructor
+    hydraulic_structure() = default;
+
+    // Copy constructor
+    hydraulic_structure(const hydraulic_structure& other)
+        : nodeID(other.nodeID),
+          type(other.type),
+          deck_thickness(other.deck_thickness),
+          bottom_height(other.bottom_height),
+          structure_manning_roughness(other.structure_manning_roughness),
+          length(other.length),
+          diameter(other.diameter),
+          barrels(other.barrels),
+          width(other.width),
+          height(other.height),
+          contraction_coeff(other.contraction_coeff),
+          expansion_coeff(other.expansion_coeff),
+          ee_coeff(other.ee_coeff)
+    {}
+
+    // ---------------------------------------------------------
+    // Validation routines
+    // ---------------------------------------------------------
+
+    // Quick boolean validation
+    bool validate() const {
+        if (nodeID < 0) return false;
+        // if (type.empty()) return false;
+
+        if (type == enum_struc_type::CULVERT_CIRCULAR) {
+            if (diameter <= 0.0) return false;
+            if (barrels <= 0) return false;
+        }
+
+        if (type == enum_struc_type::BRIDGE) {
+            if (width <= 0.0) return false;
+            if (height <= 0.0) return false;
+            // if (length <= 0.0) return false;
+            if (contraction_coeff < 0.0 || expansion_coeff < 0.0 || ee_coeff < 0.0 || press_coeff < 0.0) return false;
+        }
+
+        if (structure_manning_roughness <= 0.0) return false;
+        if (deck_thickness < 0.0) return false;
+        if (bottom_height < 0.0) return false;
+        if (weir_discharge_coeff < 0.0 || orifice_discharge_coeff < 0.0 || sluice_discharge_coeff < 0.0) return false;
+
+        return true;
+    }
+
+    // Detailed error-reporting validation
+    std::vector<std::string> validate_errors() const {
+        std::vector<std::string> errors;
+
+        if (nodeID < 0)
+            errors.emplace_back("nodeID must be >= 0.");
+
+        // if (type.empty())
+        //     errors.emplace_back("type must be specified (CULVERT or BRIDGE).");
+
+        if (structure_manning_roughness <= 0.0)
+            errors.emplace_back("structure_manning_roughness must be > 0.");
+
+        if (deck_thickness < 0.0)
+            errors.emplace_back("deck_thickness must be >= 0.");
+
+        if (bottom_height < 0.0)
+            errors.emplace_back("bottom_height must be >= 0.");
+
+        // if (length < 0.0)
+        //     errors.emplace_back("length must be provided and be >= 0.");
+
+
+        if (type == enum_struc_type::CULVERT_CIRCULAR) {
+            if (diameter <= 0.0)
+                errors.emplace_back("CULVERT requires diameter > 0.");
+            if (barrels <= 0)
+                errors.emplace_back("CULVERT requires barrels >= 1.");
+        }
+
+        if (type == enum_struc_type::BRIDGE) {
+            if (width <= 0.0)
+                errors.emplace_back("BRIDGE requires width > 0.");
+            if (height <= 0.0)
+                errors.emplace_back("BRIDGE requires height > 0.");
+            if (contraction_coeff < 0.0)
+                errors.emplace_back("BRIDGE contraction_coeff must be >= 0.");
+            if (expansion_coeff < 0.0)
+                errors.emplace_back("BRIDGE expansion_coeff must be >= 0.");
+            if (ee_coeff < 0.0)
+                errors.emplace_back("BRIDGE ee_coeff must be >= 0.");
+        }
+
+        return errors;
+    }
+
+    // Convenience: throw exception if invalid
+    void assert_valid() const {
+        auto errs = validate_errors();
+        if (!errs.empty()) {
+            std::ostringstream oss;
+            oss << "Invalid hydraulic_structure for node " << nodeID << ":\n";
+            for (const auto& e : errs) oss << "  - " << e << "\n";
+            throw std::runtime_error(oss.str());
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Hydraulic routines
+    // ---------------------------------------------------------
+
+    // returning of a flow regime based on depth
+    enum_flow_regimes get_flow_regime(double depth) const { // Made the function const
+        if (depth < 0) {
+            throw std::runtime_error("Depth cannot be negative when checking flow regime.");
+        } else {
+            switch (type) {
+            case enum_struc_type::CULVERT_CIRCULAR:
+                if (depth < diameter + bottom_height) {
+                    return OPEN_CHANNEL_FLOW;
+                } else if (depth > diameter + bottom_height && depth < diameter + bottom_height + deck_thickness) {
+                    return PRESSURE_FLOW;
+                } else if (depth > diameter + bottom_height + deck_thickness) {
+                    return COMBINED_WEIR_PRESSURE_FLOW;
+                }
+                break; // Added break to prevent fallthrough
+            case enum_struc_type::BRIDGE:
+                if (depth < height) {
+                    return OPEN_CHANNEL_FLOW;
+                } else if (depth > height && depth < height + deck_thickness) {
+                    return PRESSURE_FLOW;
+                } else if (depth > height + deck_thickness) {
+                    return COMBINED_WEIR_PRESSURE_FLOW;
+                }
+                break; // Added break to prevent fallthrough
+            default:
+                throw std::runtime_error("Unknown structure type when checking flow regime.");
+            }
+        }
+        throw std::runtime_error("Invalid depth or structure type when checking flow regime."); // Added fallback return
+    }
+
+    // Calculate the pressure head 
+    // computes the pressure based on the depth, automatically determining the regime type from depth as well
+    // note: does not return pressure head but pressure, should correct this if it gets used long term
+    double calc_pressure_head(double depth) {
+      flow_regime fr;
+      fr.regime = get_flow_regime(depth);
+
+      switch (fr.regime) {
+      case enum_flow_regimes::PRESSURE_FLOW:
+
+            switch (type) {
+            case enum_struc_type::BRIDGE: return std::max(0.0, depth - height);
+            case enum_struc_type::CULVERT_CIRCULAR: return std::max(0.0, depth - diameter - bottom_height);
+            default: return 0.0;
+            }
+            break;
+      case enum_flow_regimes::COMBINED_WEIR_PRESSURE_FLOW:
+            switch (type) {
+            case enum_struc_type::BRIDGE: return std::max(0.0, deck_thickness);
+            case enum_struc_type::CULVERT_CIRCULAR: return std::max(0.0, deck_thickness);
+            default: return 0.0;
+            }
+            break;
+      default: return 0.0;
+      }        
+
+    return(0.0); // xxx / PSI? to get actual pressure head and not just pressure
+    }
 };
 
 //*****************************************************************

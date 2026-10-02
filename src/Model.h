@@ -62,6 +62,8 @@ public:
   void snapshot_headwater_flows();                                // grab snapshot of flows for all headwater streamnodes and store in snapshot vector
   void restore_headwater_flows();                                 // restore all flows for all headwater streamnodes from snapshot vector  
 
+  void write_structure_preproc_hyd_tables(std::ostream& os) const; // writes out the structure preprocessed files
+
   // conditional streamnode related functions
   void add_condsnid(int id, int mapsto);                          // add ID to the conditional streamnode vector
   bool is_conditional_node(int id) const;                         // checks whether a node is conditional based on ID value

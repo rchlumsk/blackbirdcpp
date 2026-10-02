@@ -480,6 +480,15 @@ void CStreamnode::compute_profile(double flow, double wsl, COptions *bbopt) {
 
 //////////////////////////////////////////////////////////////////
 /// \brief Compute profile for next streamnode
+/// 
+/// note: compute_profile_next includes all the calculations that need two
+/// nodes, including friction slope averaging and energy loss calculations. It
+/// is used in the WSL calculation for a streamnode.
+/// 
+/// properties that can be computed for individual nodes should be in the compute_prifle function,
+/// which calls the CReach::compute_basic_flow_properties function.
+/// 
+/// Structure-related properties are calculated in both functions depending on the variable.
 ///
 /// \param flow [in] flow to be used in computations
 /// \param wsl [in] wsl to be used in computations
@@ -489,14 +498,14 @@ void CStreamnode::compute_profile(double flow, double wsl, COptions *bbopt) {
 void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt) {
   compute_profile(flow, wsl, bbopt);
 
-  if (bbopt->reach_integration_method == enum_ri_method::EFFECTIVE_LENGTH) {
+  if (bbopt->reach_integration_method == enum_ri_method::EFFECTIVE_LENGTH) { // consider removing this to reduce confusion? xxx
     double reach_length = 0;
     if (mm->reach_length_US2 != -99) {
       reach_length = mm->reach_length_US2;
     } else {
       reach_length = mm->reach_length_US1;
     }
-    mm->sf *= std::pow(mm->length_effective / reach_length, 2.0);
+    mm->sf *= std::pow(mm->length_effective / reach_length, 2.0); // xxx review connection to lengtheff_adjusted
   }
 
   if (bbopt->friction_slope_method == enum_fs_method::AVERAGE_CONVEYANCE) {
@@ -548,30 +557,44 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
     enterexitloss =
         mm->velocity * mm->velocity / 2.0 / GRAVITY * hydstructure.ee_coeff;
 
+    double pressure_head = hydstructure.calc_pressure_head(mm->depth) / PSI;
+    pressureflowloss = pressure_head * hydstructure.press_coeff;
+
+    
+    // need to compute the pressure loss based on full or partial submergence
+
+    
+    
+    // calculate the relative pressure and weir flows if regime is combined
+
+
+
     // pier losses
     // xxx to do
 
     // pressure flow losses
-    if (hydstructure.type ==
+    /* if (hydstructure.type ==
         enum_struc_type::BRIDGE) { // check structure type nad enum them
       // build out logic for checking if the water depth exceeds the top, then
       // calc the pressure flow loss term
-      if (mm->depth > hydstructure.height + hydstructure.deck_height) {
+      if (mm->depth > hydstructure.height + hydstructure.deck_thickness) {
         pressureflowloss = mm->velocity * mm->velocity / 2.0 / GRAVITY *
                            hydstructure.press_coeff; // xxx to revise
       }
     } else if (hydstructure.type == enum_struc_type::CULVERT_CIRCULAR) {
       if (mm->depth > hydstructure.bottom_height + hydstructure.diameter +
-                          hydstructure.deck_height) {
+                          hydstructure.deck_thickness) {
         pressureflowloss = mm->velocity * mm->velocity / 2.0 / GRAVITY *
                            hydstructure.press_coeff; // xxx to revise
       }
-    }
-  }
+    } */
+  } 
 
   // calculate total head loss
   mm->head_loss =
-      enterexitloss + pierloss + pressureflowloss + // added structure related losses, zero for non-structure nodes
+      enterexitloss + 
+      pierloss + 
+      pressureflowloss + // added structure related losses, zero for non-structure nodes
       mm->length_energyloss * mm->sf_avg +
       loss_coeff *
           std::abs(((mm->alpha * mm->velocity*mm->velocity / 2.) / GRAVITY) -
@@ -739,6 +762,104 @@ void CStreamnode::allocate_flowprofiles(int num_fp) {
   while (output_wsls.size() < num_fp) {
     output_wsls.push_back(PLACEHOLDER);
   }
+}
+
+// writes out a preproc hyd table
+void CStreamnode::write_preproc_hyd_table(std::ostream& os) const
+{
+    os << ":PreprocHydTable " << nodeID << "\n";
+       os << "    :Attributes  nodeID  reachID  downnodeID  upnodeID1  upnodeID2  stationname  station  reach_length_DS  reach_length_US1  reach_length_US2  Flow  Flow_LOB  Flow_Main  Flow_ROB  Min_Elev  WSL  Depth  HydDepth  HydDepth_LOB  HydDepth_Main  HydDepth_ROB  TopWidth  TopWidth_LOB  TopWidth_Main  TopWidth_ROB  Velocity  Velocity_LOB  Velocity_Main  Velocity_ROB  K_Total  K_LOB  K_Main  K_ROB  alpha  Area  Area_LOB  Area_Main  Area_ROB  HRadius  HRadius_LOB  HRadius_Main  HRadius_ROB  WetPerimeter  WetPerimeter_LOB  WetPerimeter_Main  WetPerimeter_ROB  Energy_total  Velocity_head  Froude  Sf  Sf_Avg  Sbed  Length_Effective  Head_Loss  Manning_LOB  Manning_Main  Manning_ROB  Manning_Composite  K_Total_areaconv  K_Total_roughconv  K_Total_disconv  alpha_areaconv  alpha_roughconv  alpha_disconv  nc_equalforce  nc_equalvelocity  nc_wavgwp  nc_wavgarea  nc_wavgconv  Depth_Critical  cp_iterations  K_err  WS_err  Length_EnergyLoss  Length_EffectiveAdjusted" <<"\n";
+    
+    auto& df = *(depthdf);   // dereference pointer
+
+    for (size_t i = 0; i < df.size(); i++)
+    {
+    const hydraulic_output* pHO = df[i];
+ 
+    if (pHO == nullptr) {
+    continue;
+    }
+ 
+    os
+    << pHO->nodeID << " "
+    << pHO->reachID << " "
+    << pHO->downnodeID << " "
+    << pHO->upnodeID1 << " "
+    << pHO->upnodeID2 << " "
+    << pHO->stationname << " "
+    << pHO->station << " "
+    << pHO->reach_length_DS << " "
+    << pHO->reach_length_US1 << " "
+    << pHO->reach_length_US2 << " "
+    << pHO->flow << " "
+    << pHO->flow_lob << " "
+    << pHO->flow_main << " "
+    << pHO->flow_rob << " "
+    << pHO->min_elev << " "
+    << pHO->wsl << " "
+    << pHO->depth << " "
+    << pHO->hyd_depth << " "
+    << pHO->hyd_depth_lob << " "
+    << pHO->hyd_depth_main << " "
+    << pHO->hyd_depth_rob << " "
+    << pHO->top_width << " "
+    << pHO->top_width_lob << " "
+    << pHO->top_width_main << " "
+    << pHO->top_width_rob << " "
+    << pHO->velocity << " "
+    << pHO->velocity_lob << " "
+    << pHO->velocity_main << " "
+    << pHO->velocity_rob << " "
+    << pHO->k_total << " "
+    << pHO->k_lob << " "
+    << pHO->k_main << " "
+    << pHO->k_rob << " "
+    << pHO->alpha << " "
+    << pHO->area << " "
+    << pHO->area_lob << " "
+    << pHO->area_main << " "
+    << pHO->area_rob << " "
+    << pHO->hradius << " "
+    << pHO->hradius_lob << " "
+    << pHO->hradius_main << " "
+    << pHO->hradius_rob << " "
+    << pHO->wet_perimeter << " "
+    << pHO->wet_perimeter_lob << " "
+    << pHO->wet_perimeter_main << " "
+    << pHO->wet_perimeter_rob << " "
+    << pHO->energy_total << " "
+    << pHO->velocity_head << " "
+    << pHO->froude << " "
+    << pHO->sf << " "
+    << pHO->sf_avg << " "
+    << pHO->sbed << " "
+    << pHO->length_effective << " "
+    << pHO->head_loss << " "
+    << pHO->manning_lob << " "
+    << pHO->manning_main << " "
+    << pHO->manning_rob << " "
+    << pHO->manning_composite << " "
+    << pHO->k_total_areaconv << " "
+    << pHO->k_total_roughconv << " "
+    << pHO->k_total_disconv << " "
+    << pHO->alpha_areaconv << " "
+    << pHO->alpha_roughconv << " "
+    << pHO->alpha_disconv << " "
+    << pHO->nc_equalforce << " "
+    << pHO->nc_equalvelocity << " "
+    << pHO->nc_wavgwp << " "
+    << pHO->nc_wavgarea << " "
+    << pHO->nc_wavgconv << " "
+    << pHO->depth_critical << " "
+    << pHO->cp_iterations << " "
+    << pHO->k_err << " "
+    << pHO->ws_err << " "
+    << pHO->length_energyloss << " "
+    << pHO->length_effectiveadjusted
+    << "\n";
+    }
+ 
+    os << ":EndPreprocHydTable\n";
 }
 
 // Destructor

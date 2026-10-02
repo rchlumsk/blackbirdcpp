@@ -153,6 +153,12 @@ int main(int argc, char* argv[])
     pModel->update_hydraulic_structures();
   }
 
+  if (pOptions->write_structure_properties) {
+    std::string tmpFilename = pModel->FilenamePrepare("preproc_structure_hydtables.bbg");
+    std::ofstream HYDSTRUC_OUTPUT(tmpFilename.c_str());
+    pModel->write_structure_preproc_hyd_tables(HYDSTRUC_OUTPUT);
+  }
+
   t1 = clock();
   
   // Compute hydraulic profile for all streamnodes

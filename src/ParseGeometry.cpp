@@ -1387,9 +1387,9 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
                     if (Len < 2) { pp->ImproperFormat(s); }
                     hs.barrels = std::stoi(s[1]);
                 }
-                else if (!strcmp(s[0], ":DeckHeight")) {
+                else if (!strcmp(s[0], ":DeckThickness")) {
                     if (Len < 2) { pp->ImproperFormat(s); }
-                    hs.deck_height = std::stod(s[1]);
+                    hs.deck_thickness = std::stod(s[1]);
                 }
                 else if (!strcmp(s[0], ":BottomHeight")) {
                     if (Len < 2) { pp->ImproperFormat(s); }
@@ -1399,9 +1399,9 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
                     if (Len < 2) { pp->ImproperFormat(s); }
                     hs.structure_manning_roughness = std::stod(s[1]);
                 }
-                else if (!strcmp(s[0], ":LengthOverride")) {
+                else if (!strcmp(s[0], ":Length")) {
                     if (Len < 2) { pp->ImproperFormat(s); }
-                    hs.length_override = std::stod(s[1]);
+                    hs.length= std::stod(s[1]);
                 }
                 else if (!strcmp(s[0], ":Width")) {
                     if (Len < 2) { pp->ImproperFormat(s); }
@@ -1432,6 +1432,18 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
                 else if (!strcmp(s[0], ":PressureFlowCoeff")) {
                     if (Len < 2) { pp->ImproperFormat(s); }
                     hs.press_coeff = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":WeirCoeff")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.weir_discharge_coeff = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":OrificeCoeff")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.orifice_discharge_coeff = std::stod(s[1]);
+                }
+                else if (!strcmp(s[0], ":SluiceCoeff")) {
+                    if (Len < 2) { pp->ImproperFormat(s); }
+                    hs.sluice_discharge_coeff = std::stod(s[1]);
                 }
                 else if (!strcmp(s[0], ":EndHydraulicStructure")) {
                     done = true;

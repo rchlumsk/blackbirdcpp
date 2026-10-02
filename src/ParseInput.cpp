@@ -163,6 +163,8 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":SpillFlowDeltaThresholdMinVal")) { code = 42; }
 
     else if (!strcmp(s[0], ":InterpMethod"))                { code = 45; }
+    else if (!strcmp(s[0], ":WriteStructureProperties"))    { code = 46; }
+
 
 
     //-------------------- CALIBRATION PARAMETER ------------------------
@@ -548,6 +550,13 @@ bool ParseMainInputFile(CModel*& pModel,
       else { ExitGracefully("ParseMainInputFile: unrecognized InterpMethod. options are: INTERP_RASTER or POURPOINT_SHP", exitcode::BAD_DATA); }
       break;
     } 
+    case (46): { /*:WriteStructureProperties*/
+      if (pOptions->noisy_run) {
+        std::cout << "WriteStructureProperties: writing updated structure pre-processed properties enabled" << std::endl;
+      }
+      pOptions->write_structure_properties = true;
+      break;
+    }
     case(100):
     {/*:RoughnessMultiplier [double mult]*/
       if (pOptions->noisy_run) { std::cout << "RoughnessMultiplier" << std::endl; }

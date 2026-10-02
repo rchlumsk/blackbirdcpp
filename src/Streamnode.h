@@ -76,6 +76,8 @@ public:
 
   void allocate_flowprofiles(int num_fp);   // if needed, allocates space in flowprofile related variables
 
+  void write_preproc_hyd_table(std::ostream &os) const;                                               // writes out property tables back to file (used in debugging structures)
+
   // Virtual Functions
   virtual void compute_basic_depth_properties(double wsl, COptions *&bbopt) {};                       // compute basic streamnode depth properties
   virtual void compute_basic_flow_properties(double flow, COptions *&bbopt) {};                       // compute basic streamnode flow properties

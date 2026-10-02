@@ -833,6 +833,15 @@ void CModel::update_hydraulic_structures()
 
         size_t N = df.size();
 
+        double n_bed = 0.035;
+        hydraulic_output* firstrow = df[0];
+        n_bed = firstrow->manning_composite;
+
+        // check optional length argument - set to upstream reach length if not provided
+        if (hs.length < 0) {
+          hs.length = pSN->us_reach_length1;          
+        }
+
         if (N == 0)
         {
             std::string error =
@@ -852,6 +861,8 @@ void CModel::update_hydraulic_structures()
         std::vector<double> K_base(N);
         std::vector<double> hR_base(N);
         std::vector<double> mann_base(N);
+        std::vector<double> leff(N);
+        std::vector<double> leffadj(N);
 
         for (size_t i = 0; i < N; ++i)
         {
@@ -864,6 +875,8 @@ void CModel::update_hydraulic_structures()
             K_base[i]       = row->k_total;
             hR_base[i]      = row->hradius;
             mann_base[i]    = row->manning_composite;
+            leff[i]         = row->length_effective;
+            leffadj[i]      = row->length_effectiveadjusted;
         }
 
         // New geometry arrays
@@ -878,7 +891,6 @@ void CModel::update_hydraulic_structures()
         int idx_top_opening = -1;
         int idx_deck = -1;
 
-
         // Structure to do list ===============
         // xxx consider setting the properties to be the max of the properties here and the original?
         // xxx update manning roughness handling, dont need gravel, take the baseline nc and use that, blend with structure sides
@@ -889,7 +901,7 @@ void CModel::update_hydraulic_structures()
         if (hs.type == enum_struc_type::BRIDGE)
         {
             double H = hs.height;
-            double deck = hs.deck_height;
+            double deck = hs.deck_thickness;
 
             for (size_t i = 0; i < N; ++i)
             {
@@ -901,7 +913,7 @@ void CModel::update_hydraulic_structures()
         {
             double R = hs.diameter / 2.0;
             double bottom = hs.bottom_height;
-            double deck = hs.deck_height;
+            double deck = hs.deck_thickness;
 
             for (size_t i = 0; i < N; ++i)
             {
@@ -919,15 +931,18 @@ void CModel::update_hydraulic_structures()
             {
                 double W = hs.width;
                 double H = hs.height;
-                double deck = hs.deck_height;
+                double deck = hs.deck_thickness;
 
                 double n_channel = mann_base[i];
                 double n_channel_top = (idx_top_opening >= 0 ? mann_base[idx_top_opening] : n_channel);
-                double n_conc = 0.015;
-                double n_gravel = 0.02;
+                double n_conc = hs.structure_manning_roughness;
 
                 if (d < H)
                 {
+                    // set lengths to static structure length
+                    leff[i] = hs.length;
+                    leffadj[i] = hs.length;
+
                     new_topw[i] = W;
                     new_area[i] = d * W;
                     new_perim[i] = W + 2*d;
@@ -939,6 +954,10 @@ void CModel::update_hydraulic_structures()
                 }
                 else if (d == H)
                 {
+                    // set lengths to static structure length
+                    leff[i] = hs.length;
+                    leffadj[i] = hs.length;
+
                     new_topw[i] = W;
                     new_area[i] = d * W;
                     new_perim[i] = 2*W + 2*d;
@@ -950,6 +969,10 @@ void CModel::update_hydraulic_structures()
                 }
                 else if (d < H + deck)
                 {
+                    // set lengths to static structure length
+                    leff[i] = hs.length;
+                    leffadj[i] = hs.length;
+
                     new_topw[i] = 0;
                     new_area[i] = W * H;
                     new_perim[i] = 2*W + 2*H;
@@ -961,17 +984,31 @@ void CModel::update_hydraulic_structures()
                 }
                 else
                 {
+
+                    // compute weighted average of new effective length once overtopped
+                    double length_ww = 0.0;
+                    if (d > H + deck + hs.height) {
+                      length_ww = 1.0;
+                    } else {
+                      length_ww = (d - H - deck) / hs.height; // close to zero if just over threshold, close to 1 if quite deep
+                    }
+
+                    double length_ratio = leff[i] / (hs.length*(1-length_ww) + leff[i]*length_ww); // ratio to use in adjusting properties, original leff / proposed leff
+                    
+                    // set lengths to static structure length
+                    leff[i] = hs.length*(1-length_ww) + leff[i]*length_ww; // make this a weighted average instead
+                    leffadj[i] = leff[i];
+
                     double A_base = area_base[i];
                     double A_deck = (idx_deck >= 0 ? area_base[idx_deck] : 0.0);
+                    new_area[i] = (A_base - A_deck)*length_ratio + W*H;
 
-                    new_topw[i] = topw_base[i];
-                    new_area[i] = A_base - A_deck + W*H;
+                    new_topw[i] = topw_base[i]*length_ratio;                    
 
                     double P_base = perim_base[i];
                     double P_deck = (idx_deck >= 0 ? perim_base[idx_deck] : 0.0);
                     double TW_deck = (idx_deck >= 0 ? topw_base[idx_deck] : 0.0);
-
-                    new_perim[i] = P_base + TW_deck - P_deck + (2*W + 2*H);
+                    new_perim[i] = (P_base + TW_deck - P_deck)*length_ratio + (2*W + 2*H);
 
                     double n_base = mann_base[i];
 
@@ -979,26 +1016,26 @@ void CModel::update_hydraulic_structures()
                         (
                             (2*H + W)*std::pow(n_conc,1.5) +
                             (W + P_base - P_deck)*std::pow(n_base,1.5) +
-                            TW_deck*std::pow(n_gravel,1.5)
+                            TW_deck*std::pow(n_bed,1.5)
                         ) / new_perim[i],
                         2.0/3.0);
                 }
 
-                new_hR[i] = (new_perim[i] == 0 ? 0 : new_area[i] / new_perim[i]);
-                new_K[i] = (new_mann[i] == 0 ? 0 :
-                            (new_area[i] * std::pow(new_hR[i], 2.0/3.0)) / new_mann[i]);
+                // new_hR[i] = (new_perim[i] == 0 ? 0 : new_area[i] / new_perim[i]);
+                // new_K[i] = (new_mann[i] == 0 ? 0 :
+                            // (new_area[i] * std::pow(new_hR[i], 2.0/3.0)) / new_mann[i]);
             }
             else if (hs.type == enum_struc_type::CULVERT_CIRCULAR)
             {
+
                 double R = hs.diameter / 2.0;
                 double bottom = hs.bottom_height;
-                double deck = hs.deck_height;
+                double deck = hs.deck_thickness;
                 int B = hs.barrels;
 
                 double n_channel = mann_base[i];
                 double n_channel_top = (idx_top_opening >= 0 ? mann_base[idx_top_opening] : n_channel);
-                double n_conc = 0.015;
-                double n_gravel = 0.02;
+                double n_conc = hs.structure_manning_roughness; // xxx update to remove this 
 
                 if (d <= bottom)
                 {
@@ -1036,19 +1073,34 @@ void CModel::update_hydraulic_structures()
                 }
                 else
                 {
+
+                    // compute weighted average of new effective length once overtopped
+                    double length_ww = 0.0;
+                    if (d > deck + hs.diameter) {
+                      length_ww = 1.0;
+                    } else {
+                      length_ww = (d - deck) / hs.diameter; // close to zero if just over threshold, close to 1 if quite deep
+                    }
+
+                    double length_ratio = leff[i] / (hs.length*(1-length_ww) + leff[i]*length_ww); // ratio to use in adjusting properties, original leff / proposed leff
+                    
+                    // set lengths to static structure length
+                    leff[i] = hs.length*(1-length_ww) + leff[i]*length_ww; // make this a weighted average instead
+                    leffadj[i] = leff[i];
+
                     theta[i] = 0;
 
                     double A_base = area_base[i];
                     double A_deck = (idx_deck >= 0 ? area_base[idx_deck] : 0.0);
+                    new_area[i] = (A_base - A_deck)*length_ratio + B * M_PI * R*R;
 
-                    new_area[i] = A_base - A_deck + B * M_PI * R*R;
-                    new_topw[i] = topw_base[i];
+                    new_topw[i] = topw_base[i]*length_ratio;
 
                     double P_base = perim_base[i];
                     double P_deck = (idx_deck >= 0 ? perim_base[idx_deck] : 0.0);
                     double TW_deck = (idx_deck >= 0 ? topw_base[idx_deck] : 0.0);
 
-                    new_perim[i] = P_base - P_deck + B * 2*M_PI * R + TW_deck;
+                    new_perim[i] = (P_base - P_deck + TW_deck)*length_ratio + B * 2*M_PI * R ;
 
                     double n_base = mann_base[i];
 
@@ -1056,14 +1108,14 @@ void CModel::update_hydraulic_structures()
                         (
                             (B * 2*M_PI * R)*std::pow(n_conc,1.5) +
                             (P_base - P_deck)*std::pow(n_base,1.5) +
-                            TW_deck*std::pow(n_gravel,1.5)
+                            TW_deck*std::pow(n_bed,1.5)
                         ) / new_perim[i],
                         2.0/3.0);
                 }
 
-                new_hR[i] = (new_perim[i] == 0 ? 0 : new_area[i] / new_perim[i]);
-                new_K[i] = (new_mann[i] == 0 ? 0 :
-                            (new_area[i] * std::pow(new_hR[i], 2.0/3.0)) / new_mann[i]);
+                // new_hR[i] = (new_perim[i] == 0 ? 0 : new_area[i] / new_perim[i]);
+                // new_K[i] = (new_mann[i] == 0 ? 0 :
+                      //       (new_area[i] * std::pow(new_hR[i], 2.0/3.0)) / new_mann[i]);
             }
         }
 
@@ -1075,12 +1127,13 @@ void CModel::update_hydraulic_structures()
             row->top_width         = new_topw[i];
             row->area              = new_area[i];
             row->wet_perimeter     = new_perim[i];
-            row->hradius           = new_hR[i];
-            row->k_total           = new_K[i];
+            row->hradius           = (row->wet_perimeter == 0 ? 0 : row->area / row->wet_perimeter); // updated from other info
             row->manning_composite = new_mann[i];
+            row->k_total           = (new_mann[i] == 0 ? 0 : (new_area[i] * std::pow(new_hR[i], 2.0/3.0)) / new_mann[i]);
+            row->length_effective  = leff[i];
+            row->length_effectiveadjusted = leffadj[i];
+            row->hyd_depth =  (row->top_width == 0 ? 0 : row->area / row->top_width); // updated from other info
 
-            // xxx may need to update length and recalc
-            // may need to do more here
             // xxx will want to update roughness handling
 
             // Only culverts use theta
@@ -1697,6 +1750,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
         // Zero all hydraulic properties
         sn->mm->velocity = 0.0;
         sn->mm->velocity_head = 0.0;
+        sn->mm->pressure_head = 0.0;
         sn->mm->energy_total = sn->mm->wsl;
         sn->mm->froude = 0.0;
         sn->mm->sf = 0.0;
@@ -1815,6 +1869,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
             sn->compute_profile_next(sn->mm->flow, sn->mm->wsl, down_sn->mm, bbopt);
 
             double max_depth_change = std::max(0.5 * sn->mm->depth, 0.5);
+            // xxx adjsut by adding pressure head?
             double comp_wsl = down_sn->mm->wsl + down_sn->mm->velocity_head +
                               sn->mm->head_loss - sn->mm->velocity_head;
 
@@ -2222,6 +2277,7 @@ ExhaustiveWSLResult CModel::solve_wsl_exhaustive(
         if (sn_down->mm->velocity_head > velheads[i]) {
             losscoeff[i] = sn_up->contraction_coeff;
         }
+        // xxx integrate pressure head?
         headloss[i] =
             row->length_effective * sfbar[i] +
             losscoeff[i] * std::abs(velheads[i] - sn_down->mm->velocity_head);
@@ -3722,6 +3778,25 @@ void CModel::restore_headwater_flows() {
         if (!sn->upstream_flows.empty() && sn->upstream_flows[0] == HEADWATER) {
             sn->output_flows = snapshot[idx].output_flows;
             idx++;
+        }
+    }
+}
+
+/// brief writes the structure properties to file
+void CModel::write_structure_preproc_hyd_tables(std::ostream& os) const
+{
+    if (bbsn == nullptr) {
+    return;
+    }
+    for (const auto* pSN : *bbsn)
+    {
+        if (pSN == nullptr) {
+        continue;
+        }
+        if (pSN->is_structure)
+        {
+        pSN->write_preproc_hyd_table(os);
+        os << "\n";
         }
     }
 }
