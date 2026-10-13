@@ -836,6 +836,7 @@ void CModel::update_hydraulic_structures()
         double n_bed = 0.035;
         hydraulic_output* firstrow = df[0];
         n_bed = firstrow->manning_composite;
+        double n_conc = hs.structure_manning_roughness;
 
         // check optional length argument - set to upstream reach length if not provided
         if (hs.length < 0) {
@@ -861,8 +862,8 @@ void CModel::update_hydraulic_structures()
         std::vector<double> K_base(N);
         std::vector<double> hR_base(N);
         std::vector<double> mann_base(N);
-        std::vector<double> leff(N);
-        std::vector<double> leffadj(N);
+        std::vector<double> leff_base(N);
+        // std::vector<double> leffadj_base(N);
 
         for (size_t i = 0; i < N; ++i)
         {
@@ -875,8 +876,8 @@ void CModel::update_hydraulic_structures()
             K_base[i]       = row->k_total;
             hR_base[i]      = row->hradius;
             mann_base[i]    = row->manning_composite;
-            leff[i]         = row->length_effective;
-            leffadj[i]      = row->length_effectiveadjusted;
+            leff_base[i]    = row->length_effective;
+            // leffadj_base[i]      = row->length_effectiveadjusted;
         }
 
         // New geometry arrays
@@ -884,9 +885,10 @@ void CModel::update_hydraulic_structures()
         std::vector<double> new_perim(N,0.0);
         std::vector<double> new_topw(N,0.0);
         std::vector<double> new_K(N,0.0);
-        std::vector<double> new_hR(N,0.0);
+        //std::vector<double> new_hR(N,0.0);
         std::vector<double> new_mann(N,0.0);
         std::vector<double> theta(N,0.0);
+        std::vector<double> new_leff(N,0.0);
 
         int idx_top_opening = -1;
         int idx_deck = -1;
@@ -903,11 +905,15 @@ void CModel::update_hydraulic_structures()
             double H = hs.height;
             double deck = hs.deck_thickness;
 
-            for (size_t i = 0; i < N; ++i)
-            {
-                if (depth[i] == H) idx_top_opening = (int)i;
-                if (depth[i] == H + deck) idx_deck = (int)i;
-            }
+            auto it = std::lower_bound(depth.begin(), depth.end(), H);
+
+            if (it != depth.end())
+                idx_top_opening = (int)std::distance(depth.begin(), it);
+
+            it = std::lower_bound(depth.begin(), depth.end(), H + deck);
+
+            if (it != depth.end())
+                idx_deck = (int)std::distance(depth.begin(), it);
         }
         else if (hs.type == enum_struc_type::CULVERT_CIRCULAR)
         {
@@ -917,8 +923,8 @@ void CModel::update_hydraulic_structures()
 
             for (size_t i = 0; i < N; ++i)
             {
-                if (depth[i] == bottom + 2*R) idx_top_opening = (int)i;
-                if (depth[i] == deck) idx_deck = (int)i;
+                if (depth[i] >= bottom + 2*R) idx_top_opening = (int)i;
+                if (depth[i] >= deck) idx_deck = (int)i;
             }
         }
 
@@ -932,18 +938,16 @@ void CModel::update_hydraulic_structures()
                 double W = hs.width;
                 double H = hs.height;
                 double deck = hs.deck_thickness;
-
                 double n_channel = mann_base[i];
                 double n_channel_top = (idx_top_opening >= 0 ? mann_base[idx_top_opening] : n_channel);
-                double n_conc = hs.structure_manning_roughness;
+                
 
                 if (d < H)
                 {
                     // set lengths to static structure length
-                    leff[i] = hs.length;
-                    leffadj[i] = hs.length;
+                    new_leff[i] = hs.length;
 
-                    new_topw[i] = W;
+                    new_topw[i] = W; // std::min(W, 
                     new_area[i] = d * W;
                     new_perim[i] = W + 2*d;
 
@@ -955,8 +959,7 @@ void CModel::update_hydraulic_structures()
                 else if (d == H)
                 {
                     // set lengths to static structure length
-                    leff[i] = hs.length;
-                    leffadj[i] = hs.length;
+                    new_leff[i] = hs.length;
 
                     new_topw[i] = W;
                     new_area[i] = d * W;
@@ -970,10 +973,9 @@ void CModel::update_hydraulic_structures()
                 else if (d < H + deck)
                 {
                     // set lengths to static structure length
-                    leff[i] = hs.length;
-                    leffadj[i] = hs.length;
+                    new_leff[i] = hs.length;
 
-                    new_topw[i] = 0;
+                    new_topw[i] = W;
                     new_area[i] = W * H;
                     new_perim[i] = 2*W + 2*H;
 
@@ -984,39 +986,52 @@ void CModel::update_hydraulic_structures()
                 }
                 else
                 {
+                   ExitGracefullyIf(i < 1, "Insufficient points in the preprocess hyd table",RUNTIME_ERR);
 
-                    // compute weighted average of new effective length once overtopped
-                    double length_ww = 0.0;
-                    if (d > H + deck + hs.height) {
-                      length_ww = 1.0;
-                    } else {
-                      length_ww = (d - H - deck) / hs.height; // close to zero if just over threshold, close to 1 if quite deep
+                    // compute new area based on old properties ----
+                    double A_base_diff = area_base[i] - area_base[i-1]; // incremental difference in area from base properties at the deck
+
+                    // check differences in depth curve and depth threshold at H+deck, account for that proportional to depth as estimate
+                    // only relevant within one step of the idx_top_opening
+                    if (depth[i - 1] < H+deck) {
+                      A_base_diff =
+                          A_base_diff * ((depth[i] - (H+deck)) / (depth[i] - depth[i-1]));
                     }
 
-                    double length_ratio = leff[i] / (hs.length*(1-length_ww) + leff[i]*length_ww); // ratio to use in adjusting properties, original leff / proposed leff
+                    // correct area for any discrepancy in leff_base[i] / hs.length
+                    A_base_diff = A_base_diff * leff_base[i] / hs.length;
                     
-                    // set lengths to static structure length
-                    leff[i] = hs.length*(1-length_ww) + leff[i]*length_ww; // make this a weighted average instead
-                    leffadj[i] = leff[i];
+                    new_area[i] = A_base_diff + new_area[i-1];      // previous area plus incremental difference
+                    double A_structure = new_area[idx_top_opening]; // area through the structure, used for weighing length
+                    double A_natural = new_area[i] - A_structure;   // overtopping flow area, used for weighing length
+                    // ----
 
-                    double A_base = area_base[i];
-                    double A_deck = (idx_deck >= 0 ? area_base[idx_deck] : 0.0);
-                    new_area[i] = (A_base - A_deck)*length_ratio + W*H;
+                    // estimate the new effective length (leff=Hs.length for everything less than H+deck)
+                    // will be close to the structure length if most area is through the structure, and approach the leff_base for larger depths
+                    new_leff[i] = (leff_base[i]*A_natural + hs.length*A_structure) / new_area[i];
 
-                    new_topw[i] = topw_base[i]*length_ratio;                    
+                    // compute the new wetted perimeter
+                    double P_structure = (2 * W + 2 * H) + topw_base[idx_top_opening];
+                    double P_base_diff = perim_base[i] - perim_base[i - 1];
 
-                    double P_base = perim_base[i];
-                    double P_deck = (idx_deck >= 0 ? perim_base[idx_deck] : 0.0);
-                    double TW_deck = (idx_deck >= 0 ? topw_base[idx_deck] : 0.0);
-                    new_perim[i] = (P_base + TW_deck - P_deck)*length_ratio + (2*W + 2*H);
+                    // check differences in depth curve and depth threshold at H+deck, account for that proportional to depth as estimate
+                    // only relevant within one step of the idx_top_opening
+                    if (depth[i - 1] < H+deck) {
+                      P_base_diff =
+                          P_base_diff * ((depth[i] - (H+deck)) / (depth[i] - depth[i-1]));
+                    }
 
-                    double n_base = mann_base[i];
+                    // correct area for any discrepancy in leff_base[i] / hs.length
+                    P_base_diff = P_base_diff * leff_base[i] / hs.length;
+                    new_perim[i] = P_base_diff + P_structure;
+
+                    // calculate new top width
+                    new_topw[i] = topw_base[i] * leff_base[i] / hs.length;
 
                     new_mann[i] = std::pow(
                         (
-                            (2*H + W)*std::pow(n_conc,1.5) +
-                            (W + P_base - P_deck)*std::pow(n_base,1.5) +
-                            TW_deck*std::pow(n_bed,1.5)
+                            P_structure*std::pow(n_conc,1.5) + // concrete/ road wetted perimeter and n_concrete
+                            P_base_diff * std::pow(mann_base[i],1.5) // baseline roughness and natural new wetted perimeter
                         ) / new_perim[i],
                         2.0/3.0);
                 }
@@ -1026,6 +1041,8 @@ void CModel::update_hydraulic_structures()
                             // (new_area[i] * std::pow(new_hR[i], 2.0/3.0)) / new_mann[i]);
             }
             else if (hs.type == enum_struc_type::CULVERT_CIRCULAR)
+
+                // xxx note: all circular culvert properties need to be updated 
             {
 
                 double R = hs.diameter / 2.0;
@@ -1044,7 +1061,7 @@ void CModel::update_hydraulic_structures()
                     new_perim[i] = 0;
                     new_topw[i] = 0;
                     new_mann[i] = 0;
-                    new_hR[i] = 0;
+                    //new_hR[i] = 0;
                     new_K[i] = 0;
                 }
                 else if (d < bottom + 2*R)
@@ -1082,11 +1099,10 @@ void CModel::update_hydraulic_structures()
                       length_ww = (d - deck) / hs.diameter; // close to zero if just over threshold, close to 1 if quite deep
                     }
 
-                    double length_ratio = leff[i] / (hs.length*(1-length_ww) + leff[i]*length_ww); // ratio to use in adjusting properties, original leff / proposed leff
+                    double length_ratio = leff_base[i] / (hs.length*(1-length_ww) + leff_base[i]*length_ww); // ratio to use in adjusting properties, original leff / proposed leff
                     
                     // set lengths to static structure length
-                    leff[i] = hs.length*(1-length_ww) + leff[i]*length_ww; // make this a weighted average instead
-                    leffadj[i] = leff[i];
+                    new_leff[i] = hs.length*(1-length_ww) + leff_base[i]*length_ww; // make this a weighted average instead
 
                     theta[i] = 0;
 
@@ -1129,9 +1145,9 @@ void CModel::update_hydraulic_structures()
             row->wet_perimeter     = new_perim[i];
             row->hradius           = (row->wet_perimeter == 0 ? 0 : row->area / row->wet_perimeter); // updated from other info
             row->manning_composite = new_mann[i];
-            row->k_total           = (new_mann[i] == 0 ? 0 : (new_area[i] * std::pow(new_hR[i], 2.0/3.0)) / new_mann[i]);
-            row->length_effective  = leff[i];
-            row->length_effectiveadjusted = leffadj[i];
+            row->k_total           = (new_mann[i] == 0 ? 0 : (new_area[i] * std::pow(row->hradius, 2.0/3.0)) / new_mann[i]);
+            row->length_effective  = new_leff[i];
+            row->length_effectiveadjusted = new_leff[i];
             row->hyd_depth =  (row->top_width == 0 ? 0 : row->area / row->top_width); // updated from other info
 
             // xxx will want to update roughness handling
