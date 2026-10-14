@@ -836,7 +836,7 @@ void CModel::update_hydraulic_structures()
         double n_bed = 0.035;
         hydraulic_output* firstrow = df[0];
         n_bed = firstrow->manning_composite;
-        double n_conc = hs.structure_manning_roughness;
+        // double n_structure = hs.structure_manning_roughness;
 
         // check optional length argument - set to upstream reach length if not provided
         if (hs.length < 0) {
@@ -885,7 +885,7 @@ void CModel::update_hydraulic_structures()
         std::vector<double> new_perim(N,0.0);
         std::vector<double> new_topw(N,0.0);
         std::vector<double> new_K(N,0.0);
-        //std::vector<double> new_hR(N,0.0);
+        std::vector<double> new_hr(N,0.0);
         std::vector<double> new_mann(N,0.0);
         std::vector<double> theta(N,0.0);
         std::vector<double> new_leff(N,0.0);
@@ -947,44 +947,78 @@ void CModel::update_hydraulic_structures()
                     // set lengths to static structure length
                     new_leff[i] = hs.length;
 
-                    new_topw[i] = W; // std::min(W, 
-                    new_area[i] = d * W;
-                    new_perim[i] = W + 2*d;
+                    new_topw[i] = std::min(W, topw_base[i]);
+                    new_area[i] = std::min(d * W, area_base[i]);
+                    double P_structure = 2*d;
+                    double P_natural = std::min(perim_base[i], W);
+                    // if existing perim less than d*W, indicates bathymetry is not rectangular and water may not be in contact yet
+                    // if perim_base[i] < d*W,
+                    /* if (perim_base[i] < 2 * d + W) { 
+                      P_structure = 2*d;
+                      P_natural = std::min(perim_base[i], W);
+                    }*/
+                    new_perim[i] = P_structure + P_natural; //  std::min(W + 2*d, perim_base[i]);
+                    new_hr[i] = (new_perim[i] > 0.0) ? (new_area[i] / new_perim[i]) : 0.0;
 
+                    // new_topw[i] = W; // std::min(W, topw_base[i]);
+                    // new_area[i] = d*W; // std::min(d * W, area_base[i]);
+                    // new_perim[i] = W + 2*d; // std::min(W + 2*d, perim_base[i]);
+                    // new_perim[i] = perim_base[i] + 2*d; // std::min(W + 2*d, perim_base[i]);
+
+                    // breakdown for different methods (equal force, equal velocity, inverse_mannings, etc.)
                     new_mann[i] = std::pow(
-                        ((2*d)*std::pow(n_conc,1.5) +
-                         W*std::pow(n_channel,1.5)) / new_perim[i],
+                        ( P_structure*std::pow(hs.structure_manning_roughness,1.5) +
+                          P_natural*std::pow(n_channel,1.5) ) / new_perim[i],
                         2.0/3.0);
-                }
-                else if (d == H)
-                {
-                    // set lengths to static structure length
-                    new_leff[i] = hs.length;
 
-                    new_topw[i] = W;
-                    new_area[i] = d * W;
-                    new_perim[i] = 2*W + 2*d;
+                    if (!(new_mann[i] >= 0.0 && std::isfinite(new_mann[i]))) {
+                      new_mann[i] = mann_base[i];
+                    }
 
-                    new_mann[i] = std::pow(
-                        (((2*d + W)*std::pow(n_conc,1.5)) +
-                          W*std::pow(n_channel_top,1.5)) / new_perim[i],
-                        2.0/3.0);
+                    // calc conveyance based flow through structure
+                    new_K[i] = std::max(0.0, new_area[i] * std::pow(new_hr[i], 2.0/3.0) / new_mann[i]); 
                 }
                 else if (d < H + deck)
                 {
                     // set lengths to static structure length
                     new_leff[i] = hs.length;
 
-                    new_topw[i] = W;
-                    new_area[i] = W * H;
-                    new_perim[i] = 2*W + 2*H;
+                    // new_topw[i] = W; // std::min(W, topw_base[i]);
+                    // new_area[i] = H*W; //std::min(H * W, area_base[i]);
+
+                    // new_topw[i] = std::min(W, topw_base[i]);
+                    new_topw[i] = std::max(W, topw_base[i]);
+
+                    new_area[i] = std::min(H * W, area_base[i]);
+                    // new_perim[i] = 2*W + 2*H; //  std::min(2*W + 2*H, perim_base[i]);
+
+                    double P_structure = 2*H+W;
+                    double P_natural = std::min(perim_base[i], W);
+                    // if existing perim less than W+2*H, indicates bathymetry is not rectangular and water may not be in contact yet
+                    // if perim_base[i] < d*W,
+                    /* if (perim_base[i] < W + 2 * H) { 
+                      P_structure = 2*H;
+                      P_natural = std::min(perim_base[i], 2*W);
+                    }*/
+                    new_perim[i] = P_structure + P_natural; //  std::min(W + 2*d, perim_base[i]);
+                    //new_perim[i] = perim_base[i] + W + 2*H; //  std::min(2*W + 2*H, perim_base[i]);
+                    new_hr[i] = (new_perim[i] > 0.0) ? (new_area[i] / new_perim[i]) : 0.0;
 
                     new_mann[i] = std::pow(
-                        (((2*H + W)*std::pow(n_conc,1.5)) +
-                          W*std::pow(n_channel_top,1.5)) / new_perim[i],
+                        ( P_structure*std::pow(hs.structure_manning_roughness,1.5) +
+                          P_natural*std::pow(n_channel,1.5) ) / new_perim[i],
                         2.0/3.0);
+
+                    if (!(new_mann[i] >= 0.0 && std::isfinite(new_mann[i]))) {
+                      new_mann[i] = mann_base[i];
+                    }
+
+                    // calc conveyance based on roughness from selected method
+                    new_K[i] = std::max(0.0, new_area[i] * std::pow(new_hr[i], 2.0/3.0) / new_mann[i]);
+                    // (new_mann[i] == 0 ? 0 : (new_area[i] * std::pow(new_hr[i], 2.0/3.0)) / new_mann[i]);
+
                 }
-                else
+                else // depth exceeds the deck, overtopping is occuring
                 {
                    ExitGracefullyIf(i < 1, "Insufficient points in the preprocess hyd table",RUNTIME_ERR);
 
@@ -1011,29 +1045,43 @@ void CModel::update_hydraulic_structures()
                     new_leff[i] = (leff_base[i]*A_natural + hs.length*A_structure) / new_area[i];
 
                     // compute the new wetted perimeter
-                    double P_structure = (2 * W + 2 * H) + topw_base[idx_top_opening];
-                    double P_base_diff = perim_base[i] - perim_base[i - 1];
+                    // xxx need to fix how this is computed - should just take the perimeter at idx_top_opening combined with mannn then, and blend with next
+                    // double P_structure = (2 * W + 2 * H) + topw_base[idx_top_opening];
+                    // double P_base_diff = perim_base[i] - perim_base[i - 1];
+
+
+                    double P_structure = new_perim[idx_top_opening];
+                    double P_natural = perim_base[i] - perim_base[i - 1];
+
 
                     // check differences in depth curve and depth threshold at H+deck, account for that proportional to depth as estimate
                     // only relevant within one step of the idx_top_opening
                     if (depth[i - 1] < H+deck) {
-                      P_base_diff =
-                          P_base_diff * ((depth[i] - (H+deck)) / (depth[i] - depth[i-1]));
+                      P_natural =
+                          P_natural * ((depth[i] - (H+deck)) / (depth[i] - depth[i-1]));
                     }
 
                     // correct area for any discrepancy in leff_base[i] / hs.length
-                    P_base_diff = P_base_diff * leff_base[i] / hs.length;
-                    new_perim[i] = P_base_diff + P_structure;
+                    P_natural = P_natural * leff_base[i] / hs.length;
+                    new_perim[i] = P_natural + P_structure;
 
                     // calculate new top width
                     new_topw[i] = topw_base[i] * leff_base[i] / hs.length;
+                    new_hr[i] = (new_perim[i] > 0.0) ? (new_area[i] / new_perim[i]) : 0.0;
 
                     new_mann[i] = std::pow(
                         (
-                            P_structure*std::pow(n_conc,1.5) + // concrete/ road wetted perimeter and n_concrete
-                            P_base_diff * std::pow(mann_base[i],1.5) // baseline roughness and natural new wetted perimeter
+                            P_structure*std::pow(new_mann[idx_top_opening],1.5) + // roughness computed at top opening
+                            P_natural * std::pow(mann_base[i],1.5) // baseline roughness and natural new wetted perimeter
                         ) / new_perim[i],
                         2.0/3.0);
+
+                    if (!(new_mann[i] >= 0.0 && std::isfinite(new_mann[i]))) {
+                      new_mann[i] = mann_base[i];
+                    }
+
+                    // calc conveyance based on roughness from selected method
+                    new_K[i] = std::max(0.0, new_area[i] * std::pow(new_hr[i], 2.0/3.0) / new_mann[i]); 
                 }
 
                 // new_hR[i] = (new_perim[i] == 0 ? 0 : new_area[i] / new_perim[i]);
@@ -1052,7 +1100,7 @@ void CModel::update_hydraulic_structures()
 
                 double n_channel = mann_base[i];
                 double n_channel_top = (idx_top_opening >= 0 ? mann_base[idx_top_opening] : n_channel);
-                double n_conc = hs.structure_manning_roughness; // xxx update to remove this 
+                // double n_conc = hs.structure_manning_roughness; // xxx update to remove this 
 
                 if (d <= bottom)
                 {
@@ -1069,7 +1117,7 @@ void CModel::update_hydraulic_structures()
                     theta[i] = std::acos(1 - (d - bottom)/R);
                     new_area[i] = B * R*R * (theta[i] - std::sin(theta[i]))/2.0;
                     new_perim[i] = B * theta[i] * R;
-                    new_mann[i] = n_conc;
+                    new_mann[i] = hs.structure_manning_roughness;
                     new_topw[i] = B * 2*R * std::sin(theta[i]);
                 }
                 else if (d == bottom + 2*R)
@@ -1077,7 +1125,7 @@ void CModel::update_hydraulic_structures()
                     theta[i] = std::acos(1 - (d - bottom)/R);
                     new_area[i] = B * M_PI * R*R;
                     new_perim[i] = B * 2*M_PI * R;
-                    new_mann[i] = n_conc;
+                    new_mann[i] = hs.structure_manning_roughness;
                     new_topw[i] = 0;
                 }
                 else if (d < deck)
@@ -1085,7 +1133,7 @@ void CModel::update_hydraulic_structures()
                     theta[i] = 0;
                     new_area[i] = B * M_PI * R*R;
                     new_perim[i] = B * 2*M_PI * R;
-                    new_mann[i] = n_conc;
+                    new_mann[i] = hs.structure_manning_roughness;
                     new_topw[i] = 0;
                 }
                 else
@@ -1122,7 +1170,7 @@ void CModel::update_hydraulic_structures()
 
                     new_mann[i] = std::pow(
                         (
-                            (B * 2*M_PI * R)*std::pow(n_conc,1.5) +
+                            (B * 2*M_PI * R)*std::pow(hs.structure_manning_roughness,1.5) +
                             (P_base - P_deck)*std::pow(n_base,1.5) +
                             TW_deck*std::pow(n_bed,1.5)
                         ) / new_perim[i],
@@ -1143,9 +1191,10 @@ void CModel::update_hydraulic_structures()
             row->top_width         = new_topw[i];
             row->area              = new_area[i];
             row->wet_perimeter     = new_perim[i];
-            row->hradius           = (row->wet_perimeter == 0 ? 0 : row->area / row->wet_perimeter); // updated from other info
+            row->hradius           = new_hr[i]; 
             row->manning_composite = new_mann[i];
-            row->k_total           = (new_mann[i] == 0 ? 0 : (new_area[i] * std::pow(row->hradius, 2.0/3.0)) / new_mann[i]);
+            // row->k_total           = (new_mann[i] == 0 ? 0 : (new_area[i] * std::pow(row->hradius, 2.0/3.0)) / new_mann[i]);
+            row->k_total           = new_K[i];
             row->length_effective  = new_leff[i];
             row->length_effectiveadjusted = new_leff[i];
             row->hyd_depth =  (row->top_width == 0 ? 0 : row->area / row->top_width); // updated from other info
