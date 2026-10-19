@@ -179,6 +179,7 @@ struct hydraulic_output {
   double nc_wavgwp;
   double nc_wavgarea;
   double nc_wavgconv;
+  double nc_invmanning;
   double depth_critical;
   int cp_iterations;
   double k_err;
@@ -208,7 +209,7 @@ struct hydraulic_output {
         manning_composite(0.0), k_total_areaconv(0.0), k_total_roughconv(0.0),
         k_total_disconv(0.0), alpha_areaconv(0.0), alpha_roughconv(0.0),
         alpha_disconv(0.0), nc_equalforce(0.0), nc_equalvelocity(0.0),
-        nc_wavgwp(0.0), nc_wavgarea(0.0), nc_wavgconv(0.0), depth_critical(0.0),
+        nc_wavgwp(0.0), nc_wavgarea(0.0), nc_wavgconv(0.0), nc_invmanning(0.0), depth_critical(0.0),
         cp_iterations(0), k_err(0.0), ws_err(0.0), length_energyloss(0.0),
         length_effectiveadjusted(0.0), bed_slope(0.0), peak_hrs_required(0.0) {}
 
