@@ -1844,6 +1844,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
         sn->mm->nc_wavgwp = 0.0;
         sn->mm->nc_wavgarea = 0.0;
         sn->mm->nc_wavgconv = 0.0;
+        sn->mm->nc_invmanning = 0.0;
 
         // Peak hours required = 0 for zero flow
         sn->mm->peak_hrs_required = 0.0;

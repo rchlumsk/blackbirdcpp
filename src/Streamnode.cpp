@@ -280,6 +280,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
         mm->nc_wavgwp = 0.0;
         mm->nc_wavgarea = 0.0;
         mm->nc_wavgconv = 0.0;
+        mm->nc_invmanning = 0.0;
         mm->length_effectiveadjusted = 0.0;
 
         return;
@@ -304,6 +305,8 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     mm->nc_wavgwp = extrapolate(wsl, &hydraulic_output::nc_wavgwp, *depthdf);
     mm->nc_wavgarea = extrapolate(wsl, &hydraulic_output::nc_wavgarea, *depthdf);
     mm->nc_wavgconv = extrapolate(wsl, &hydraulic_output::nc_wavgconv, *depthdf);
+    mm->nc_invmanning = extrapolate(wsl, &hydraulic_output::nc_invmanning, *depthdf);
+
   } else {
     mm->depth = wsl - mm->min_elev;
     // --- Zero‑depth tolerance rule ---
@@ -329,6 +332,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
         mm->nc_wavgwp = 0.0;
         mm->nc_wavgarea = 0.0;
         mm->nc_wavgconv = 0.0;
+        mm->nc_invmanning = 0.0;
         mm->length_effectiveadjusted = 0.0;
         return;
     }
@@ -352,6 +356,7 @@ void CStreamnode::compute_basic_depth_properties_interpolation(double wsl, COpti
     mm->nc_wavgwp = interpolate(wsl, &hydraulic_output::nc_wavgwp, *depthdf);
     mm->nc_wavgarea = interpolate(wsl, &hydraulic_output::nc_wavgarea, *depthdf);
     mm->nc_wavgconv = interpolate(wsl, &hydraulic_output::nc_wavgconv, *depthdf);
+    mm->nc_invmanning = interpolate(wsl, &hydraulic_output::nc_invmanning, *depthdf);
   }
   if (mm->length_effective == 0) {
     ExitGracefully(

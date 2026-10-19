@@ -313,7 +313,7 @@ bool ParseGeometryFile(CModel*& pModel, COptions*const& pOptions)
           {
             row++;
 
-            if (Len >= 75) {// previous format
+            if (Len >= 75) {// previous format, to be removed eventually
              // if (Len < 75) { pp->ImproperFormat(s); } // previously 75 for all
                 pHO = NULL;
                 pHO = new hydraulic_output();
