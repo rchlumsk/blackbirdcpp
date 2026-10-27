@@ -55,6 +55,7 @@ public:
   void compute_basic_depth_properties_interpolation(double wsl, COptions*& bbopt);                    // compute basic depth properties with interpolation
   void compute_profile(double flow, double wsl, COptions *bbopt);                                     // compute profile for streamnode
   void compute_profile_next(double flow, double wsl, hydraulic_output *down_mm, COptions *bbopt);     // compute profile for next streamnode
+  void compute_peak_hours();                                                                        // computes the peak hours
   double get_total_energy(double H, hydraulic_output *down_mm, COptions *&bbopt);                     // compute total energy for streamnode at junction
   double get_wsl_error(double H, hydraulic_output *down_mm, COptions *&bbopt);						  // compute wsl error for given wsl input
   double get_wsl_residual(double H, hydraulic_output *down_mm, COptions *&bbopt);					  // compute wsl residual for given wsl input

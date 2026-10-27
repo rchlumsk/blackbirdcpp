@@ -11,6 +11,11 @@ public:
   double bcvalue; // boundary condition value
   double init_WSL; // initial water surface level
 
+  // SET_ALL_DEPTHS boundary condition data
+  std::vector<int> nodeIDs;  // List of nodes affected by this BC
+  std::vector<double> min_elevs; // minimum elevations for each node
+  std::vector< std::vector<double> > specified_depths; // depth profiles as specified_depths[p][i], p=flow profile, i=node index
+
   // Constructor
   CBoundaryCondition();
 

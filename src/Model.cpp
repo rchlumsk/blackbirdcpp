@@ -293,6 +293,141 @@ void CModel::hyd_compute_profile() {
   ExitGracefullyIf(bbopt->dx <= 0,
                    "Model.cpp: hyd_compute_profile(): dx must be greater than 0",
                    BAD_DATA);
+
+  // special case for SET_ALL_DEPTHS boundary condition, in which the depths are specified and solver is not used
+  if ((*bbbc)[0]->bctype == enum_bc_type::SET_ALL_DEPTHS)
+  {
+    CBoundaryCondition *bc = (*bbbc)[0];
+
+    const size_t nProfiles = bc->specified_depths.size();
+    const size_t nNodes    = bc->nodeIDs.size();
+
+    ExitGracefullyIf(
+        nProfiles == 0,
+        "Model.cpp: hyd_compute_profile(): SET_ALL_DEPTHS contains no profiles",
+        BAD_DATA);
+
+    ExitGracefullyIf(
+        nNodes == 0,
+        "Model.cpp: hyd_compute_profile(): SET_ALL_DEPTHS contains no nodes",
+        BAD_DATA);
+
+    hyd_result = new std::vector<hydraulic_output *>(
+        nProfiles * bbsn->size(), nullptr);
+
+    for (size_t f = 0; f < nProfiles; ++f)
+    {
+        ExitGracefullyIf(
+            bc->specified_depths[f].size() != nNodes,
+            "Model.cpp: hyd_compute_profile(): SET_ALL_DEPTHS profile size "
+            "does not match node count",
+            BAD_DATA);
+
+        flow = static_cast<int>(f);
+
+        for (size_t i = 0; i < nNodes; ++i)
+        {
+            CStreamnode *sn =
+                get_streamnode_by_id(bc->nodeIDs[i]);
+
+            ExitGracefullyIf(
+                sn == nullptr,
+                "Model.cpp: hyd_compute_profile(): SET_ALL_DEPTHS nodeID "
+                "not found in stream network",
+                BAD_DATA);
+
+            //-----------------------------------------------------
+            // Populate mm the same way compute_streamnode does
+            //-----------------------------------------------------
+
+            sn->mm->nodeID         = sn->nodeID;
+            sn->mm->reachID        = sn->reachID;
+            sn->mm->downnodeID     = sn->downnodeID;
+            sn->mm->upnodeID1      = sn->upnodeID1;
+            sn->mm->upnodeID2      = sn->upnodeID2;
+            sn->mm->stationname    = sn->stationname;
+            sn->mm->station        = sn->station;
+            sn->mm->min_elev       = sn->min_elev; // xxx to update
+            sn->mm->reach_length_DS  = sn->ds_reach_length;
+            sn->mm->reach_length_US1 = sn->us_reach_length1;
+            sn->mm->reach_length_US2 = sn->us_reach_length2;
+            sn->mm->bed_slope      = sn->bed_slope;
+            sn->mm->flow           = sn->output_flows[f];
+
+            //-----------------------------------------------------
+            // Apply specified depth
+            //-----------------------------------------------------
+
+            sn->mm->depth = bc->specified_depths[f][i];
+
+            ExitGracefullyIf(
+                sn->mm->depth < 0.0,
+                "Model.cpp: hyd_compute_profile(): "
+                "SET_ALL_DEPTHS depth cannot be negative",
+                BAD_DATA);
+
+            // update WSL based on difference in streamnode and specified min elev
+            // xxx to do
+            sn->mm->wsl =
+                sn->mm->min_elev +
+                sn->mm->depth;
+
+            //-----------------------------------------------------
+            // Compute all hydraulic properties
+            //-----------------------------------------------------
+
+            sn->compute_profile(
+                sn->mm->flow,
+                sn->mm->wsl,
+                bbopt);
+
+            // compute peak hours required and update min and max accordingly
+            sn->compute_peak_hours();
+            //sn->mm->peak_hrs_required = (sn->mm->area * sn->mm->length_effectiveadjusted / sn->mm->flow) / 3600;
+            if (peak_hrs_min == PLACEHOLDER || sn->mm->peak_hrs_required < peak_hrs_min) {
+            peak_hrs_min = sn->mm->peak_hrs_required;
+            }
+            if (peak_hrs_max == PLACEHOLDER || sn->mm->peak_hrs_required > peak_hrs_max) {
+            peak_hrs_max = sn->mm->peak_hrs_required;
+            }
+
+            //-----------------------------------------------------
+            // Store result
+            //-----------------------------------------------------
+
+            int ind = get_index_by_id(sn->nodeID);
+
+            ExitGracefullyIf(
+                ind < 0,
+                "Model.cpp: hyd_compute_profile(): "
+                "invalid streamnode index",
+                BAD_DATA);
+
+            hydraulic_output *pHO =
+                new hydraulic_output(*(sn->mm));
+
+            (*hyd_result)[f * bbsn->size() + ind] = pHO;
+        }
+        WriteAdvisory("The range of required peak flood times ranges from " +
+                      std::to_string(peak_hrs_min) + " to " +
+                      std::to_string(peak_hrs_max) + " hours for flow profile " +
+                      std::to_string(flow+1) + " (" + fp_names[flow] +
+                      ") within the computed streamnodes",
+                  bbopt->noisy_run);
+        peak_hrs_min = PLACEHOLDER;
+        peak_hrs_max = PLACEHOLDER;
+    }
+
+    if (!bbopt->silent_run) {
+        std::cout
+            << "Hydraulic properties assigned from "
+                "SET_ALL_DEPTHS boundary condition."
+            << std::endl;
+    }
+
+    flow = PLACEHOLDER;
+    return;
+  }
   
   // Get streamnode associated with the boundary condition
   ExitGracefullyIf(
@@ -1751,7 +1886,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   sn->mm->flow = sn->output_flows[flow];
 
   bool using_exhaustive = false; // by default, not using exhaustive solution until triggered
-
+    
   if (sn->nodeID == bc->nodeID) { // boundary condition streamnode
     if (bbopt->modeltype == enum_mt_method::HAND_MANNING) {
       sn->mm->wsl = sn->compute_normal_depth(sn->mm->flow, sn->mm->bed_slope, -99, bbopt);
@@ -2247,7 +2382,8 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
   }
 
   // compute peak hours required and update min and max accordingly
-  sn->mm->peak_hrs_required = (sn->mm->area * sn->mm->length_effectiveadjusted / sn->mm->flow) / 3600;
+  //sn->mm->peak_hrs_required = (sn->mm->area * sn->mm->length_effectiveadjusted / sn->mm->flow) / 3600;
+  sn->compute_peak_hours();
   if (peak_hrs_min == PLACEHOLDER || sn->mm->peak_hrs_required < peak_hrs_min) {
     peak_hrs_min = sn->mm->peak_hrs_required;
   }

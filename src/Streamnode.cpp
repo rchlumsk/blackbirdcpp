@@ -606,6 +606,29 @@ void CStreamnode::compute_profile_next(double flow, double wsl, hydraulic_output
                    ((down_mm->alpha * down_mm->velocity*down_mm->velocity / 2.) / GRAVITY));
 }
 
+//////////////////////////////////////////////////////////////////
+/// \brief Compute total peak hours required
+/// 
+/// Computes the hours required at peak flow (steady state) to generate the volume of water in the streamnode
+/// Provides an indication of the validity of the steady state assumption
+///
+/// \return the peak hours required for the streamnode
+//
+void CStreamnode::compute_peak_hours()
+{
+    ExitGracefullyIf(
+        mm == nullptr,
+        "CStreamnode::compute_peak_hours(): mm is NULL",
+        RUNTIME_ERR);
+
+    if (mm->flow <= 0.0) {
+        mm->peak_hrs_required = 0.0;
+      return;
+    }
+
+    mm->peak_hrs_required =
+        (mm->area * mm->length_effectiveadjusted / mm->flow) / 3600.0;
+}
 
 //////////////////////////////////////////////////////////////////
 /// \brief Compute total energy for streamnode at junction

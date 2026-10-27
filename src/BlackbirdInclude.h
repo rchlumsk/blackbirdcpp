@@ -322,7 +322,8 @@ enum enum_bc_type
 {
   NORMAL_DEPTH,
   SET_WSL,
-  SET_DEPTH
+  SET_DEPTH,
+  SET_ALL_DEPTHS
 };
 
 // DHand post-processing method

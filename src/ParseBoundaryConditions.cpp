@@ -70,6 +70,8 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
     else if (!strcmp(s[0], ":BCType")) { code = 7; }
     else if (!strcmp(s[0], ":BCValue")) { code = 8; }
     else if (!strcmp(s[0], ":InitialWSL")) { code = 9; }
+    else if (!strcmp(s[0], ":SetDepths")) { code = 10; }
+
     else if (!strcmp(s[0], ":SteadyFlows")) { code = 100; }
     else if (!strcmp(s[0], ":ExplicitSteadyFlows")) { code = 101; }
     else if (!strcmp(s[0], ":StreamnodeSourcesSinks")) { code = 110; }
@@ -192,6 +194,81 @@ bool ParseBoundaryConditionsFile(CModel*& pModel, COptions*const& pOptions)
       }
       break;
     }
+    case(10):
+    { /*:SetDepths*/
+      if (pOptions->noisy_run) { std::cout << "SetDepths table..." << std::endl; }
+      pBC->bctype = enum_bc_type::SET_ALL_DEPTHS;
+      bool done = false;
+      int row = 0;
+      size_t nProfiles = 0;
+      if (Len != 1) { pp->ImproperFormat(s); }
+      else {
+        std::string error;
+        while ((!done) && (!end_of_file))
+        {
+          end_of_file = pp->Tokenize(s, Len);
+          if (IsComment(s[0], Len)) {}//comment line
+          else if (!strcmp(s[0], ":Attributes")) {
+            if (Len < 3) {
+              pp->ImproperFormat(s);
+            }
+            if (strcmp(s[1], "nodeID") || strcmp(s[2], "min_elev"))
+            {
+              error = "ParseBoundaryConditions File: :Attributes in :SetDepths "
+                      "must begin with 'nodeID min_elev'";
+              ExitGracefully(error.c_str(), BAD_DATA_WARN);
+            }
+            nProfiles = Len - 3;
+            pBC->specified_depths.clear();
+            pBC->specified_depths.resize(nProfiles);
+          }
+          else if (!strcmp(s[0], ":EndSetDepths")) { done = true; }
+          else
+          {
+            row++;
+            if (Len < nProfiles+2) { pp->ImproperFormat(s); }
+
+            if (strcmp(s[0], "NA")) {
+              if (StringIsLong(s[0])) {
+                pBC->nodeIDs.push_back(std::stoi(s[0]));
+              }
+              else {
+                error = "ParseBoundaryConditions File: nodeID \"" + std::string(s[0]) + "\" in row " + std::to_string(row) + " of :SetDepths must be a unique integer or long integer";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            if (strcmp(s[1], "NA")) {
+              if (StringIsDouble(s[1])) {
+                pBC->min_elevs.push_back(std::stod(s[1]));
+              }
+              else {
+                error = "ParseBoundaryConditions File: min_elev \"" + std::string(s[1]) + "\" in row " + std::to_string(row) + " of :SetDepths must be a double";
+                ExitGracefully(error.c_str(), BAD_DATA_WARN);
+              }
+            }
+            // for nProfiles
+            ExitGracefullyIf(
+                nProfiles == 0,
+                "ParseBoundaryConditions File: :Attributes must be specified at the beginning of  :SetDepths block. Zero flow profiles detected",
+                BAD_DATA_WARN);
+            for (int j = 0; j < nProfiles; j++) {
+              if (strcmp(s[j+2], "NA")) {
+                if (StringIsDouble(s[j+2])) {
+                  pBC->specified_depths[j].push_back(std::stod(s[j+2]));
+                }
+                else {
+                  error = "ParseBoundaryConditions File: depth \"" + std::string(s[j+2]) + "\" in row " + std::to_string(row) + " of :SetDepths must be a double";
+                  ExitGracefully(error.c_str(), BAD_DATA_WARN);
+                }
+              }
+            }
+            
+            // pModel->add_streamnode(pSN); /// xxx adjust to add bc to model
+          }
+        }
+      }
+      break;
+    }    
     case(100):  //----------------------------------------------
     { /*:SteadyFlows*/
       if (pOptions->noisy_run) { std::cout << "Steady flows table..." << std::endl; }
