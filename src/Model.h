@@ -34,6 +34,8 @@ public:
   std::vector<pairedcondids> condsnIDs;                 // sequence of node IDs that are conditional
   bool conditional_model;                               // boolean whether the run contains conditional nodes
   bool structure_model;                                 // boolean whether the model contains structures
+  std::vector<int> subset_raster_nodes;                 // vector of streamnode IDs that are part of a subset of nodes to be processed in flood mapping.
+  std::vector<int> subset_raster_cells;                 // vector of IDs in the HAND raster corresponding to valid streamnode IDs to write
 
   // Outputs
   std::vector<hydraulic_output *> *hyd_result;                        // hydraulic outputs generated from hyd_compute_profile

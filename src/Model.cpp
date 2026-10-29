@@ -1788,7 +1788,49 @@ void CModel::postprocess_floodresults() {
       !hyd_result,
       "Raster.cpp: postprocess_floodresults: hydraulic output missing",
       exitcode::RUNTIME_ERR);
-  
+
+  // determine the subset of cells that need to be included
+  subset_raster_cells.clear();
+
+  if (!subset_raster_nodes.empty())
+  {
+    std::unordered_set<int> subset_ids(
+        subset_raster_nodes.begin(),
+        subset_raster_nodes.end());
+
+    subset_raster_cells.reserve(100000); // optional
+
+    int ncells = c_from_s->xsize * c_from_s->ysize;
+
+    for (int j = 0; j < ncells; ++j)
+    {
+        double v = c_from_s->data[j];
+
+        if (std::isnan(v) || v == c_from_s->na_val)
+        {
+            continue;
+        }
+
+        int sid = static_cast<int>(v);
+
+        if (subset_ids.find(sid) != subset_ids.end())
+        {
+            subset_raster_cells.push_back(j);
+        }
+    }
+
+    if (!bbopt->silent_run)
+    {
+        std::cout
+            << "Subset contains "
+            << subset_raster_cells.size()
+            << " raster cells across "
+            << subset_raster_nodes.size()
+            << " stream nodes."
+            << std::endl;
+    }
+  }
+
   // loop for each flow_profiles
   for (int flow_ind = 0; flow_ind < bbsn->front()->output_flows.size(); flow_ind++) {
     if (!bbopt->silent_run) {
@@ -3395,9 +3437,28 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
   CGriddedData *result = out_gridded.back().get();
   result->name = "result_depths_" + fp_names[flow_ind];
   result->fp_name = fp_names[flow_ind];
-  std::fill(result->data, result->data + (result->xsize * result->ysize), 0.0);
+  std::fill(result->data, result->data + (result->xsize * result->ysize), result->na_val);
 
-  for (int j = 0; j < result->xsize * result->ysize; j++) {
+  const std::vector<int>* cells = nullptr;
+  std::vector<int> all_cells;
+
+  if (subset_raster_cells.empty())
+  {
+    all_cells.resize(result->xsize * result->ysize);
+
+    for (int j = 0; j < all_cells.size(); ++j)
+    {
+        all_cells[j] = j;
+    }
+
+    cells = &all_cells;
+  }
+  else
+  {
+    cells = &subset_raster_cells;
+  }
+
+  for (int j : *cells) {
     double curr_depth, curr_hand;
     // assign curr_depth based on whether post processing method is interp and/or dhand method
     if (!is_interp) {
@@ -3598,6 +3659,9 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
   if (bbopt->out_format == enum_gridded_format::NETCDF) {
     result->transpose_data();
   }
+
+  // recompute statistics
+  result->compute_statistics();
 }
 
 //////////////////////////////////////////////////////////////////
@@ -3622,9 +3686,26 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
   CGriddedData *result = out_gridded.back().get();
   result->name = "result_depths_" + fp_names[flow_ind];
   result->fp_name = fp_names[flow_ind];
-  std::fill(result->data, result->data + (result->xsize * result->ysize), 0.0);
+  std::fill(result->data, result->data + (result->xsize * result->ysize), result->na_val); // std::numeric_limits<double>::quiet_NaN()
 
-  for (int j = 0; j < result->xsize * result->ysize; j++) {
+  const std::vector<int>* cells = nullptr;
+  std::vector<int> all_cells;
+
+  if (subset_raster_cells.empty())
+  {
+    all_cells.resize(result->xsize * result->ysize);
+    for (int j = 0; j < all_cells.size(); ++j)
+    {
+        all_cells[j] = j;
+    }
+    cells = &all_cells;
+  }
+  else
+  {
+    cells = &subset_raster_cells;
+  }
+
+  for (int j : *cells) {
     double curr_depth, curr_hand;
     double value = c_from_s->data[j]; // streamnode ID 
     hydraulic_output* ho = nullptr;
@@ -3794,6 +3875,9 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
   if (bbopt->out_format == enum_gridded_format::NETCDF) {
     result->transpose_data();
   }
+
+  // recompute statistics
+  result->compute_statistics();
 }
 
 //////////////////////////////////////////////////////////////////

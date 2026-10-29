@@ -165,27 +165,26 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":InterpMethod"))                { code = 45; }
     else if (!strcmp(s[0], ":WriteStructureProperties"))    { code = 46; }
 
-
-
     //-------------------- CALIBRATION PARAMETER ------------------------
-    else if (!strcmp(s[0], ":RoughnessMultiplier")) { code = 100; }
+    else if (!strcmp(s[0], ":RoughnessMultiplier"))         { code = 100; }
 
     //-------------------- XSECTION SPECIFIC OPTIONS ------------------------
-    else if (!strcmp(s[0], ":XSectionDX")) { code = 200; }
-    else if (!strcmp(s[0], ":XSectionConveyanceMethod")) { code = 201; }
-    else if (!strcmp(s[0], ":ManningEnforceValues")) { code = 202; }
+    else if (!strcmp(s[0], ":XSectionDX"))                  { code = 200; }
+    else if (!strcmp(s[0], ":XSectionConveyanceMethod"))    { code = 201; }
+    else if (!strcmp(s[0], ":ManningEnforceValues"))        { code = 202; }
 
     //-------------------- REACH SPECIFIC OPTIONS ------------------------
-    else if (!strcmp(s[0], ":ReachIntegrationMethod")) { code = 300; }
+    else if (!strcmp(s[0], ":ReachIntegrationMethod"))      { code = 300; }
 
     //-------------------- POSTPROCESSING OPTIONS ------------------------
     else if (!strcmp(s[0], ":PostprocessingInterpolationMethod")) { code = 400; }
-    else if (!strcmp(s[0], ":DHandMethod")) { code = 401; }
-    else if (!strcmp(s[0], ":GISPath")) { code = 402; }
+    else if (!strcmp(s[0], ":DHandMethod"))                 { code = 401; }
+    else if (!strcmp(s[0], ":GISPath"))                     { code = 402; }
+    else if (!strcmp(s[0], ":PostprocessingSubsetNodes"))   { code = 403; }
 
     //-------------------- OTHER SPECIAL OPTIONS ------------------------
-    else if (!strcmp(s[0], ":CreateRavenProfiles")) { code = 500; }
-    else if (!strcmp(s[0], ":SkipExtraChecks"))     { code = 501; }
+    else if (!strcmp(s[0], ":CreateRavenProfiles"))         { code = 500; }
+    else if (!strcmp(s[0], ":SkipExtraChecks"))             { code = 501; }
 
     switch (code)
     {
@@ -630,6 +629,46 @@ bool ParseMainInputFile(CModel*& pModel,
       if (pOptions->noisy_run) { std::cout << "GISPath" << std::endl; }
       if (Len < 2) { ImproperFormatWarning(":GISPath", p, pOptions->noisy_run); break; }
       pOptions->gis_path = s[1];
+      break;
+    }
+    case(403):
+    {/* :PostprocessingSubsetNodes [nodes to subset in parseable format]*/
+
+      if (pOptions->noisy_run) {
+        std::cout << "PostprocessingSubsetNodes" << std::endl;
+      }
+      if (Len < 2) {
+        ImproperFormatWarning(":PostprocessingSubsetNodes", p, pOptions->noisy_run);
+        break;
+      }
+      pModel->subset_raster_nodes.clear();
+      for (int i = 1; i < Len; i++)
+      {
+        std::string token = s[i];
+        // Remove trailing comma if present
+        if (!token.empty() && token.back() == ',') {
+          token.pop_back();
+        }
+        size_t dash = token.find('-');
+        if (dash != std::string::npos)
+        {
+          // Range, e.g. 227-255
+          int start = s_to_i(token.substr(0, dash).c_str());
+          int end   = s_to_i(token.substr(dash + 1).c_str());
+          if (start > end) {
+            ExitGracefully("Invalid :PostprocessingSubsetNodes range",
+                           BAD_DATA_WARN);
+          }
+          for (int n = start; n <= end; n++) {
+            pModel->subset_raster_nodes.push_back(n);
+          }
+        }
+        else
+        {
+          // Single node ID
+          pModel->subset_raster_nodes.push_back(s_to_i(token.c_str()));
+        }
+      }
       break;
     }
     case(500):

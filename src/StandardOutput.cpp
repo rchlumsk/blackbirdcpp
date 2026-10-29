@@ -512,6 +512,14 @@ void CRaster::WriteToFile(std::string filepath)
     ExitGracefully("StandardOutput.cpp: CRaster::WriteToFile: Failed to flush dataset cache", exitcode::RUNTIME_ERR);
   }
 
+   // get statistics recalcuulated accurately for the raster
+  double minv = min_val;
+  double maxv = max_val;
+  double meanv = mean_val;
+  double stdv = stddev_val;
+  // output_band->ComputeStatistics(FALSE,&minv,&maxv,&meanv,&stdv,nullptr,nullptr);
+  output_band->SetStatistics(minv, maxv, meanv, stdv);
+
   // Cleanup
   CSLDestroy(papszOptions);
   GDALClose(output_dataset);

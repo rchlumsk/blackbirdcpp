@@ -60,6 +60,63 @@ void CGriddedData::transpose_data() {
   data = transposed_data;
 }
 
+//////////////////////////////////////////////////////////////////
+/// \brief Computes raster statistics
+//
+void CGriddedData::compute_statistics()
+{
+    min_val = DBL_MAX;
+    max_val = -DBL_MAX;
+
+    double sum = 0.0;
+    size_t count = 0;
+
+    for (int i = 0; i < xsize * ysize; ++i)
+    {
+        double v = data[i];
+
+        if (!std::isfinite(v))
+            continue;
+
+        min_val = std::min(min_val, v);
+        max_val = std::max(max_val, v);
+
+        sum += v;
+        ++count;
+    }
+
+    if (count == 0)
+    {
+        min_val = max_val = mean_val =
+            std::numeric_limits<double>::quiet_NaN();
+
+        stddev_val =
+            std::numeric_limits<double>::quiet_NaN();
+
+        stats_valid = false;
+        return;
+    }
+
+    mean_val = sum / count;
+
+    double ss = 0.0;
+
+    for (int i = 0; i < xsize * ysize; ++i)
+    {
+        double v = data[i];
+
+        if (!std::isfinite(v))
+            continue;
+
+        double d = v - mean_val;
+        ss += d * d;
+    }
+
+    stddev_val = std::sqrt(ss / count);
+
+    stats_valid = true;
+}
+
 // Destructor
 CGriddedData::~CGriddedData() {
   if (data) {

@@ -13,6 +13,12 @@ public:
   int ysize;                                                  // y dimension of gridded values
   double na_val;                                              // data value representing NA; _FillValue for NetCDF
 
+  double min_val;											  // min value computed in raster statistics
+  double max_val;											  // max value computed in raster statistics
+  double mean_val;											  // mean value computed in raster statistics
+  double stddev_val;										  // standard deviation value computed in raster statistics
+  bool stats_valid;											  // boolean indicated whether the statistics are valid
+
   // Constructors and Destructor
   CGriddedData();
   CGriddedData(const CGriddedData& other);
@@ -26,6 +32,7 @@ public:
 
   // Member functions
   void transpose_data();                                      // transposes the data variable to match with expected formatting
+  void compute_statistics();								  // recompute raster statistics
 
   // I/O Functions
   virtual void WriteToFile(std::string filepath) = 0;         // defined in StandardOutput.cpp
