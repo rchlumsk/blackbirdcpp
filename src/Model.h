@@ -21,6 +21,7 @@ public:
   std::vector<double> dhand_depth_seq;                  // sequence of depths for dhand
   std::unique_ptr<CGriddedData> c_from_s;               // pointer to GriddedData object for catchments from streamnodes
   CVector spp;                                          // vector object for snapped pourpoints
+  std::unique_ptr<CGriddedData> dem;                    // pointer to GriddedData object for DEM
   std::unique_ptr<CGriddedData> hand;                   // pointer to GriddedData object for hand
   std::unique_ptr<CGriddedData> handid;                 // pointer to GriddedData object for hand pourpoints
   std::unique_ptr<CGriddedData> interpdepth;            // pointer to GriddedData object for depth interpolation (raster values [0..1])

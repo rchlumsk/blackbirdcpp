@@ -341,6 +341,14 @@ enum enum_gridded_format
   PNG
 };
 
+// Grid export data types
+enum enum_grid_type
+{
+  DEPTH,
+  WSL,
+  VELOCITY
+};
+
 // Flow regime types
 enum enum_flow_regimes
 {

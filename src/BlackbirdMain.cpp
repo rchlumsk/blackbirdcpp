@@ -117,6 +117,11 @@ int main(int argc, char* argv[])
     std::cout << "Initializing Model..." << std::endl;
   }
 
+  // add warning for velocity export
+  if (pOptions->write_velocity_raster) {
+    WriteAdvisory("Velocity will be exported, but should be treated as approximate and not as a reliable 2D result.", pOptions->noisy_run);
+  }
+
   // Calculate output flows for all streamnodes
   pModel->calc_output_flows();
 
@@ -236,16 +241,23 @@ int main(int argc, char* argv[])
   /// Reading GIS data if the postproc method is not NONE  
   // Read input gridded data if applicable
   if (pOptions->interpolation_postproc_method != enum_ppi_method::NONE) {
-    // Initialize GDAL
-    GDALAllRegister();
-    if (!pOptions->silent_run) {
-      std::cout << "======================================================" << std::endl;
-      std::cout << "Reading Gridded Data..." << std::endl;
-    }
-    pModel->ReadGISFiles();
 
-    // Post-process flood results with method specified by input parameter
-    pModel->postprocess_floodresults();
+    // double check that at least one export options is on
+    if (pOptions->write_depth_raster || pOptions->write_wsl_raster || pOptions->write_velocity_raster) {
+        // Initialize GDAL
+        GDALAllRegister();
+        if (!pOptions->silent_run) {
+          std::cout << "======================================================" << std::endl;
+          std::cout << "Reading Gridded Data..." << std::endl;
+        }
+        pModel->ReadGISFiles();
+
+        // Post-process flood results with method specified by input parameter
+        pModel->postprocess_floodresults();
+    } else {
+      WriteAdvisory("All export options are disabled, skipping GIS processing.",true);
+      pOptions->interpolation_postproc_method == enum_ppi_method::NONE;
+    }
   }
  
   t3 = clock();

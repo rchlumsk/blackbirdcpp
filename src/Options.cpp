@@ -61,6 +61,9 @@ COptions::COptions()
   write_catchment_json(false),
   enable_exhaustive(false),
   create_raven_profiles(false),
+  write_depth_raster(true),
+  write_wsl_raster(false),
+  write_velocity_raster(false),
   skip_headwater(false){
 }
 

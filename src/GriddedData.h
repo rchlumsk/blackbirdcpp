@@ -12,6 +12,8 @@ public:
   int xsize;                                                  // x dimension of gridded values
   int ysize;                                                  // y dimension of gridded values
   double na_val;                                              // data value representing NA; _FillValue for NetCDF
+  enum_grid_type gridtype;									  // type of data (depth, wsl, velocity)
+  std::string filepath;										  // export file name when written
 
   double min_val;											  // min value computed in raster statistics
   double max_val;											  // max value computed in raster statistics

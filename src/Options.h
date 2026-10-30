@@ -55,7 +55,7 @@ public:
   double blended_conveyance_weights;                // unused?
   double blended_nc_weights;                        // unused?
   double froude_threshold;                          // froude threshold for computing depth properties
-  enum_gridded_format in_format;                    // format of input gridded data. options: RASTER, NETCDF
+  enum_gridded_format in_format;                    // format of input gridded data. options: RASTER, NETCDF, PNG
   enum_gridded_format out_format;                   // format of output gridded data. options: RASTER, NETCDF, PNG
   std::string in_nc_name;                           // name of input netcdf file
   bool write_catchment_json;                        // for integration with BlackbirdView. boolean representing whether or not to modify the input catchments from streamnodes json file and write it to the output folder
@@ -64,6 +64,9 @@ public:
   bool enable_exhaustive;                           // enables using exhausting solution in compute_streamnode if secant method is producing strange results
   bool create_raven_profiles;						// boolean representing whether or not to create Raven profiles for each streamnode. If True, Raven profiles are created in the output folder
   bool skip_headwater;								// boolean representing whether or not to skip headwater basins in mapping. If true, hwadwater basins receive a flow of zero and are skipped in mapping
+  bool write_depth_raster;							// boolean representing whether or not to write out the depth raster for each streamnode. If True, WSL rasters are created in the output folder
+  bool write_wsl_raster;							// boolean representing whether or not to write out the water surface elevation raster for each streamnode. If True, WSL rasters are created in the output folder
+  bool write_velocity_raster;						// boolean representing whether or not to write out the velocity raster for each streamnode. If True, velocity rasters are created in the output folder
 
   bool silent_run;                                  // true -> print less logs
   bool noisy_run;                                   // true -> print more logs

@@ -146,13 +146,10 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":DHANDDepthStep"))              { code = 25; }
     else if (!strcmp(s[0], ":WriteNetcdfFormat"))           { code = 26; }
     else if (!strcmp(s[0], ":InputNCFile"))                 { code = 27; }
-    else if (!strcmp(s[0], ":WritePngFormat"))              { code = 28; }
-    else if (!strcmp(s[0], ":WriteCatchmentJSON"))          { code = 29; }
     else if (!strcmp(s[0], ":FroudeThreshold"))             { code = 30; }
     else if (!strcmp(s[0], ":LeffMethod"))                  { code = 31; }
     else if (!strcmp(s[0], ":EnableExhaustiveSolution"))    { code = 32; }
     else if (!strcmp(s[0], ":SolverMethod"))                { code = 33; }
-    else if (!strcmp(s[0], ":DontWriteHydraulicOutput"))    { code = 34; }
     else if (!strcmp(s[0], ":EnableSpillFlow"))             { code = 35; }
     else if (!strcmp(s[0], ":SpillFlowIterationLimit"))     { code = 36; }
     else if (!strcmp(s[0], ":SpillFlowToleranceDepth"))     { code = 37; }
@@ -161,9 +158,7 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":SpillFlowMaxDeltaFlow"))       { code = 40; }
     else if (!strcmp(s[0], ":SpillFlowDeltaThreshold"))     { code = 41; }
     else if (!strcmp(s[0], ":SpillFlowDeltaThresholdMinVal")) { code = 42; }
-
     else if (!strcmp(s[0], ":InterpMethod"))                { code = 45; }
-    else if (!strcmp(s[0], ":WriteStructureProperties"))    { code = 46; }
 
     //-------------------- CALIBRATION PARAMETER ------------------------
     else if (!strcmp(s[0], ":RoughnessMultiplier"))         { code = 100; }
@@ -177,10 +172,22 @@ bool ParseMainInputFile(CModel*& pModel,
     else if (!strcmp(s[0], ":ReachIntegrationMethod"))      { code = 300; }
 
     //-------------------- POSTPROCESSING OPTIONS ------------------------
+    else if (!strcmp(s[0], ":WritePngFormat"))              { code = 28; }
+    else if (!strcmp(s[0], ":WritePNGFormat"))              { code = 28; } // overload
+    else if (!strcmp(s[0], ":WriteCatchmentJSON"))          { code = 29; }
+    else if (!strcmp(s[0], ":DontWriteHydraulicOutput"))    { code = 34; }
+    else if (!strcmp(s[0], ":WriteStructureProperties"))    { code = 46; }
+
     else if (!strcmp(s[0], ":PostprocessingInterpolationMethod")) { code = 400; }
     else if (!strcmp(s[0], ":DHandMethod"))                 { code = 401; }
+    else if (!strcmp(s[0], ":DHANDMethod"))                 { code = 401; } // overload
+
     else if (!strcmp(s[0], ":GISPath"))                     { code = 402; }
     else if (!strcmp(s[0], ":PostprocessingSubsetNodes"))   { code = 403; }
+    else if (!strcmp(s[0], ":WriteWSLRaster"))              { code = 404; }
+    else if (!strcmp(s[0], ":WriteVelocityRaster"))         { code = 405; }
+    else if (!strcmp(s[0], ":DontWriteDepthRaster"))        { code = 406; }
+
 
     //-------------------- OTHER SPECIAL OPTIONS ------------------------
     else if (!strcmp(s[0], ":CreateRavenProfiles"))         { code = 500; }
@@ -669,6 +676,24 @@ bool ParseMainInputFile(CModel*& pModel,
           pModel->subset_raster_nodes.push_back(s_to_i(token.c_str()));
         }
       }
+      break;
+    }
+    case(404):
+    {/*:WriteWSLRaster */
+      if (pOptions->noisy_run) { std::cout << "Writing WSL Raster enabled" << std::endl; }
+      pOptions->write_wsl_raster = true;
+      break;
+    }
+    case(405):
+    {/*:WriteVelocityRaster */
+      if (pOptions->noisy_run) { std::cout << "Writing Velocity Raster enabled" << std::endl; }
+      pOptions->write_velocity_raster = true;
+      break;
+    }
+    case(406):
+    {/*:DontWriteDepthRaster */
+      if (pOptions->noisy_run) { std::cout << "Writing Depth Raster disabled" << std::endl; }
+      pOptions->write_depth_raster = false;
       break;
     }
     case(500):

@@ -1496,6 +1496,11 @@ void CModel::ReadGISFiles() {
         }
       }
     }
+    if (bbopt->write_wsl_raster) {
+      dem = std::make_unique<CRaster>();
+      ReadRasterFile(bbopt->gis_path + "/bb_dem.tif",  dynamic_cast<CRaster *>(dem.get()));
+      dem->name = "DEM";
+    }
   }
   if (!bbopt->silent_run) {
     std::cout << "...gridded data successfully read" << std::endl;
@@ -1797,37 +1802,20 @@ void CModel::postprocess_floodresults() {
     std::unordered_set<int> subset_ids(
         subset_raster_nodes.begin(),
         subset_raster_nodes.end());
-
     subset_raster_cells.reserve(100000); // optional
-
     int ncells = c_from_s->xsize * c_from_s->ysize;
-
     for (int j = 0; j < ncells; ++j)
     {
         double v = c_from_s->data[j];
-
-        if (std::isnan(v) || v == c_from_s->na_val)
-        {
-            continue;
-        }
-
+        if (std::isnan(v) || v == c_from_s->na_val)   {continue;}
         int sid = static_cast<int>(v);
-
-        if (subset_ids.find(sid) != subset_ids.end())
-        {
-            subset_raster_cells.push_back(j);
-        }
+        if (subset_ids.find(sid) != subset_ids.end()) { subset_raster_cells.push_back(j); }
     }
 
     if (!bbopt->silent_run)
     {
-        std::cout
-            << "Subset contains "
-            << subset_raster_cells.size()
-            << " raster cells across "
-            << subset_raster_nodes.size()
-            << " stream nodes."
-            << std::endl;
+        std::cout << "Subset contains " << subset_raster_cells.size() << " raster cells across "
+            << subset_raster_nodes.size() << " stream nodes." << std::endl;
     }
   }
 
@@ -3439,6 +3427,16 @@ void CModel::generate_out_gridded(int flow_ind, bool is_interp, bool is_dhand) {
   result->fp_name = fp_names[flow_ind];
   std::fill(result->data, result->data + (result->xsize * result->ysize), result->na_val);
 
+  // xxx need to update this to be consistent with generate_out_gridded2, and maybe just end support for this type of interpolation method
+  // xxx temporary handling here while code is sorted out
+  if (bbopt->write_velocity_raster || bbopt->write_wsl_raster) {
+    WriteAdvisory(
+        "Only a depth raster will be written with the method for :InterpMethod "
+        "POURPOINT_SHP. Use the INTERP_RASTER interpolation method or no "
+        "interpolation to access other exports.",
+        true);
+  }
+
   const std::vector<int>* cells = nullptr;
   std::vector<int> all_cells;
 
@@ -3682,11 +3680,51 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
     is_interp = true;
   }
 
-  initialize_out_gridded(is_dhand);
-  CGriddedData *result = out_gridded.back().get();
-  result->name = "result_depths_" + fp_names[flow_ind];
-  result->fp_name = fp_names[flow_ind];
-  std::fill(result->data, result->data + (result->xsize * result->ysize), result->na_val); // std::numeric_limits<double>::quiet_NaN()
+  // initialize other optional rasters
+  CGriddedData *result  = nullptr;
+  CGriddedData *depth_result  = nullptr;
+  CGriddedData *wsl_result   = nullptr;
+  CGriddedData *vel_result   = nullptr;
+
+  if (bbopt->write_depth_raster) {
+    initialize_out_gridded(is_dhand);
+    depth_result = out_gridded.back().get();
+    depth_result->name = "result_depths_" + fp_names[flow_ind];
+    depth_result->fp_name = fp_names[flow_ind];
+    depth_result->gridtype = enum_grid_type::DEPTH;
+    depth_result->filepath = FilenamePrepare("bb_results_depth_" + fp_names[flow_ind] + ".tif");
+    std::fill(depth_result->data, depth_result->data + (depth_result->xsize * depth_result->ysize), depth_result->na_val); 
+    if (result == nullptr) {
+      result = depth_result;
+    }
+  }
+
+  if (bbopt->write_wsl_raster) {
+    initialize_out_gridded(is_dhand);
+    wsl_result = out_gridded.back().get();
+    wsl_result = out_gridded.back().get();
+    wsl_result->name = "result_wsl_" + fp_names[flow_ind];
+    wsl_result->fp_name = fp_names[flow_ind];
+    wsl_result->gridtype = enum_grid_type::WSL;
+    wsl_result->filepath = FilenamePrepare("bb_results_wsl_" + fp_names[flow_ind] + ".tif");
+    std::fill(wsl_result->data, wsl_result->data + (wsl_result->xsize * wsl_result->ysize), wsl_result->na_val);
+    if (result == nullptr) {
+      result = wsl_result;
+    }
+  }
+
+  if (bbopt->write_velocity_raster) {
+    initialize_out_gridded(is_dhand);
+    vel_result = out_gridded.back().get();
+    vel_result->name = "result_velocity_" + fp_names[flow_ind];
+    vel_result->fp_name = fp_names[flow_ind];
+    vel_result->gridtype = enum_grid_type::VELOCITY;
+    vel_result->filepath = FilenamePrepare("bb_results_velocity_" + fp_names[flow_ind] + ".tif");
+    std::fill(vel_result->data, vel_result->data + (vel_result->xsize * vel_result->ysize), vel_result->na_val);
+    if (result == nullptr) {
+      result = vel_result;
+    }
+  }
 
   const std::vector<int>* cells = nullptr;
   std::vector<int> all_cells;
@@ -3706,7 +3744,8 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
   }
 
   for (int j : *cells) {
-    double curr_depth, curr_hand;
+    double curr_depth, curr_velocity; // 1D node averaged values from hydraulic_output (and interpolated or updated from conditional paths if needed)
+    double curr_hand; // hand value at the current cell, determined from HAND or DHAND accordingly
     double value = c_from_s->data[j]; // streamnode ID 
     hydraulic_output* ho = nullptr;
 
@@ -3725,8 +3764,12 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
             ho->depth < 0.0)
         {
             curr_depth = 0.0;
+            curr_velocity = 0.0;
+            // ho_depth = 0.0;
         } else {
             curr_depth = ho->depth;
+            curr_velocity = ho->velocity;
+            // ho_depth = ho->depth;
         }
 
         if (is_interp) {
@@ -3735,10 +3778,13 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
               // get that hydraulic result
               double depth1 = -99;
               double depth2 = -99;
+              double velocity1 = -99;
+              double velocity2 = -99;
 
               hydraulic_output* ho1 = (*hyd_result)[get_hyd_res_index(flow_ind, ho->upnodeID1)];
               if (!is_conditional_node(ho->upnodeID1)) {
                 depth1 = ho1->depth;
+                velocity1 = ho1->velocity;
               }
 
               if (ho->upnodeID2 != -1) {
@@ -3746,6 +3792,7 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
                 hydraulic_output* ho2 = (*hyd_result)[get_hyd_res_index(flow_ind, ho->upnodeID2)];
                 if (!is_conditional_node(ho->upnodeID2)) {
                 depth2 = ho2->depth;
+                velocity2 = ho2->velocity;
                 }
               }
 
@@ -3754,10 +3801,13 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
               if (depth1 != -99 && !std::isnan(interpvalue) && interpvalue != interpdepth->na_val) {
                 // calculate interpolated curr_depth based on junction properties
                 double meandepth = depth1; // use depth from upstream node
+                double meanvelocity = velocity1;
                 if (depth2 != -99) {
                   meandepth = (depth1 + depth2) / 2; // use mean depth from both upstream nodes
+                  meanvelocity = (velocity1+velocity2) / 2;
                 }
                 curr_depth = curr_depth * interpvalue + meandepth * (1-interpvalue); // weighted average interpolation of depths
+                curr_velocity = curr_velocity * interpvalue + meanvelocity * (1-interpvalue); // weighted average interpolation of velocity
               }
           }
         }
@@ -3782,30 +3832,17 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
         curr_hand = 0.0;
     }
 
-    // calculate baseline result based on hand calc,instead of assigning directly to cell
+    // calculate baseline result based on hand calc, instead of assigning directly to cell
     double final_depth =
         (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER && curr_depth >= curr_hand)
             ? (curr_depth - curr_hand)
-            : result->na_val;
+            : 0.0;
 
     // Normalize invalid depths: replace PLACEHOLDER, NaN, negatives with zero
     if (std::isnan(final_depth) || final_depth == PLACEHOLDER || final_depth < 0) {
         final_depth = 0.0;
     }
 
-    // assigning resulting value based on curr_depth and curr_hand
-    /* if (curr_depth != PLACEHOLDER && curr_hand != PLACEHOLDER &&
-             curr_depth >= curr_hand) {
-      result->data[j] = curr_depth - curr_hand;
-    } else {
-      result->data[j] = result->na_val;
-    }
-
-    // convert all zero depths to NaN
-    if (std::abs(result->data[j]) < 1e-9) {
-        result->data[j] = std::numeric_limits<double>::quiet_NaN();
-    }
-    */
     if (conditional_model && bbopt->enable_spill_flows) {
 
         int sn_id = static_cast<int>(c_from_s->data[j]);
@@ -3821,6 +3858,7 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
                 double alt_hand = condhand->data[j];
                 double cond_depth = 0.0;
                 double curr_cdepth = 0.0;
+                double cvelocity = 0.0;
 
                 if (!std::isnan(alt_hand) &&
                     alt_hand != condhand->na_val &&
@@ -3844,8 +3882,10 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
                             hoc->depth < 0.0)
                         {
                             curr_cdepth = 0.0;
+                            cvelocity = 0.0;
                         } else {
                             curr_cdepth = hoc->depth;
+                            cvelocity = hoc->velocity;
                         }
                     }
 
@@ -3856,7 +3896,11 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
                       cond_depth = 0.0;
                     }
 
-                    // take max of normal vs conditional depth
+                    // take max of normal vs conditional depth, also updating velocity based on which is used
+                    if (final_depth < cond_depth) {
+                      curr_velocity = cvelocity; // update 1D averaged velocity if taking conditional channel values
+                      curr_depth = curr_cdepth;  // update 1D averaged depth if taking conditional channel values
+                    }
                     final_depth = std::max(final_depth, cond_depth);
                 }
             }
@@ -3868,16 +3912,57 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
     }
 
     // assign final result to cell value
-    result->data[j] = final_depth;
+    if (bbopt->write_depth_raster) {
+      depth_result->data[j] = final_depth;
+    }
+    
+    // calculate final wsl if enabled
+    if (bbopt->write_wsl_raster) {
+      double final_wsl = final_depth + dem->data[j];
+      if (std::abs(final_depth) < 1e-9 || std::isnan(final_depth) ) {
+        final_wsl = std::numeric_limits<double>::quiet_NaN();
+      }
+      wsl_result->data[j] = final_wsl;    
+    }
+
+    // calculate final velocity if enabled
+    if (bbopt->write_velocity_raster) {
+      double final_velocity = curr_velocity * std::pow(final_depth/curr_depth,2/3);
+      if (std::abs(final_velocity) < 1e-9 || std::abs(final_depth) < 1e-9 || std::isnan(final_depth) ) {
+        final_velocity = std::numeric_limits<double>::quiet_NaN();
+      }
+      vel_result->data[j] = final_velocity;    
+    }
   }
 
-  // Transpose data if writing to NetCDF
-  if (bbopt->out_format == enum_gridded_format::NETCDF) {
-    result->transpose_data();
+  // postproc on depth raster if written out, remove if not
+  if (bbopt->write_depth_raster) {
+    // Transpose data if writing to NetCDF
+    if (bbopt->out_format == enum_gridded_format::NETCDF) {
+      depth_result->transpose_data();
+    }
+
+    // recompute statistics
+    depth_result->compute_statistics();
+  } 
+
+  // postproc on raster for WSL
+  if (bbopt->write_wsl_raster) {
+    if (bbopt->out_format == enum_gridded_format::NETCDF) {
+      wsl_result->transpose_data();
+    }
+    wsl_result->compute_statistics();
   }
 
-  // recompute statistics
-  result->compute_statistics();
+  // postproc on raster for velocity
+  if (bbopt->write_velocity_raster) {
+    if (bbopt->out_format == enum_gridded_format::NETCDF) {
+      vel_result->transpose_data();
+    }
+    vel_result->compute_statistics();
+  }
+
+  std::cout << "ready to exit gridded2" << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////
