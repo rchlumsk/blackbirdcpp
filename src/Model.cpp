@@ -606,9 +606,11 @@ void CModel::calc_output_flows() {
         }
     }
     else {
-        // flows are explicitly defined
-        // error check the inputs to ensure that each node has a defined flow
-        // xxx to do
+        // flows are explicitly defined (bbopt->explicit_flows == true)
+        // could error check the inputs to ensure that each node has a defined flow
+        // here, assign the number of flow profiles based on the first streamnode just to populate num_fp for later flow_mult calcs
+        CStreamnode *&temp_sn = (*bbsn)[0];
+        num_fp = temp_sn->output_flows.size();
     }
 
     // Apply global flow multiplier if applicable
@@ -3692,7 +3694,16 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
     depth_result->name = "result_depths_" + fp_names[flow_ind];
     depth_result->fp_name = fp_names[flow_ind];
     depth_result->gridtype = enum_grid_type::DEPTH;
-    depth_result->filepath = FilenamePrepare("bb_results_depth_" + fp_names[flow_ind] + ".tif");
+    // depth_result->filepath = FilenamePrepare("bb_results_depth_" + fp_names[flow_ind] + ".tif");
+
+    // xxxx maybe update png name here?
+    if (bbopt->out_format == enum_gridded_format::PNG) {
+      depth_result->filepath = FilenamePrepare("bb_results_depth_" + fp_names[flow_ind] + ".png");
+    } else if (bbopt->out_format == enum_gridded_format::RASTER) {
+      depth_result->filepath = FilenamePrepare("bb_results_depth_" + fp_names[flow_ind] + ".tif");
+    } else if (bbopt->out_format == enum_gridded_format::NETCDF) {
+      depth_result->filepath = FilenamePrepare("bb_results_depth_" + fp_names[flow_ind] + ".nc");
+    }
     std::fill(depth_result->data, depth_result->data + (depth_result->xsize * depth_result->ysize), depth_result->na_val); 
     if (result == nullptr) {
       result = depth_result;
@@ -3962,7 +3973,7 @@ void CModel::generate_out_gridded2(int flow_ind, enum_ppi_method postprocmethod)
     vel_result->compute_statistics();
   }
 
-  std::cout << "ready to exit gridded2" << std::endl;
+  // std::cout << "ready to exit gridded2" << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////

@@ -97,16 +97,21 @@ void CModel::WriteGriddedOutput()
       std::cout << "Writing output to Raster files" << std::endl;
     }
     for (int i = 0; i < out_gridded.size(); i++) {
-      std::string filepath = FilenamePrepare("bb_results_depth_" + fp_names[i] + ".tif");
-      out_gridded[i]->WriteToFile(filepath);
+      out_gridded[i]->WriteToFile(out_gridded[i]->filepath);
       if (!bbopt->silent_run) {
-        std::cout << filepath << " successfully written" << std::endl;
+        std::cout << out_gridded[i]->filepath << " successfully written" << std::endl;
       }
     }
     break;
   }
   case (enum_gridded_format::NETCDF):
   {
+    // xxx need to update the netcdf writing to handle wsl and velocity exports!!!
+    // currently only setup to write only depth rasters, will fail if writing wsl or velocity
+    if (bbopt->write_velocity_raster || bbopt->write_wsl_raster) {
+      WriteWarning("Not currently setup to write netcdf formatted rasters for WSL or velocity!",true);
+    }
+
     if (!bbopt->silent_run) {
       std::cout << "Writing output to NetCDF file" << std::endl;
     }
@@ -275,11 +280,17 @@ void CModel::WriteGriddedOutput()
     if (!bbopt->silent_run) {
       std::cout << "Writing output to PNG files embedded with metadata" << std::endl;
     }
-    for (int i = 0; i < out_gridded.size(); i++) {
-      std::string filepath = FilenamePrepare("bb_results_depth_" + fp_names[i] + ".png");
-      out_gridded[i]->WriteToPng(filepath);
+    /* for (int i = 0; i < out_gridded.size(); i++) {
+      out_gridded[i]->filepath = out_gridded[i]->filepath.substr(0, out_gridded[i]->filepath.size() - 3) + "png";
+      out_gridded[i]->WriteToFile(out_gridded[i]->filepath);
       if (!bbopt->silent_run) {
-        std::cout << filepath << " successfully written" << std::endl;
+        std::cout << out_gridded[i]->filepath << " successfully written" << std::endl;
+      }
+    }*/
+    for (int i = 0; i < out_gridded.size(); i++) {
+      out_gridded[i]->WriteToPng(out_gridded[i]->filepath);
+      if (!bbopt->silent_run) {
+        std::cout << out_gridded[i]->filepath << " successfully written" << std::endl;
       }
     }
     break;
