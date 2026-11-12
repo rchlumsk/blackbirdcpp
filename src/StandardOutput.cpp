@@ -1,5 +1,6 @@
 #include "Model.h"
-
+#include "gdalwarper.h"
+#include <stdexcept>
 #if defined(_WIN32)
 #include <direct.h>
 #elif defined(__linux__)
@@ -288,7 +289,7 @@ void CModel::WriteGriddedOutput()
       }
     }*/
     for (int i = 0; i < out_gridded.size(); i++) {
-      out_gridded[i]->WriteToPng(out_gridded[i]->filepath);
+      out_gridded[i]->WriteToPng(out_gridded[i]->filepath, bbopt->epsgcode);
       if (!bbopt->silent_run) {
         std::cout << out_gridded[i]->filepath << " successfully written" << std::endl;
       }
@@ -306,8 +307,9 @@ void CModel::WriteGriddedOutput()
 //////////////////////////////////////////////////////////////////
 /// \brief Writes gridded data to normalized png file with metadata in a json file
 /// \param filepath [in] the full filepath to write gridded data to
+/// \param epsgcode [in] integer of the epsg code to project to
 //
-void CGriddedData::WriteToPng(std::string filepath)
+void CGriddedData::WriteToPng(std::string filepath, int epsgcode)
 {
   // Compute min/max values of data
   double min_val = PLACEHOLDER, max_val = PLACEHOLDER;
@@ -336,6 +338,65 @@ void CGriddedData::WriteToPng(std::string filepath)
       double norm = 255. * (data[i] - min_val) / range;
       data_norm[i] = static_cast<uint8_t>(std::clamp(norm, 0., 255.));
     }
+  }
+  // Reproject normalized pixels to Web Mercator
+  auto raster = dynamic_cast<CRaster *>(this);
+  if (!raster) {
+    throw std::runtime_error("PNG warp requires CRaster");
+  }
+
+  GDALAllRegister();
+  auto driver = GetGDALDriverManager()->GetDriverByName("MEM");
+  if (!driver) {
+    throw std::runtime_error("MEM driver unavailable");
+  }
+
+  auto source = driver->Create("", xsize, ysize, 1, GDT_Byte, nullptr);
+  if (!source) {
+    throw std::runtime_error("Cannot create source grid");
+  }
+
+  double gt[6];
+  std::copy(raster->geotrans, raster->geotrans + 6, gt);
+  if (source->SetGeoTransform(gt) != CE_None ||
+      source->SetProjection(raster->proj) != CE_None ||
+      source->GetRasterBand(1)->SetNoDataValue(0) != CE_None ||
+      source->GetRasterBand(1)->RasterIO(GF_Write, 0, 0, xsize, ysize,
+                                         data_norm.data(), xsize, ysize,
+                                         GDT_Byte, 0, 0) != CE_None) {
+    GDALClose(source);
+    throw std::runtime_error("Cannot prepare source grid");
+  }
+
+  OGRSpatialReference web;
+  web.importFromEPSG(epsgcode);
+  web.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+
+  char *wkt = nullptr;
+  web.exportToWkt(&wkt);
+  auto warped = static_cast<GDALDataset *>(GDALAutoCreateWarpedVRT(
+      source, nullptr, wkt, GRA_NearestNeighbour, 0.0, nullptr));
+  CPLFree(wkt);
+
+  if (!warped) {
+    GDALClose(source);
+    throw std::runtime_error("PNG reprojection failed");
+  }
+
+  const int png_width = warped->GetRasterXSize();
+  const int png_height = warped->GetRasterYSize();
+  const CPLErr gt_result = warped->GetGeoTransform(gt);
+
+  std::vector<uint8_t> pixels(static_cast<size_t>(png_width) * png_height);
+  const CPLErr read_result = warped->GetRasterBand(1)->RasterIO(
+      GF_Read, 0, 0, png_width, png_height, pixels.data(), png_width,
+      png_height, GDT_Byte, 0, 0);
+
+  GDALClose(warped);
+  GDALClose(source);
+
+  if (gt_result != CE_None || read_result != CE_None) {
+    throw std::runtime_error("Cannot read warped PNG");
   }
 
   // Define blue palette from #eff3ffff to #08519cff
@@ -370,7 +431,7 @@ void CGriddedData::WriteToPng(std::string filepath)
   }
 
   png_init_io(png, fp);
-  png_set_IHDR(png, info, xsize, ysize, 8, PNG_COLOR_TYPE_PALETTE,
+  png_set_IHDR(png, info, png_width, png_height, 8, PNG_COLOR_TYPE_PALETTE,
                PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT,
                PNG_FILTER_TYPE_DEFAULT);
   png_set_PLTE(png, info, palette, 256);
@@ -378,20 +439,32 @@ void CGriddedData::WriteToPng(std::string filepath)
   png_write_info(png, info);
 
   // Write normalized data to PNG
-  for (int y = 0; y < ysize; y++) {
-    png_bytep row = reinterpret_cast<png_bytep>(&data_norm[y * xsize]);
+  for (int y = 0; y < png_height; y++) {
+    png_bytep row = reinterpret_cast<png_bytep>(
+        &pixels[static_cast<size_t>(y) * png_width]);
     png_write_row(png, row);
   }
 
-  // Prepare JSON metadata
-  std::ostringstream json_stream;
-  json_stream << std::fixed << std::setprecision(6);
-  json_stream << "{\n";
-  
-  // Get extents of data
-  double xmin, xmax, ymin, ymax;
+  // Convert extents to EPSG 4326
+  OGRSpatialReference dst;
+  if (dst.importFromEPSG(4326) != OGRERR_NONE) {
+    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to "
+                   "import destination projection",
+                   exitcode::RUNTIME_ERR);
+  }
+
+  /// Get extents of data
+  double xmin = gt[0];
+  double xmax = gt[0] + png_width * gt[1];
+  double ymax = gt[3];
+  double ymin = gt[3] + png_height * gt[5];
   OGRSpatialReference src;
-  if (CRaster *self_raster = dynamic_cast<CRaster *>(this)) {
+  if (src.importFromEPSG(epsgcode) != OGRERR_NONE) {
+    ExitGracefully("WriteToPng: failed to import EPSG code provided:",
+	    exitcode::RUNTIME_ERR);
+   }
+	
+  /*if (CRaster *self_raster = dynamic_cast<CRaster *>(this)) {
     xmin = self_raster->geotrans[0];
     xmax = self_raster->geotrans[0] + xsize * self_raster->geotrans[1];
     ymin = self_raster->geotrans[3] + ysize * self_raster->geotrans[5];
@@ -416,14 +489,8 @@ void CGriddedData::WriteToPng(std::string filepath)
                    "is not a valid class",
                    exitcode::RUNTIME_ERR);
   }
+  */
 
-  // Convert extents to EPSG 4326
-  OGRSpatialReference dst;
-  if (dst.importFromEPSG(4326) != OGRERR_NONE) {
-    ExitGracefully("StandardOutput.cpp: CGriddedData::WriteToPng: failed to "
-                   "import destination projection",
-                   exitcode::RUNTIME_ERR);
-  }
   src.SetAxisMappingStrategy(
       OAMS_TRADITIONAL_GIS_ORDER); // ensure source uses traditional axis order
   dst.SetAxisMappingStrategy(
@@ -448,6 +515,11 @@ void CGriddedData::WriteToPng(std::string filepath)
   }
   OCTDestroyCoordinateTransformation(transform);
 
+  // Prepare JSON metadata
+  std::ostringstream json_stream;
+  json_stream << std::fixed << std::setprecision(6);
+  json_stream << "{\n";
+  
   // Write metadata to json file
   json_stream << "  \"extents\": [[" << ymax << ", " << xmin << "], [" << ymin
               << ", " << xmax << "]],\n";

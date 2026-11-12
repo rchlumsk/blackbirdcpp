@@ -1,6 +1,7 @@
 ﻿#include "Model.h"
 #include "XSection.h"
 #include <unordered_set>
+#include <ogr_spatialref.h>
 
 // Default constructor
 CModel::CModel()
@@ -1502,6 +1503,21 @@ void CModel::ReadGISFiles() {
       dem = std::make_unique<CRaster>();
       ReadRasterFile(bbopt->gis_path + "/bb_dem.tif",  dynamic_cast<CRaster *>(dem.get()));
       dem->name = "DEM";
+
+      // get epsgcode from DEM for later use if needed
+      CRaster* raster = dynamic_cast<CRaster*>(dem.get());
+      if (raster != nullptr && raster->proj != nullptr)
+      {
+        OGRSpatialReference srs;
+        srs.SetFromUserInput(raster->proj);
+        const char* epsg = srs.GetAuthorityCode(nullptr);
+        if (epsg != nullptr) {
+          bbopt->epsgcode = std::stoi(epsg);
+        } else {
+          bbopt->epsgcode = 26917; // default
+          WriteWarning("Read DEM File: EPSG code from the DEM not recognized", bbopt->noisy_run);
+        }
+      }
     }
   }
   if (!bbopt->silent_run) {

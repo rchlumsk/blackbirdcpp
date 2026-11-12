@@ -15,6 +15,7 @@ public:
   std::string main_output_dir;                      // path to output directory
   std::string working_dir;                          // path to working directory
   std::string gis_path;                             // path to gis files (rasters, netcdf, shapefiles, etc.)
+  int epsgcode;											// epsg code for coordinate system of input rasters
 
   enum_mt_method modeltype;                         // type of model. options: HAND_MANNING, STEADYFLOW
   enum_rt_method regimetype;                        // type of regime. options: SUBCRITICAL, SUPERCRITICAL, MIXED
