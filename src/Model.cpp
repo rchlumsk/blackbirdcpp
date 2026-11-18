@@ -2065,18 +2065,52 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
                      bbopt->noisy_run);
               }
 
-              // calculate wsl_estimated using Brent method
+              // check for low depth cutoff, as roots do wonky things at very low flows and depths
               double wsl_estimated = solve_wsl_standard_step_brent(
                     sn,          // upstream node
                     down_sn,     // downstream node
                     wsl_critical // critical depth used to bound the solution space for the Brent method
                 );
 
+              // set what is considered a low depth threshold
+              double lowdepth = 0.1;
+              double highdepth = sn->depthdf->back()->depth * 0.95;
+              // double lowdepth = sn->depthdf->back()->depth * 0.5;
+
+              // check if results jump to Hmax while previous result < low depth threshold, indicates stability
+              if (wsl_estimated-sn->min_elev > highdepth  &&  down_sn->mm->depth < lowdepth) {
+                WriteWarning(
+                    "Estimated depth at streamnode " +
+                        std::to_string(sn->nodeID) + " is " +
+                        std::to_string(wsl_estimated-sn->min_elev) +
+                        ", which is very close or at the maximum depth of "
+                        "the preprocessed table. This may indicate "
+                        "instability in results or errors in the inputs. "
+                        "Setting depth to critical depth.",
+                    bbopt->noisy_run);
+
+                wsl_estimated = wsl_critical;
+              }
+
               // set depth in sn based on wsl_estimated from the Brent method
               sn->mm->wsl = wsl_estimated;
               sn->mm->depth_critical = wsl_critical - sn->mm->min_elev;
               sn->mm->depth          = sn->mm->wsl - sn->mm->min_elev;
               sn->compute_profile_next(sn->mm->flow, sn->mm->wsl, down_sn->mm, bbopt);
+
+              // check if results are wonky, and set to Hc if needed
+              /* if (down_sn->mm->depth < 0.10) {
+                if (sn->mm->velocity > 5 &&
+                    (sn->mm->depth > 10 || sn->mm->depth < 0.05)) {
+                  WriteWarning("Estimated depth at streamnode " + std::to_string(sn->nodeID) + " is " + std::to_string(sn->mm->depth) + 
+                    ", which is very high or low for the given flow. This may indicate instability in results or errors in the inputs. Setting depth to critical depth of " + std::to_string(depth_critical),
+                     bbopt->noisy_run);
+                  sn->mm->depth = depth_critical;
+                  sn->mm->wsl = sn->mm->depth + sn->mm->min_elev;
+                  sn->compute_profile_next(sn->mm->flow, sn->mm->wsl, down_sn->mm, bbopt);
+                }         
+              } */
+
               double wsl_error = sn->get_wsl_error(sn->mm->wsl, down_sn->mm, bbopt);
               sn->mm->ws_err = wsl_error;
               sn->mm->k_err = sn->mm->flow - sn->mm->k_total * std::sqrt(sn->mm->sf);
@@ -2897,6 +2931,7 @@ double CStreamnode::get_alpha(double depth) const
 /// \param wsl_critical [in] critical water surface elevation at the sn_up node
 /// \output wsl_estimated [out] estimated water surface level at sn_up that satisfies energy balance with sn_down
 //
+// xxx suggestions to try and resolve this better at lower flows with more evlauations of monotonicity
 double CModel::solve_wsl_standard_step_brent(
     const CStreamnode* sn_up,          // upstream node (solution at this node)
     const CStreamnode* sn_down,        // downstream node (known or target)
@@ -2916,6 +2951,7 @@ double CModel::solve_wsl_standard_step_brent(
 
     // Start with a conservative search interval
     double L = bed_elev + 1e-3;  // set to bound from 0m+tol in case it is critical
+    // double L = bed_elev + std::max(0.01, Hc);  // set to bound from 0m+tol in case it is critical
     double U = Htab_max;
 
     // Sample residual at a few points to infer monotonicity
@@ -2966,7 +3002,8 @@ double CModel::solve_wsl_standard_step_brent(
                 L = std::max(bed_elev + 1e-6, L - span);
                 fL = residual(L);
             } else if (fL < 0.0 && fU < 0.0) {
-                U = U + span;
+                // U = U + span;
+                U = std::min(U + span, Htab_max);
                 fU = residual(U);
             } else {
                 // sign changed during expansion
@@ -2975,7 +3012,8 @@ double CModel::solve_wsl_standard_step_brent(
         } else if (mono_sign < 0) {
             // R decreasing: if both positive, move U up; if both negative, move L down
             if (fL > 0.0 && fU > 0.0) {
-                U = U + span;
+                // U = U + span;
+                U = std::min(U + span, Htab_max);
                 fU = residual(U);
             } else if (fL < 0.0 && fU < 0.0) {
                 L = std::max(bed_elev + 1e-6, L - span);
@@ -2987,7 +3025,9 @@ double CModel::solve_wsl_standard_step_brent(
         } else {
             // Unknown monotonicity: expand both sides
             L = std::max(bed_elev + 1e-6, L - 0.5 * span);
-            U = U + 0.5 * span;
+            // U = U + 0.5 * span;
+            // U = U + span;
+            U = std::min(U + span*0.5, Htab_max);
             fL = residual(L);
             fU = residual(U);
         }
