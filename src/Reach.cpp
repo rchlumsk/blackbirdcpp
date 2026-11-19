@@ -15,7 +15,7 @@ void CReach::compute_basic_flow_properties(double flow, COptions *&bbopt) {
   mm->flow = flow;
 
   // --- Zero‑flow exception block ---
-  if (mm->flow == 0.0) {
+  if (mm->flow == 0.0 || (bbopt->skip_headwater && mm->upnodeID1 == -1)) {
     mm->velocity = 0.0;
     mm->velocity_head = 0.0;
     mm->pressure_head = 0.0;

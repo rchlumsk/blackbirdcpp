@@ -50,7 +50,7 @@ inline void FinalizeGracefully(const char* statement, exitcode code)
     else { WARNINGS << "SIMULATION COMPLETE :)" << std::endl; }
     WARNINGS.close();
   }
-  if (code == BAD_DATA_WARN) { return; }//just write these errors to a file if not in strict mode
+  // if (code == BAD_DATA_WARN) { return; }//just write these errors to a file if not in strict mode
 
   std::cout << std::endl << std::endl;
   std::cout << "============== Exiting Gracefully ==========================" << std::endl;

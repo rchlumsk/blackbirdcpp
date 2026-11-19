@@ -240,9 +240,6 @@ void CModel::create_raven_profiles() {
     for (int i = 0; i < total_nodes; i++) {
     CStreamnode *&temp_sn = (*bbsn)[i];
 
-
-   
-
       if (bbopt->skip_headwater && temp_sn->upnodeID1 == -1) {
         continue;    
       } else {
@@ -1988,7 +1985,7 @@ void CModel::compute_streamnode(CStreamnode *&sn, CStreamnode *&down_sn, std::ve
       sn->mm->depth = down_sn->mm->depth;
       sn->mm->wsl = sn->mm->depth + sn->mm->min_elev;
 
-      if (sn->mm->flow <= FLOW_TOL) {
+      if (sn->mm->flow <= FLOW_TOL || (bbopt->skip_headwater && sn->upnodeID1==-1)) {
         sn->mm->flow = 0.0;
         sn->mm->depth = 0.0;
         sn->mm->wsl = sn->mm->min_elev;

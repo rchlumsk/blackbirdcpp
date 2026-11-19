@@ -216,6 +216,33 @@ struct hydraulic_output {
   // Copy Constructor
   hydraulic_output(const hydraulic_output &other) = default;
 
+  // Zero hydraulic solution values for skipped headwaters or low flow/depths below tolerance
+  void zero_hydraulic_output()
+  {
+    depth = 0.0;
+    k_total = 0.0;
+    alpha = 0.0;
+    area = 0.0;
+    hradius = 0.0;
+    wet_perimeter = 0.0;
+    manning_composite = 0.0;
+    length_effective = 0.0;
+    hyd_depth = 0.0;
+    top_width = 0.0;
+    k_total_areaconv = 0.0;
+    k_total_disconv = 0.0;
+    k_total_roughconv = 0.0;
+    alpha_areaconv = 0.0;
+    alpha_disconv = 0.0;
+    alpha_roughconv = 0.0;
+    nc_equalforce = 0.0;
+    nc_equalvelocity = 0.0;
+    nc_wavgwp = 0.0;
+    nc_wavgarea = 0.0;
+    nc_wavgconv = 0.0;
+    nc_invmanning = 0.0;
+    length_effectiveadjusted = 0.0;
+  }
   
 };
 
